@@ -14,6 +14,12 @@ import {
   getWinningLine,
   isBoardFull,
 } from './game/gameLogic'
+import {
+  drawMessages,
+  getRandomMessage,
+  loserMessages,
+  winnerMessages,
+} from './game/messages'
 
 const initialSquares = Array(9).fill(null)
 
@@ -49,6 +55,8 @@ export default function App() {
   const [shieldedSquares, setShieldedSquares] = useState([])
   const [boostedSquares, setBoostedSquares] = useState([])
   const [visibleBoostedSquares, setVisibleBoostedSquares] = useState([])
+  const [resultMessage, setResultMessage] = useState(null)
+const [loserMessage, setLoserMessage] = useState(null)
 
   const winner = calculateWinner(squares)
   const winningLine = getWinningLine(squares)
@@ -71,6 +79,7 @@ export default function App() {
     .map((square, index) => (square || boostedSquares.includes(index) ? null : index))
     .filter((index) => index !== null)
   const hasBoostTarget = boostTargets.length > 0
+  
 
   useEffect(() => {
     if (!winner) {
@@ -81,8 +90,17 @@ export default function App() {
       ...currentScores,
       [winner]: currentScores[winner] + roundScore,
     }))
+    setResultMessage(getRandomMessage(winnerMessages))
+setLoserMessage(getRandomMessage(loserMessages))
   }, [winner, roundScore])
+useEffect(() => {
+  if (!isDraw) {
+    return
+  }
 
+  setResultMessage(getRandomMessage(drawMessages))
+  setLoserMessage(null)
+}, [isDraw])
   useEffect(() => {
     setSquares(initialSquares)
     setXIsNext(true)
@@ -92,6 +110,7 @@ export default function App() {
     setBoostedSquares([])
     setVisibleBoostedSquares([])
     setPlayerPowers(createInitialPlayerPowers())
+    
   }, [gameMode, arenaSettings.multipliersEnabled, multipliersEnabled])
 
   function spendPlayerPower(player, powerId) {
@@ -329,12 +348,14 @@ export default function App() {
 
         <ScoreBoard scores={scores} onResetScores={handleResetScores} />
 
-        <GameStatus
-          winner={winner}
-          isDraw={isDraw}
-          xIsNext={xIsNext}
-          roundScore={roundScore}
-        />
+<GameStatus
+  winner={winner}
+  isDraw={isDraw}
+  xIsNext={xIsNext}
+  roundScore={roundScore}
+  resultMessage={resultMessage}
+  loserMessage={loserMessage}
+/>
 
         {powersEnabled && (
           <PowerPanel
