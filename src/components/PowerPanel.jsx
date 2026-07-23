@@ -1,6 +1,12 @@
 import { powerDefinitions } from '../game/powers'
 
-export default function PowerPanel({ currentPlayer, powerCounts, activePower, onSelectPower }) {
+export default function PowerPanel({
+  currentPlayer,
+  powerCounts,
+  activePower,
+  disabledPowers = {},
+  onSelectPower,
+}) {
   const selectedPower = powerDefinitions.find((power) => power.id === activePower)
 
   return (
@@ -22,14 +28,14 @@ export default function PowerPanel({ currentPlayer, powerCounts, activePower, on
         {powerDefinitions.map((power) => {
           const count = powerCounts[power.id]
           const isActive = activePower === power.id
-          const isDisabled = count === 0
+          const isDisabled = count === 0 || disabledPowers[power.id]
 
           return (
             <button
               key={power.id}
               className={`power-button ${isActive ? 'active' : ''}`}
               disabled={isDisabled}
-              title={power.description}
+              title={disabledPowers[power.id] ? 'Bu güç için geçerli hedef yok.' : power.description}
               onClick={() => onSelectPower(isActive ? null : power.id)}
             >
               <span className="power-icon">{power.icon}</span>
