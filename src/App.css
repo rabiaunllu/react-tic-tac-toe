@@ -404,3 +404,11 @@ p {
   font-size: 11px;
   font-weight: 900;
 }
+.active-power-hint {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffe6ef;
+  font-size: 13px;
+  font-weight: 700;
+}
