@@ -5,6 +5,8 @@ import GameStatus from './components/GameStatus'
 import GameModeToggle from './components/GameModeToggle'
 import ScoreBoard from './components/ScoreBoard'
 import ArenaSettings from './components/ArenaSettings'
+import PowerPanel from './components/PowerPanel'
+import { createInitialPowerCounts } from './game/powers'
 import {
   calculateRoundScore,
   calculateWinner,
@@ -24,6 +26,10 @@ const initialArenaSettings = {
   powersEnabled: true,
   multipliersEnabled: true,
 }
+const initialPlayerPowers = {
+  X: createInitialPowerCounts(),
+  O: createInitialPowerCounts(),
+}
 
 export default function App() {
   const [squares, setSquares] = useState(initialSquares)
@@ -33,12 +39,16 @@ export default function App() {
   const [arenaSettings, setArenaSettings] = useState(initialArenaSettings)
   const [isArenaSettingsOpen, setIsArenaSettingsOpen] = useState(false)
   const [multipliers, setMultipliers] = useState({})
+  const [playerPowers, setPlayerPowers] = useState(initialPlayerPowers)
+const [activePower, setActivePower] = useState(null)
 
   const winner = calculateWinner(squares)
   const winningLine = getWinningLine(squares)
   const multipliersEnabled = gameMode === 'arena' && arenaSettings.multipliersEnabled
   const roundScore = calculateRoundScore(winningLine, multipliers, multipliersEnabled)
   const isDraw = !winner && isBoardFull(squares)
+  const currentPlayer = xIsNext ? 'X' : 'O'
+const powersEnabled = gameMode === 'arena' && arenaSettings.powersEnabled
 
   useEffect(() => {
     if (!winner) {
@@ -55,6 +65,7 @@ export default function App() {
     setSquares(initialSquares)
     setXIsNext(true)
     setMultipliers(multipliersEnabled ? createBoardMultipliers() : {})
+    setActivePower(null)
   }, [gameMode, arenaSettings.multipliersEnabled, multipliersEnabled])
 
   function handleSquareClick(index) {
@@ -73,6 +84,7 @@ export default function App() {
     setSquares(initialSquares)
     setXIsNext(true)
     setMultipliers(multipliersEnabled ? createBoardMultipliers() : {})
+    setActivePower(null)
   }
 
   function handleResetScores() {
@@ -119,6 +131,14 @@ export default function App() {
   xIsNext={xIsNext}
   roundScore={roundScore}
 />
+{powersEnabled && (
+  <PowerPanel
+    currentPlayer={currentPlayer}
+    powerCounts={playerPowers[currentPlayer]}
+    activePower={activePower}
+    onSelectPower={setActivePower}
+  />
+)}
 
  <Board
   squares={squares}
