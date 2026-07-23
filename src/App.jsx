@@ -27,9 +27,11 @@ const initialArenaSettings = {
   multipliersEnabled: true,
 }
 
-const initialPlayerPowers = {
-  X: createInitialPowerCounts(),
-  O: createInitialPowerCounts(),
+function createInitialPlayerPowers() {
+  return {
+    X: createInitialPowerCounts(),
+    O: createInitialPowerCounts(),
+  }
 }
 
 export default function App() {
@@ -40,7 +42,7 @@ export default function App() {
   const [arenaSettings, setArenaSettings] = useState(initialArenaSettings)
   const [isArenaSettingsOpen, setIsArenaSettingsOpen] = useState(false)
   const [multipliers, setMultipliers] = useState({})
-  const [playerPowers, setPlayerPowers] = useState(initialPlayerPowers)
+  const [playerPowers, setPlayerPowers] = useState(createInitialPlayerPowers)
   const [activePower, setActivePower] = useState(null)
   const [shieldedSquares, setShieldedSquares] = useState([])
 
@@ -70,9 +72,10 @@ export default function App() {
     setMultipliers(multipliersEnabled ? createBoardMultipliers() : {})
     setActivePower(null)
     setShieldedSquares([])
+    setPlayerPowers(createInitialPlayerPowers())
   }, [gameMode, arenaSettings.multipliersEnabled, multipliersEnabled])
 
-  function usePlayerPower(player, powerId) {
+  function spendPlayerPower(player, powerId) {
     setPlayerPowers((currentPowers) => ({
       ...currentPowers,
       [player]: {
@@ -96,7 +99,7 @@ export default function App() {
     setShieldedSquares((currentShieldedSquares) =>
       currentShieldedSquares.filter((squareIndex) => squareIndex !== index)
     )
-    usePlayerPower(currentPlayer, 'bomb')
+    spendPlayerPower(currentPlayer, 'bomb')
     setActivePower(null)
     setXIsNext(!xIsNext)
   }
@@ -113,7 +116,23 @@ export default function App() {
       index,
     ])
 
-    usePlayerPower(currentPlayer, 'shield')
+    spendPlayerPower(currentPlayer, 'shield')
+    setActivePower(null)
+    setXIsNext(!xIsNext)
+  }
+
+  function handleJokerPower(index) {
+    const targetValue = squares[index]
+
+    if (targetValue === currentPlayer || shieldedSquares.includes(index)) {
+      return
+    }
+
+    const nextSquares = squares.slice()
+    nextSquares[index] = currentPlayer
+
+    setSquares(nextSquares)
+    spendPlayerPower(currentPlayer, 'joker')
     setActivePower(null)
     setXIsNext(!xIsNext)
   }
@@ -130,6 +149,15 @@ export default function App() {
 
     if (powersEnabled && activePower === 'shield') {
       handleShieldPower(index)
+      return
+    }
+
+    if (powersEnabled && activePower === 'joker') {
+      if (isDraw) {
+        return
+      }
+
+      handleJokerPower(index)
       return
     }
 
@@ -150,6 +178,7 @@ export default function App() {
     setMultipliers(multipliersEnabled ? createBoardMultipliers() : {})
     setActivePower(null)
     setShieldedSquares([])
+    setPlayerPowers(createInitialPlayerPowers())
   }
 
   function handleResetScores() {

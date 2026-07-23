@@ -36,3 +36,6 @@ Bu dosya, ileride eklenmesi planlanan fikirleri ve geliştirme notlarını tutar
 - Oda koduyla online oynama sistemi eklenecek.
 - İlk aşamada kullanıcı girişi olmadan oda oluşturma/katılma akışı hedeflenecek.
 - Daha sonra gerekiyorsa oyuncu adı veya basit profil desteği eklenebilir.
+
+##ingilizce dil desteği
+##respınsive yapı
