@@ -125,3 +125,32 @@ p {
 .restart-button:hover {
   background: #b9e8ff;
 }
+
+.mode-toggle {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  width: 100%;
+  padding: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.mode-button {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: transparent;
+  color: #b8c0d9;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.mode-button.active {
+  background: #f5f7fb;
+  color: #151823;
+}
+
+.mode-button:not(.active):hover {
+  color: #f5f7fb;
+}

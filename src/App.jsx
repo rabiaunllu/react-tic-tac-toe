@@ -3,12 +3,14 @@ import './App.css'
 import Board from './components/Board'
 import GameStatus from './components/GameStatus'
 import { calculateWinner, isBoardFull } from './game/gameLogic'
+import GameModeToggle from './components/GameModeToggle'
 
 const initialSquares = Array(9).fill(null)
 
 export default function App() {
   const [squares, setSquares] = useState(initialSquares)
   const [xIsNext, setXIsNext] = useState(true)
+  const [gameMode, setGameMode] = useState('classic')
 
   const winner = calculateWinner(squares)
   const isDraw = !winner && isBoardFull(squares)
@@ -36,9 +38,13 @@ export default function App() {
         <header className="game-header">
           <span className="eyebrow">XO ARENA</span>
           <h1>Gelişmiş Tic Tac Toe</h1>
-          <p>Klasik modla başlıyoruz. Arena güçleri birazdan sahaya inecek.</p>
+          <p>
+            {gameMode === 'classic'
+              ? 'Sade ve geleneksel oyun. Güç yok, bahane yok.'
+              : 'Arena modu aktif. Özel güçler yakında sahaya inecek.'}
+          </p>
         </header>
-
+        <GameModeToggle gameMode={gameMode} onGameModeChange={setGameMode} />
         <GameStatus winner={winner} isDraw={isDraw} xIsNext={xIsNext} />
 
         <Board squares={squares} onSquareClick={handleSquareClick} />
