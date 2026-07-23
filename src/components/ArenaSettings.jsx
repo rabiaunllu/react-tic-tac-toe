@@ -38,8 +38,22 @@ export default function ArenaSettings({ settings, onSettingsChange }) {
             checked={settings.multipliersEnabled}
             onChange={() => handleToggle('multipliersEnabled')}
           />
+          
         </label>
       </div>
+            {settings.multipliersEnabled && (
+        <div className="score-info-box">
+          <strong>Puanlama nasıl çalışır?</strong>
+          <p>
+            Arena modunda çarpanlı hücreler açıksa kazanan çizgideki hücrelerin
+            puanları toplanır. Normal hücre 1 puan, 2x hücre 2 puan, 3x hücre
+            3 puan değerindedir.
+          </p>
+          <p className="score-example">
+            Örnek: 3x + 2x + normal hücre = 6 puan.
+          </p>
+        </div>
+      )}
     </section>
   )
 }
