@@ -5,6 +5,7 @@ import GameStatus from './components/GameStatus'
 import { calculateWinner, isBoardFull } from './game/gameLogic'
 import GameModeToggle from './components/GameModeToggle'
 import ScoreBoard from './components/ScoreBoard'
+import ArenaSettings from './components/ArenaSettings'
 
 
 const initialSquares = Array(9).fill(null)
@@ -12,12 +13,19 @@ const initialScores = {
   X: 0,
   O: 0,
 }
+const initialArenaSettings = {
+  powersEnabled: true,
+  multipliersEnabled: true,
+}
+
 //useState kısımları 
 export default function App() {
   const [squares, setSquares] = useState(initialSquares)
   const [xIsNext, setXIsNext] = useState(true)
   const [gameMode, setGameMode] = useState('classic')
   const [scores, setScores] = useState(initialScores)
+  const [arenaSettings, setArenaSettings] = useState(initialArenaSettings)
+const [isArenaSettingsOpen, setIsArenaSettingsOpen] = useState(false)
 
   const winner = calculateWinner(squares)
   const isDraw = !winner && isBoardFull(squares)
@@ -65,6 +73,23 @@ export default function App() {
           </p>
         </header>
         <GameModeToggle gameMode={gameMode} onGameModeChange={setGameMode} />
+                 {gameMode === 'arena' && (
+  <div className="arena-settings-wrapper">
+    <button
+      className="settings-button"
+      onClick={() => setIsArenaSettingsOpen(!isArenaSettingsOpen)}
+    >
+      {isArenaSettingsOpen ? 'Ayarları gizle' : 'Arena ayarları'}
+    </button>
+
+    {isArenaSettingsOpen && (
+      <ArenaSettings
+        settings={arenaSettings}
+        onSettingsChange={setArenaSettings}
+      />
+    )}
+  </div>
+)}
         <ScoreBoard scores={scores} onResetScores={handleResetScores} />
         <GameStatus winner={winner} isDraw={isDraw} xIsNext={xIsNext} />
 

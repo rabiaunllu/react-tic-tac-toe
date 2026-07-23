@@ -205,3 +205,79 @@ p {
 .score-reset-button:hover {
   background: rgba(255, 255, 255, 0.16);
 }
+.arena-settings-wrapper {
+  width: 100%;
+  display: grid;
+  gap: 12px;
+}
+
+.settings-button {
+  width: 100%;
+  border: 0;
+  border-radius: 999px;
+  padding: 11px 14px;
+  background: rgba(142, 216, 255, 0.12);
+  color: #dff4ff;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.settings-button:hover {
+  background: rgba(142, 216, 255, 0.18);
+}
+
+.arena-settings {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(142, 216, 255, 0.18);
+  border-radius: 18px;
+  background: rgba(142, 216, 255, 0.06);
+}
+
+.arena-settings h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.arena-settings p {
+  margin-top: 6px;
+  font-size: 14px;
+}
+
+.arena-setting-list {
+  display: grid;
+  gap: 10px;
+}
+
+.arena-setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.arena-setting span {
+  display: grid;
+  gap: 3px;
+}
+
+.arena-setting strong {
+  font-size: 14px;
+}
+
+.arena-setting small {
+  color: #b8c0d9;
+  font-size: 12px;
+}
+
+.arena-setting input {
+  width: 20px;
+  height: 20px;
+  accent-color: #8ed8ff;
+  cursor: pointer;
+}
