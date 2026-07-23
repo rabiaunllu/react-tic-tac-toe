@@ -3,7 +3,7 @@ export const powerDefinitions = [
     id: 'bomb',
     name: 'Bomba',
     icon: '💣',
-    description: 'Rakibin korumasız taşını kaldırır.',
+    description: 'Korumasız herhangi bir taşı kaldırır.',
     initialCount: 1,
   },
   {

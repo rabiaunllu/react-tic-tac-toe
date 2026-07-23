@@ -26,6 +26,7 @@ const initialArenaSettings = {
   powersEnabled: true,
   multipliersEnabled: true,
 }
+
 const initialPlayerPowers = {
   X: createInitialPowerCounts(),
   O: createInitialPowerCounts(),
@@ -40,15 +41,16 @@ export default function App() {
   const [isArenaSettingsOpen, setIsArenaSettingsOpen] = useState(false)
   const [multipliers, setMultipliers] = useState({})
   const [playerPowers, setPlayerPowers] = useState(initialPlayerPowers)
-const [activePower, setActivePower] = useState(null)
+  const [activePower, setActivePower] = useState(null)
 
   const winner = calculateWinner(squares)
   const winningLine = getWinningLine(squares)
   const multipliersEnabled = gameMode === 'arena' && arenaSettings.multipliersEnabled
+  const powersEnabled = gameMode === 'arena' && arenaSettings.powersEnabled
   const roundScore = calculateRoundScore(winningLine, multipliers, multipliersEnabled)
   const isDraw = !winner && isBoardFull(squares)
   const currentPlayer = xIsNext ? 'X' : 'O'
-const powersEnabled = gameMode === 'arena' && arenaSettings.powersEnabled
+  const hasBombTarget = squares.some(Boolean)
 
   useEffect(() => {
     if (!winner) {
@@ -68,13 +70,48 @@ const powersEnabled = gameMode === 'arena' && arenaSettings.powersEnabled
     setActivePower(null)
   }, [gameMode, arenaSettings.multipliersEnabled, multipliersEnabled])
 
-  function handleSquareClick(index) {
-    if (squares[index] || winner) {
+  function usePlayerPower(player, powerId) {
+    setPlayerPowers((currentPowers) => ({
+      ...currentPowers,
+      [player]: {
+        ...currentPowers[player],
+        [powerId]: currentPowers[player][powerId] - 1,
+      },
+    }))
+  }
+
+  function handleBombPower(index) {
+    const targetValue = squares[index]
+
+    if (!targetValue) {
       return
     }
 
     const nextSquares = squares.slice()
-    nextSquares[index] = xIsNext ? 'X' : 'O'
+    nextSquares[index] = null
+
+    setSquares(nextSquares)
+    usePlayerPower(currentPlayer, 'bomb')
+    setActivePower(null)
+    setXIsNext(!xIsNext)
+  }
+
+  function handleSquareClick(index) {
+    if (winner) {
+      return
+    }
+
+    if (powersEnabled && activePower === 'bomb') {
+      handleBombPower(index)
+      return
+    }
+
+    if (squares[index]) {
+      return
+    }
+
+    const nextSquares = squares.slice()
+    nextSquares[index] = currentPlayer
 
     setSquares(nextSquares)
     setXIsNext(!xIsNext)
@@ -125,27 +162,32 @@ const powersEnabled = gameMode === 'arena' && arenaSettings.powersEnabled
         )}
 
         <ScoreBoard scores={scores} onResetScores={handleResetScores} />
-        <GameStatus
-  winner={winner}
-  isDraw={isDraw}
-  xIsNext={xIsNext}
-  roundScore={roundScore}
-/>
-{powersEnabled && (
-  <PowerPanel
-    currentPlayer={currentPlayer}
-    powerCounts={playerPowers[currentPlayer]}
-    activePower={activePower}
-    onSelectPower={setActivePower}
-  />
-)}
 
- <Board
-  squares={squares}
-  multipliers={multipliers}
-  winningLine={winningLine}
-  onSquareClick={handleSquareClick}
-/>
+        <GameStatus
+          winner={winner}
+          isDraw={isDraw}
+          xIsNext={xIsNext}
+          roundScore={roundScore}
+        />
+
+        {powersEnabled && (
+          <PowerPanel
+            currentPlayer={currentPlayer}
+            powerCounts={playerPowers[currentPlayer]}
+            activePower={activePower}
+            disabledPowers={{
+              bomb: !hasBombTarget,
+            }}
+            onSelectPower={setActivePower}
+          />
+        )}
+
+        <Board
+          squares={squares}
+          multipliers={multipliers}
+          winningLine={winningLine}
+          onSquareClick={handleSquareClick}
+        />
 
         <button className="restart-button" onClick={handleRestart}>
           Yeni oyun
