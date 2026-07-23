@@ -319,3 +319,8 @@ p {
 .score-example {
   font-weight: 800;
 }
+.winning-square {
+  border-color: rgba(125, 245, 175, 0.95);
+  background: rgba(80, 200, 120, 0.16);
+  box-shadow: 0 0 0 2px rgba(125, 245, 175, 0.18);
+}

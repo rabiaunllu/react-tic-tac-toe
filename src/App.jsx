@@ -113,13 +113,19 @@ export default function App() {
         )}
 
         <ScoreBoard scores={scores} onResetScores={handleResetScores} />
-        <GameStatus winner={winner} isDraw={isDraw} xIsNext={xIsNext} />
+        <GameStatus
+  winner={winner}
+  isDraw={isDraw}
+  xIsNext={xIsNext}
+  roundScore={roundScore}
+/>
 
-        <Board
-          squares={squares}
-          multipliers={multipliers}
-          onSquareClick={handleSquareClick}
-        />
+ <Board
+  squares={squares}
+  multipliers={multipliers}
+  winningLine={winningLine}
+  onSquareClick={handleSquareClick}
+/>
 
         <button className="restart-button" onClick={handleRestart}>
           Yeni oyun
