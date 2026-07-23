@@ -1,7 +1,15 @@
-import Square from './Square'
+
 //9 elemanlı squares dizisini geziyor ve her eleman için bir Square oluşturuyor.
 
-export default function Board({ squares, multipliers, winningLine, onSquareClick }) {
+import Square from './Square'
+
+export default function Board({
+  squares,
+  multipliers,
+  winningLine,
+  shieldedSquares,
+  onSquareClick,
+}) {
   return (
     <div className="board">
       {squares.map((square, index) => (
@@ -10,6 +18,7 @@ export default function Board({ squares, multipliers, winningLine, onSquareClick
           value={square}
           multiplier={multipliers[index]}
           isWinningSquare={winningLine?.includes(index)}
+          isShielded={shieldedSquares.includes(index)}
           onSquareClick={() => onSquareClick(index)}
         />
       ))}

@@ -42,6 +42,7 @@ export default function App() {
   const [multipliers, setMultipliers] = useState({})
   const [playerPowers, setPlayerPowers] = useState(initialPlayerPowers)
   const [activePower, setActivePower] = useState(null)
+  const [shieldedSquares, setShieldedSquares] = useState([])
 
   const winner = calculateWinner(squares)
   const winningLine = getWinningLine(squares)
@@ -68,6 +69,7 @@ export default function App() {
     setXIsNext(true)
     setMultipliers(multipliersEnabled ? createBoardMultipliers() : {})
     setActivePower(null)
+    setShieldedSquares([])
   }, [gameMode, arenaSettings.multipliersEnabled, multipliersEnabled])
 
   function usePlayerPower(player, powerId) {
@@ -83,7 +85,7 @@ export default function App() {
   function handleBombPower(index) {
     const targetValue = squares[index]
 
-    if (!targetValue) {
+    if (!targetValue || shieldedSquares.includes(index)) {
       return
     }
 
@@ -91,7 +93,27 @@ export default function App() {
     nextSquares[index] = null
 
     setSquares(nextSquares)
+    setShieldedSquares((currentShieldedSquares) =>
+      currentShieldedSquares.filter((squareIndex) => squareIndex !== index)
+    )
     usePlayerPower(currentPlayer, 'bomb')
+    setActivePower(null)
+    setXIsNext(!xIsNext)
+  }
+
+  function handleShieldPower(index) {
+    const targetValue = squares[index]
+
+    if (targetValue !== currentPlayer || shieldedSquares.includes(index)) {
+      return
+    }
+
+    setShieldedSquares((currentShieldedSquares) => [
+      ...currentShieldedSquares,
+      index,
+    ])
+
+    usePlayerPower(currentPlayer, 'shield')
     setActivePower(null)
     setXIsNext(!xIsNext)
   }
@@ -103,6 +125,11 @@ export default function App() {
 
     if (powersEnabled && activePower === 'bomb') {
       handleBombPower(index)
+      return
+    }
+
+    if (powersEnabled && activePower === 'shield') {
+      handleShieldPower(index)
       return
     }
 
@@ -122,6 +149,7 @@ export default function App() {
     setXIsNext(true)
     setMultipliers(multipliersEnabled ? createBoardMultipliers() : {})
     setActivePower(null)
+    setShieldedSquares([])
   }
 
   function handleResetScores() {
@@ -186,6 +214,7 @@ export default function App() {
           squares={squares}
           multipliers={multipliers}
           winningLine={winningLine}
+          shieldedSquares={shieldedSquares}
           onSquareClick={handleSquareClick}
         />
 
