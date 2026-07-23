@@ -1,19 +1,36 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import './App.css'
 import Board from './components/Board'
 import GameStatus from './components/GameStatus'
 import { calculateWinner, isBoardFull } from './game/gameLogic'
 import GameModeToggle from './components/GameModeToggle'
+import ScoreBoard from './components/ScoreBoard'
+
 
 const initialSquares = Array(9).fill(null)
-
+const initialScores = {
+  X: 0,
+  O: 0,
+}
+//useState kısımları 
 export default function App() {
   const [squares, setSquares] = useState(initialSquares)
   const [xIsNext, setXIsNext] = useState(true)
   const [gameMode, setGameMode] = useState('classic')
+  const [scores, setScores] = useState(initialScores)
 
   const winner = calculateWinner(squares)
   const isDraw = !winner && isBoardFull(squares)
+  useEffect(() => {
+  if (!winner) {
+    return
+  }
+
+  setScores((currentScores) => ({
+    ...currentScores,
+    [winner]: currentScores[winner] + 1,
+  }))
+}, [winner])
 
   function handleSquareClick(index) {
     if (squares[index] || winner) {
@@ -31,6 +48,9 @@ export default function App() {
     setSquares(initialSquares)
     setXIsNext(true)
   }
+  function handleResetScores() {
+  setScores(initialScores)
+}
 
   return (
     <main className="app-shell">
@@ -45,6 +65,7 @@ export default function App() {
           </p>
         </header>
         <GameModeToggle gameMode={gameMode} onGameModeChange={setGameMode} />
+        <ScoreBoard scores={scores} onResetScores={handleResetScores} />
         <GameStatus winner={winner} isDraw={isDraw} xIsNext={xIsNext} />
 
         <Board squares={squares} onSquareClick={handleSquareClick} />
