@@ -324,3 +324,91 @@ p {
   background: rgba(80, 200, 120, 0.16);
   box-shadow: 0 0 0 2px rgba(125, 245, 175, 0.18);
 }
+.power-panel {
+  width: 100%;
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(255, 179, 199, 0.18);
+  border-radius: 18px;
+  background: rgba(255, 179, 199, 0.06);
+}
+
+.power-panel-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.power-panel-header span {
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.power-panel-header small {
+  color: #b8c0d9;
+  font-size: 12px;
+}
+
+.power-list {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.power-button {
+  min-height: 76px;
+  display: grid;
+  place-items: center;
+  gap: 3px;
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.07);
+  color: #f5f7fb;
+  cursor: pointer;
+}
+
+.power-button:hover:not(:disabled),
+.power-button.active {
+  border-color: rgba(255, 179, 199, 0.9);
+  background: rgba(255, 179, 199, 0.14);
+}
+
+.power-button:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.power-icon {
+  font-size: 22px;
+}
+
+.power-name {
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.power-count {
+  position: absolute;
+  right: 7px;
+  top: 7px;
+  min-width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #f5f7fb;
+  color: #151823;
+  font-size: 11px;
+  font-weight: 900;
+}
+.active-power-hint {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffe6ef;
+  font-size: 13px;
+  font-weight: 700;
+}
