@@ -18,7 +18,7 @@ export const powerDefinitions = [
     name: 'Boost',
     icon: '⚡',
     description: 'Sonraki hamlenin hücre puanını artırır.',
-    initialCount: 2,
+    initialCount: 1,
   },
   {
     id: 'joker',

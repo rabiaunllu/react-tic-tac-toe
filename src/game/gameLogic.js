@@ -39,12 +39,20 @@ export function createBoardMultipliers() {
   }
 }
 
-export function calculateRoundScore(winningLine, multipliers, multipliersEnabled) {
+export function calculateRoundScore(
+  winningLine,
+  multipliers,
+  multipliersEnabled,
+  boostedSquares = []
+) {
   if (!winningLine || !multipliersEnabled) {
     return 1
   }
 
   return winningLine.reduce((total, cellIndex) => {
-    return total + (multipliers[cellIndex] || 1)
+    const cellScore = multipliers[cellIndex] || 1
+    const boostMultiplier = boostedSquares.includes(cellIndex) ? 2 : 1
+
+    return total + cellScore * boostMultiplier
   }, 0)
 }

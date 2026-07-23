@@ -281,6 +281,83 @@ p {
   accent-color: #8ed8ff;
   cursor: pointer;
 }
+
+.boost-mode-setting {
+  align-items: stretch;
+}
+
+.boost-mode-options {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  min-width: 154px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.boost-mode-options button {
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 10px;
+  background: transparent;
+  color: #b8c0d9;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.boost-mode-options button.active {
+  background: #ffd978;
+  color: #151823;
+}
+
+.settings-confirm-panel {
+  display: grid;
+  gap: 10px;
+  padding: 13px 14px;
+  border: 1px solid rgba(255, 215, 120, 0.22);
+  border-radius: 14px;
+  background: rgba(255, 215, 120, 0.1);
+}
+
+.settings-confirm-panel p {
+  margin: 0;
+  color: #ffe6a3;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.settings-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.settings-confirm-actions button {
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #f5f7fb;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.settings-confirm-actions button:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.settings-confirm-actions .confirm-reset-button {
+  background: #ffd978;
+  color: #151823;
+}
+
+.settings-confirm-actions .confirm-reset-button:hover {
+  background: #ffe6a3;
+}
+
 .square {
   position: relative;
 }
@@ -418,6 +495,17 @@ p {
   left: 10px;
   top: 8px;
   font-size: 16px;
+}
+
+.boost-badge {
+  position: absolute;
+  left: 10px;
+  bottom: 8px;
+  font-size: 16px;
+}
+
+.boosted-square {
+  box-shadow: inset 0 0 0 2px rgba(255, 217, 120, 0.18);
 }
 
 .shielded-square {

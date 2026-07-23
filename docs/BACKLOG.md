@@ -37,5 +37,7 @@ Bu dosya, ileride eklenmesi planlanan fikirleri ve geliştirme notlarını tutar
 - İlk aşamada kullanıcı girişi olmadan oda oluşturma/katılma akışı hedeflenecek.
 - Daha sonra gerekiyorsa oyuncu adı veya basit profil desteği eklenebilir.
 
-##ingilizce dil desteği
-##respınsive yapı
+## ingilizce dil desteği
+## respınsive yapı
+## turnava mantiği
+örbeğin 6 kişilk bir oda kuruldu takkımlar randomly veya secerek oluştuurldu 3 3 şeklinde paylaştırldı
