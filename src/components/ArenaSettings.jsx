@@ -53,30 +53,32 @@ export default function ArenaSettings({
           />
         </label>
 
-        <div className="arena-setting boost-mode-setting">
-          <span>
-            <strong>Boost modu</strong>
-            <small>Boost hedefi rastgele seçilsin veya oyuncu belirlesin.</small>
-          </span>
+         {settings.powersEnabled && (
+          <div className="arena-setting boost-mode-setting">
+            <span>
+              <strong>Boost modu</strong>
+              <small>Boost hedefi rastgele seçilsin veya oyuncu belirlesin.</small>
+            </span>
 
-          <div className="boost-mode-options" aria-label="Boost modu">
-            <button
-              className={settings.boostMode === 'random' ? 'active' : ''}
-              type="button"
-              onClick={() => handleBoostModeChange('random')}
-            >
-              Rastgele
-            </button>
-            <button
-              className={settings.boostMode === 'manual' ? 'active' : ''}
-              type="button"
-              onClick={() => handleBoostModeChange('manual')}
-            >
-              Seçimli
-            </button>
+            <div className="boost-mode-options" aria-label="Boost modu">
+              <button
+                className={settings.boostMode === 'random' ? 'active' : ''}
+                type="button"
+                onClick={() => handleBoostModeChange('random')}
+              >
+                Rastgele
+              </button>
+              <button
+                className={settings.boostMode === 'manual' ? 'active' : ''}
+                type="button"
+                onClick={() => handleBoostModeChange('manual')}
+              >
+                Seçimli
+              </button>
+            </div>
           </div>
-        </div>
-
+        )}
+        
         {pendingSettings && (
           <div className="settings-confirm-panel">
             <p>Bu değişiklik mevcut oyunu sıfırlayacak. Devam edilsin mi?</p>
