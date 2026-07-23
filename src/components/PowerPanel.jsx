@@ -4,10 +4,21 @@ export default function PowerPanel({
   currentPlayer,
   powerCounts,
   activePower,
+  boostMode,
   disabledPowers = {},
   onSelectPower,
+  onUseRandomBoost,
 }) {
   const selectedPower = powerDefinitions.find((power) => power.id === activePower)
+
+  function handlePowerClick(powerId, isActive) {
+    if (powerId === 'boost' && boostMode === 'random') {
+      onUseRandomBoost()
+      return
+    }
+
+    onSelectPower(isActive ? null : powerId)
+  }
 
   return (
     <section className="power-panel" aria-label={`${currentPlayer} oyuncusu güçleri`}>
@@ -36,7 +47,7 @@ export default function PowerPanel({
               className={`power-button ${isActive ? 'active' : ''}`}
               disabled={isDisabled}
               title={disabledPowers[power.id] ? 'Bu güç için geçerli hedef yok.' : power.description}
-              onClick={() => onSelectPower(isActive ? null : power.id)}
+              onClick={() => handlePowerClick(power.id, isActive)}
             >
               <span className="power-icon">{power.icon}</span>
               <span className="power-name">{power.name}</span>
