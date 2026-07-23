@@ -281,3 +281,46 @@ p {
   accent-color: #8ed8ff;
   cursor: pointer;
 }
+.square {
+  position: relative;
+}
+
+.multiplier-badge {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: rgba(255, 215, 120, 0.16);
+  color: #ffd978;
+  font-size: 12px;
+  font-weight: 900;
+}
+.score-info-box {
+  display: grid;
+  gap: 8px;
+  padding: 13px 14px;
+  border-radius: 14px;
+  background: rgba(255, 215, 120, 0.1);
+  color: #ffe6a3;
+}
+
+.score-info-box strong {
+  font-size: 14px;
+}
+
+.score-info-box p {
+  margin: 0;
+  color: #f3dfb0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.score-example {
+  font-weight: 800;
+}
+.winning-square {
+  border-color: rgba(125, 245, 175, 0.95);
+  background: rgba(80, 200, 120, 0.16);
+  box-shadow: 0 0 0 2px rgba(125, 245, 175, 0.18);
+}

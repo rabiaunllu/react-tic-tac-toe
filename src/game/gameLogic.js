@@ -1,7 +1,4 @@
-//squares bizim tahtamız. 9 elemanlı bir dizi:
-//lines kazandıran çizgiler.
-
-export function calculateWinner(squares) {
+export function getWinningLine(squares) {
   const lines = [
     [0, 1, 2],
     [3, 4, 5],
@@ -13,15 +10,41 @@ export function calculateWinner(squares) {
     [2, 4, 6],
   ]
 
-  for (const [a, b, c] of lines) {
-    if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
-      return squares[a]
-    }
+  return lines.find(([a, b, c]) => {
+    return squares[a] && squares[a] === squares[b] && squares[a] === squares[c]
+  }) || null
+}
+
+export function calculateWinner(squares) {
+  const winningLine = getWinningLine(squares)
+
+  if (!winningLine) {
+    return null
   }
 
-  return null
+  return squares[winningLine[0]]
 }
 
 export function isBoardFull(squares) {
   return squares.every(Boolean)
+}
+
+export function createBoardMultipliers() {
+  const cellIndexes = [...Array(9).keys()]
+  const shuffledIndexes = cellIndexes.sort(() => Math.random() - 0.5)
+
+  return {
+    [shuffledIndexes[0]]: 2,
+    [shuffledIndexes[1]]: 3,
+  }
+}
+
+export function calculateRoundScore(winningLine, multipliers, multipliersEnabled) {
+  if (!winningLine || !multipliersEnabled) {
+    return 1
+  }
+
+  return winningLine.reduce((total, cellIndex) => {
+    return total + (multipliers[cellIndex] || 1)
+  }, 0)
 }

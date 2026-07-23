@@ -1,9 +1,13 @@
 /*Bu component sadece yazıdan sorumlu. Oyun kuralını hesaplamıyor,
  sadece gelen bilgiye göre ekrana metin basıyor.*/
 
-export default function GameStatus({ winner, isDraw, xIsNext }) {
+export default function GameStatus({ winner, isDraw, xIsNext, roundScore }) {
   if (winner) {
-    return <div className="status winner">Kazanan: {winner}. Bu hamle biraz saygısızcaydı.</div>
+    return (
+      <div className="status winner">
+        Kazanan: {winner}. +{roundScore} puan aldı. Bu hamle biraz saygısızcaydı.
+      </div>
+    )
   }
 
   if (isDraw) {

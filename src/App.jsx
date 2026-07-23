@@ -2,43 +2,60 @@ import { useEffect, useState } from 'react'
 import './App.css'
 import Board from './components/Board'
 import GameStatus from './components/GameStatus'
-import { calculateWinner, isBoardFull } from './game/gameLogic'
 import GameModeToggle from './components/GameModeToggle'
 import ScoreBoard from './components/ScoreBoard'
 import ArenaSettings from './components/ArenaSettings'
-
+import {
+  calculateRoundScore,
+  calculateWinner,
+  createBoardMultipliers,
+  getWinningLine,
+  isBoardFull,
+} from './game/gameLogic'
 
 const initialSquares = Array(9).fill(null)
+
 const initialScores = {
   X: 0,
   O: 0,
 }
+
 const initialArenaSettings = {
   powersEnabled: true,
   multipliersEnabled: true,
 }
 
-//useState kısımları 
 export default function App() {
   const [squares, setSquares] = useState(initialSquares)
   const [xIsNext, setXIsNext] = useState(true)
   const [gameMode, setGameMode] = useState('classic')
   const [scores, setScores] = useState(initialScores)
   const [arenaSettings, setArenaSettings] = useState(initialArenaSettings)
-const [isArenaSettingsOpen, setIsArenaSettingsOpen] = useState(false)
+  const [isArenaSettingsOpen, setIsArenaSettingsOpen] = useState(false)
+  const [multipliers, setMultipliers] = useState({})
 
   const winner = calculateWinner(squares)
+  const winningLine = getWinningLine(squares)
+  const multipliersEnabled = gameMode === 'arena' && arenaSettings.multipliersEnabled
+  const roundScore = calculateRoundScore(winningLine, multipliers, multipliersEnabled)
   const isDraw = !winner && isBoardFull(squares)
-  useEffect(() => {
-  if (!winner) {
-    return
-  }
 
-  setScores((currentScores) => ({
-    ...currentScores,
-    [winner]: currentScores[winner] + 1,
-  }))
-}, [winner])
+  useEffect(() => {
+    if (!winner) {
+      return
+    }
+
+    setScores((currentScores) => ({
+      ...currentScores,
+      [winner]: currentScores[winner] + roundScore,
+    }))
+  }, [winner, roundScore])
+
+  useEffect(() => {
+    setSquares(initialSquares)
+    setXIsNext(true)
+    setMultipliers(multipliersEnabled ? createBoardMultipliers() : {})
+  }, [gameMode, arenaSettings.multipliersEnabled, multipliersEnabled])
 
   function handleSquareClick(index) {
     if (squares[index] || winner) {
@@ -55,10 +72,12 @@ const [isArenaSettingsOpen, setIsArenaSettingsOpen] = useState(false)
   function handleRestart() {
     setSquares(initialSquares)
     setXIsNext(true)
+    setMultipliers(multipliersEnabled ? createBoardMultipliers() : {})
   }
+
   function handleResetScores() {
-  setScores(initialScores)
-}
+    setScores(initialScores)
+  }
 
   return (
     <main className="app-shell">
@@ -72,28 +91,41 @@ const [isArenaSettingsOpen, setIsArenaSettingsOpen] = useState(false)
               : 'Arena modu aktif. Özel güçler yakında sahaya inecek.'}
           </p>
         </header>
+
         <GameModeToggle gameMode={gameMode} onGameModeChange={setGameMode} />
-                 {gameMode === 'arena' && (
-  <div className="arena-settings-wrapper">
-    <button
-      className="settings-button"
-      onClick={() => setIsArenaSettingsOpen(!isArenaSettingsOpen)}
-    >
-      {isArenaSettingsOpen ? 'Ayarları gizle' : 'Arena ayarları'}
-    </button>
 
-    {isArenaSettingsOpen && (
-      <ArenaSettings
-        settings={arenaSettings}
-        onSettingsChange={setArenaSettings}
-      />
-    )}
-  </div>
-)}
+        {gameMode === 'arena' && (
+          <div className="arena-settings-wrapper">
+            <button
+              className="settings-button"
+              onClick={() => setIsArenaSettingsOpen(!isArenaSettingsOpen)}
+            >
+              {isArenaSettingsOpen ? 'Ayarları gizle' : 'Arena ayarları'}
+            </button>
+
+            {isArenaSettingsOpen && (
+              <ArenaSettings
+                settings={arenaSettings}
+                onSettingsChange={setArenaSettings}
+              />
+            )}
+          </div>
+        )}
+
         <ScoreBoard scores={scores} onResetScores={handleResetScores} />
-        <GameStatus winner={winner} isDraw={isDraw} xIsNext={xIsNext} />
+        <GameStatus
+  winner={winner}
+  isDraw={isDraw}
+  xIsNext={xIsNext}
+  roundScore={roundScore}
+/>
 
-        <Board squares={squares} onSquareClick={handleSquareClick} />
+ <Board
+  squares={squares}
+  multipliers={multipliers}
+  winningLine={winningLine}
+  onSquareClick={handleSquareClick}
+/>
 
         <button className="restart-button" onClick={handleRestart}>
           Yeni oyun
