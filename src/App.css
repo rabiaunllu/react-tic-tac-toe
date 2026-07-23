@@ -512,3 +512,106 @@ p {
   border-color: rgba(142, 216, 255, 0.72);
   box-shadow: inset 0 0 0 2px rgba(142, 216, 255, 0.16);
 }
+@media (max-width: 560px) {
+  .app-shell {
+    align-items: flex-start;
+    padding: 16px 10px;
+  }
+
+  .game-card {
+    width: 100%;
+    padding: 22px 14px;
+    gap: 16px;
+    border-radius: 18px;
+  }
+
+  .game-header {
+    display: grid;
+    gap: 8px;
+  }
+
+  .eyebrow {
+    margin-bottom: 2px;
+    font-size: 11px;
+  }
+
+  h1 {
+    font-size: 34px;
+    line-height: 1.05;
+  }
+
+  p {
+    font-size: 14px;
+    line-height: 1.45;
+  }
+
+  .mode-toggle {
+    width: 100%;
+  }
+
+  .score-board {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .score-reset-button {
+    grid-column: 1 / -1;
+    order: 3;
+  }
+
+  .score-card {
+    min-height: 68px;
+  }
+
+  .board {
+    width: 100%;
+    max-width: 312px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
+  .square {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
+    border-radius: 14px;
+    font-size: 38px;
+  }
+
+  .power-panel {
+    padding: 12px;
+  }
+
+  .power-panel-header {
+    display: grid;
+    gap: 4px;
+  }
+
+  .power-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .power-button {
+    min-height: 70px;
+  }
+
+  .arena-settings {
+    padding: 12px;
+  }
+
+  .arena-setting {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .arena-setting input {
+    align-self: flex-end;
+  }
+
+  .boost-mode-options {
+    width: 100%;
+  }
+
+  .score-info-box {
+    text-align: left;
+  }
+}
