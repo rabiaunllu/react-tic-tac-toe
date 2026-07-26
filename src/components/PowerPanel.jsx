@@ -2,6 +2,10 @@ import { powerDefinitions } from '../game/powers'
 
 export default function PowerPanel({
   currentPlayer,
+  score = 0,
+  scoreLabel = 'Skor',
+  isActivePlayer = true,
+  isPowersEnabled = true,
   powerCounts,
   activePower,
   boostMode,
@@ -12,6 +16,10 @@ export default function PowerPanel({
   const selectedPower = powerDefinitions.find((power) => power.id === activePower)
 
   function handlePowerClick(powerId, isActive) {
+    if (!isActivePlayer || !isPowersEnabled) {
+      return
+    }
+
     if (powerId === 'boost' && boostMode === 'random') {
       onUseRandomBoost()
       return
@@ -21,41 +29,68 @@ export default function PowerPanel({
   }
 
   return (
-    <section className="power-panel" aria-label={`${currentPlayer} oyuncusu güçleri`}>
+    <section
+      className={`power-panel player-panel player-${currentPlayer.toLowerCase()} ${
+        isActivePlayer ? 'active-player' : 'inactive-player'
+      }`}
+      aria-label={`${currentPlayer} oyuncusu paneli`}
+    >
+      <div className="player-panel-topline">
+        <div className="player-identity">
+          <span className="player-symbol">{currentPlayer}</span>
+          <span className="player-name">Oyuncu {currentPlayer}</span>
+        </div>
+        <div className="player-score">
+          <small>{scoreLabel}</small>
+          <strong>{score}</strong>
+        </div>
+      </div>
+
       <div className="power-panel-header">
-        <span>{currentPlayer} güçleri</span>
+        <span>{isPowersEnabled ? 'Güç seti' : 'Klasik mod'}</span>
         <small>
-          {activePower ? 'Aktif güç seçildi. Hedef kareye tıkla.' : 'Güç seç, sonra hedef kareye tıkla.'}
+          {isPowersEnabled
+            ? isActivePlayer
+              ? activePower
+                ? 'Aktif güç seçildi. Hedef kareye tıkla.'
+                : 'Hamle sende. Güç seç veya taş koy.'
+              : 'Rakibin hamlesi bekleniyor.'
+            : isActivePlayer
+              ? 'Hamle sende. En iyi çizgiyi kur.'
+              : 'Sıranı bekle, tahtayı oku.'}
         </small>
       </div>
 
-      {selectedPower && (
+      {isPowersEnabled && isActivePlayer && selectedPower && (
         <div className="active-power-hint">
           {selectedPower.icon} {selectedPower.name} hazır: {selectedPower.description}
         </div>
       )}
 
-      <div className="power-list">
-        {powerDefinitions.map((power) => {
-          const count = powerCounts[power.id]
-          const isActive = activePower === power.id
-          const isDisabled = count === 0 || disabledPowers[power.id]
+      {isPowersEnabled && (
+        <div className="power-list">
+          {powerDefinitions.map((power) => {
+            const count = powerCounts[power.id]
+            const isActive = isActivePlayer && activePower === power.id
+            const isDisabled = !isActivePlayer || count === 0 || disabledPowers[power.id]
 
-          return (
-            <button
-              key={power.id}
-              className={`power-button ${isActive ? 'active' : ''}`}
-              disabled={isDisabled}
-              title={disabledPowers[power.id] ? 'Bu güç için geçerli hedef yok.' : power.description}
-              onClick={() => handlePowerClick(power.id, isActive)}
-            >
-              <span className="power-icon">{power.icon}</span>
-              <span className="power-name">{power.name}</span>
-              <span className="power-count">{count}</span>
-            </button>
-          )
-        })}
-      </div>
+            return (
+              <button
+                key={power.id}
+                className={`power-button ${isActive ? 'active' : ''}`}
+                disabled={isDisabled}
+                aria-label={`${power.name}: ${power.description}`}
+                data-hint={disabledPowers[power.id] ? 'Hedef yok' : power.description}
+                onClick={() => handlePowerClick(power.id, isActive)}
+              >
+                <span className="power-icon">{power.icon}</span>
+                <span className="power-name">{power.name}</span>
+                <span className="power-count">{count}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
     </section>
   )
 }

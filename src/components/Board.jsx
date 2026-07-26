@@ -9,6 +9,7 @@ export default function Board({
   multipliers,
   winningLine,
   shieldedSquares,
+  lockedSquares,
   visibleBoostedSquares,
   onSquareClick,
 }) {
@@ -21,6 +22,7 @@ export default function Board({
           multiplier={multipliers[index]}
           isWinningSquare={winningLine?.includes(index)}
           isShielded={shieldedSquares.includes(index)}
+          isLocked={lockedSquares.includes(index)}
           isBoosted={visibleBoostedSquares.includes(index)}
           onSquareClick={() => onSquareClick(index)}
         />

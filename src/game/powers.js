@@ -10,7 +10,7 @@ export const powerDefinitions = [
     id: 'shield',
     name: 'Kalkan',
     icon: '🛡️',
-    description: 'Kendi taşını bombaya karşı korur.',
+    description: 'Kendi taşını saldırılara karşı korur.',
     initialCount: 1,
   },
   {

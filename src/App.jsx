@@ -55,6 +55,7 @@ export default function App() {
   const [playerPowers, setPlayerPowers] = useState(createInitialPlayerPowers)
   const [activePower, setActivePower] = useState(null)
   const [shieldedSquares, setShieldedSquares] = useState([])
+  const [lockedSquares, setLockedSquares] = useState([])
   const [boostedSquares, setBoostedSquares] = useState([])
   const [visibleBoostedSquares, setVisibleBoostedSquares] = useState([])
   const [resultMessage, setResultMessage] = useState(null)
@@ -85,15 +86,32 @@ const matchWinner =
         ? 'O'
         : null
     : null
-  const hasBombTarget = squares.some(Boolean)
+  const hasBombTarget = squares.some(
+    (square, index) => square && !shieldedSquares.includes(index)
+  )
   const hasGameStarted =
     squares.some(Boolean) ||
     shieldedSquares.length > 0 ||
+    lockedSquares.length > 0 ||
     boostedSquares.length > 0
   const boostTargets = squares
-    .map((square, index) => (square || boostedSquares.includes(index) ? null : index))
+    .map((square, index) =>
+      square || boostedSquares.includes(index) || lockedSquares.includes(index)
+        ? null
+        : index
+    )
     .filter((index) => index !== null)
   const hasBoostTarget = boostTargets.length > 0
+  const scoreLabel = gameMode === 'classic' ? 'Round' : 'Puan'
+  const modeChip = gameMode === 'arena' ? 'ARENA' : 'KLASİK'
+  const targetChip = gameConfig
+    ? gameConfig.isInfinite
+      ? 'SONSUZ'
+      : gameConfig.gameMode === 'classic'
+        ? `${gameConfig.targetValue} ROUND`
+        : `${gameConfig.targetValue} PUAN`
+    : 'YENİ MAÇ'
+  const lineChip = `${winLength} TAŞ`
   
 
   useEffect(() => {
@@ -135,6 +153,7 @@ useEffect(() => {
     setMultipliers(shouldUseMultipliers ? createBoardMultipliers(boardSize) : {})
     setActivePower(null)
     setShieldedSquares([])
+    setLockedSquares([])
     setBoostedSquares([])
     setVisibleBoostedSquares([])
     setPlayerPowers(createInitialPlayerPowers())
@@ -209,6 +228,13 @@ setLoserMessage(null)
     setShieldedSquares((currentShieldedSquares) =>
       currentShieldedSquares.filter((squareIndex) => squareIndex !== index)
     )
+    setBoostedSquares((currentBoostedSquares) =>
+      currentBoostedSquares.filter((squareIndex) => squareIndex !== index)
+    )
+    setVisibleBoostedSquares((currentVisibleBoostedSquares) =>
+      currentVisibleBoostedSquares.filter((squareIndex) => squareIndex !== index)
+    )
+    setLockedSquares([index])
     spendPlayerPower(currentPlayer, 'bomb')
     setActivePower(null)
     setXIsNext(!xIsNext)
@@ -217,7 +243,11 @@ setLoserMessage(null)
   function handleShieldPower(index) {
     const targetValue = squares[index]
 
-    if (targetValue !== currentPlayer || shieldedSquares.includes(index)) {
+    if (
+      targetValue !== currentPlayer ||
+      shieldedSquares.includes(index) ||
+      lockedSquares.includes(index)
+    ) {
       return
     }
 
@@ -227,6 +257,7 @@ setLoserMessage(null)
     ])
 
     spendPlayerPower(currentPlayer, 'shield')
+    setLockedSquares([])
     setActivePower(null)
     setXIsNext(!xIsNext)
   }
@@ -235,7 +266,11 @@ setLoserMessage(null)
   const targetValue = squares[index]
   const opponentPlayer = currentPlayer === 'X' ? 'O' : 'X'
 
-  if (targetValue !== opponentPlayer || shieldedSquares.includes(index)) {
+  if (
+    targetValue !== opponentPlayer ||
+    shieldedSquares.includes(index) ||
+    lockedSquares.includes(index)
+  ) {
     return
   }
 
@@ -245,11 +280,12 @@ setLoserMessage(null)
   setSquares(nextSquares)
   revealBoostedSquare(index)
   spendPlayerPower(currentPlayer, 'joker')
+  setLockedSquares([])
   setActivePower(null)
   setXIsNext(!xIsNext)
 }
   function handleBoostPower(index, isVisible = true) {
-    if (squares[index] || boostedSquares.includes(index)) {
+    if (squares[index] || boostedSquares.includes(index) || lockedSquares.includes(index)) {
       return
     }
 
@@ -264,6 +300,7 @@ setLoserMessage(null)
       ])
     }
     spendPlayerPower(currentPlayer, 'boost')
+    setLockedSquares([])
     setActivePower(null)
   }
 
@@ -305,7 +342,7 @@ setLoserMessage(null)
       return
     }
 
-    if (squares[index]) {
+    if (squares[index] || lockedSquares.includes(index)) {
       return
     }
 
@@ -314,6 +351,7 @@ setLoserMessage(null)
 
     setSquares(nextSquares)
     revealBoostedSquare(index)
+    setLockedSquares([])
     setXIsNext(!xIsNext)
   }
 
@@ -328,6 +366,7 @@ setLoserMessage(null)
   setPlayerPowers(createInitialPlayerPowers())
   setActivePower(null)
   setShieldedSquares([])
+  setLockedSquares([])
   setBoostedSquares([])
   setVisibleBoostedSquares([])
   setResultMessage(null)
@@ -352,6 +391,7 @@ setLoserMessage(null)
   setPlayerPowers(createInitialPlayerPowers())
   setActivePower(null)
   setShieldedSquares([])
+  setLockedSquares([])
   setBoostedSquares([])
   setVisibleBoostedSquares([])
   setResultMessage(null)
@@ -364,14 +404,16 @@ if (!gameConfig) {
   return (
     <main className="app-shell">
       <section className="game-card">
-        <header className="game-header">
-          <span className="eyebrow">XO ARENA</span>
-          <h1>Gelişmiş Tic Tac Toe</h1>
-          <p>
-            {gameMode === 'classic'
-              ? 'Sade ve geleneksel oyun. Güç yok, bahane yok.'
-              : 'Arena modu aktif. Özel güçler yakında sahaya inecek.'}
-          </p>
+        <header className="game-header brand-header">
+          <span className="eyebrow">REKABET MODU</span>
+          <h1>XO ARENA</h1>
+          <p>Taşını koy. Gücünü kullan. Rövanşı al.</p>
+          <div className="match-chip-row" aria-label="Maç bilgileri">
+            <span className={`match-chip ${gameMode}`}>{modeChip}</span>
+            <span className="match-chip">{targetChip}</span>
+            <span className="match-chip">{boardSize}x{boardSize}</span>
+            <span className="match-chip">{lineChip}</span>
+          </div>
         </header>
 <div className="game-actions">
   <button
@@ -420,15 +462,6 @@ if (!gameConfig) {
     </div>
   </div>
 )}
-<div className="match-target-info">
-  {gameConfig.isInfinite
-    ? 'Sonsuz mod aktif'
-    : gameConfig.gameMode === 'classic'
-      ? `${gameConfig.targetValue} round kazanan maçı alır`
-      : `${gameConfig.targetValue} puana ulaşan maçı alır`}
-</div>
-        
-
         {gameMode === 'arena' && (
           <div className="arena-settings-wrapper">
             <button
@@ -450,7 +483,11 @@ if (!gameConfig) {
           </div>
         )}
 
-        <ScoreBoard scores={scores} onResetScores={handleResetScores} />
+        <ScoreBoard
+          scores={scores}
+          scoreLabel={scoreLabel}
+          onResetScores={handleResetScores}
+        />
 
 <GameStatus
   winner={winner}
@@ -462,10 +499,14 @@ if (!gameConfig) {
   matchWinner={matchWinner}
 />
 
-        {powersEnabled && !matchWinner && (
+        <div className="arena-board-stack">
           <PowerPanel
-            currentPlayer={currentPlayer}
-            powerCounts={playerPowers[currentPlayer]}
+            currentPlayer="X"
+            score={scores.X}
+            scoreLabel={scoreLabel}
+            isActivePlayer={currentPlayer === 'X' && !winner && !matchWinner && !isDraw}
+            isPowersEnabled={powersEnabled && !matchWinner}
+            powerCounts={playerPowers.X}
             activePower={activePower}
             boostMode={arenaSettings.boostMode}
             disabledPowers={{
@@ -475,25 +516,72 @@ if (!gameConfig) {
             onSelectPower={setActivePower}
             onUseRandomBoost={handleRandomBoostPower}
           />
+
+          <Board
+            boardSize={boardSize}
+            squares={squares}
+            multipliers={multipliers}
+            winningLine={winningLine}
+            shieldedSquares={shieldedSquares}
+            lockedSquares={lockedSquares}
+            visibleBoostedSquares={visibleBoostedSquares}
+            onSquareClick={handleSquareClick}
+          />
+
+          <PowerPanel
+            currentPlayer="O"
+            score={scores.O}
+            scoreLabel={scoreLabel}
+            isActivePlayer={currentPlayer === 'O' && !winner && !matchWinner && !isDraw}
+            isPowersEnabled={powersEnabled && !matchWinner}
+            powerCounts={playerPowers.O}
+            activePower={activePower}
+            boostMode={arenaSettings.boostMode}
+            disabledPowers={{
+              bomb: !hasBombTarget,
+              boost: !hasBoostTarget || Boolean(winner),
+            }}
+            onSelectPower={setActivePower}
+            onUseRandomBoost={handleRandomBoostPower}
+          />
+        </div>
+
+        {!matchWinner && (
+          <button className="restart-button" onClick={handleRestart}>
+            Yeni round
+          </button>
         )}
-
-        <Board
-          boardSize={boardSize}
-          squares={squares}
-          multipliers={multipliers}
-          winningLine={winningLine}
-          shieldedSquares={shieldedSquares}
-          visibleBoostedSquares={visibleBoostedSquares}
-          onSquareClick={handleSquareClick}
-        />
-
-        <button
-  className="restart-button"
-  onClick={matchWinner ? handleNewMatch : handleRestart}
->
-  {matchWinner ? 'Yeni maç' : 'Yeni round'}
-</button>
       </section>
+
+      {matchWinner && (
+        <div className="match-winner-modal" role="presentation">
+          <div
+            className="match-winner-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="match-winner-title"
+          >
+            <span className="match-winner-trophy" aria-hidden="true">🏆</span>
+            <div className="match-winner-copy">
+              <strong id="match-winner-title">{matchWinner} maçı aldı</strong>
+              <span>{scores.X} - {scores.O}</span>
+              <small>Rövanş hazır.</small>
+            </div>
+            <div className="match-winner-actions">
+              <button type="button" onClick={handleNewMatch}>
+                Yeni maç
+              </button>
+              <button
+                type="button"
+                className="secondary-action"
+                onClick={() => setGameConfig(null)}
+              >
+                Ayarlara dön
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

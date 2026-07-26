@@ -1,17 +1,17 @@
-export default function ScoreBoard({ scores, onResetScores }) {
+export default function ScoreBoard({ scores, scoreLabel = 'Skor', onResetScores }) {
   return (
-    <section className="score-board" aria-label="Skor tablosu">
+    <section className="score-board" aria-label={`${scoreLabel} tablosu`}>
       <div className="score-card x-score">
-        <span className="score-label">X</span>
+        <span className="score-label">X {scoreLabel}</span>
         <strong>{scores.X}</strong>
       </div>
 
       <button className="score-reset-button" onClick={onResetScores}>
-        Skoru sıfırla
+        {scoreLabel} sıfırla
       </button>
 
       <div className="score-card o-score">
-        <span className="score-label">O</span>
+        <span className="score-label">O {scoreLabel}</span>
         <strong>{scores.O}</strong>
       </div>
     </section>
