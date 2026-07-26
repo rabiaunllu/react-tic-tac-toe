@@ -7,6 +7,7 @@ import ScoreBoard from './components/ScoreBoard'
 import ArenaSettings from './components/ArenaSettings'
 import PowerPanel from './components/PowerPanel'
 import { createInitialPowerCounts } from './game/powers'
+import GameSetup from './components/GameSetup'
 import {
   calculateRoundScore,
   calculateWinner,
@@ -57,6 +58,8 @@ export default function App() {
   const [visibleBoostedSquares, setVisibleBoostedSquares] = useState([])
   const [resultMessage, setResultMessage] = useState(null)
 const [loserMessage, setLoserMessage] = useState(null)
+const [gameConfig, setGameConfig] = useState(null)
+const [showSetupReturnConfirm, setShowSetupReturnConfirm] = useState(false)
 
   const winner = calculateWinner(squares)
   const winningLine = getWinningLine(squares)
@@ -310,6 +313,14 @@ useEffect(() => {
     setScores(initialScores)
   }
 
+  function handleStartGame(config) {
+  setGameConfig(config)
+  setGameMode(config.gameMode)
+  setShowSetupReturnConfirm(false)
+}
+if (!gameConfig) {
+  return <GameSetup onStartGame={handleStartGame} />
+}
   return (
     <main className="app-shell">
       <section className="game-card">
@@ -322,7 +333,37 @@ useEffect(() => {
               : 'Arena modu aktif. Özel güçler yakında sahaya inecek.'}
           </p>
         </header>
+<button
+  className="setup-back-button"
+  onClick={() => setShowSetupReturnConfirm(true)}
+>
+  Ayarlara dön
+</button>
+{showSetupReturnConfirm && (
+  <div className="setup-return-confirm">
+    <strong>Ayarlara dönülsün mü?</strong>
+    <p>Mevcut maç sıfırlanacak, skor ve tahta temizlenecek.</p>
 
+    <div className="setup-return-actions">
+      <button
+        type="button"
+        onClick={() => setShowSetupReturnConfirm(false)}
+      >
+        Vazgeç
+      </button>
+      <button
+        type="button"
+        className="danger-action"
+        onClick={() => {
+          setShowSetupReturnConfirm(false)
+          setGameConfig(null)
+        }}
+      >
+        Ayarlara dön
+      </button>
+    </div>
+  </div>
+)}
         <GameModeToggle gameMode={gameMode} onGameModeChange={setGameMode} />
 
         {gameMode === 'arena' && (
