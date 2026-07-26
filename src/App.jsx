@@ -73,6 +73,14 @@ const [showSetupReturnConfirm, setShowSetupReturnConfirm] = useState(false)
   )
   const isDraw = !winner && isBoardFull(squares)
   const currentPlayer = xIsNext ? 'X' : 'O'
+const matchWinner =
+  gameConfig && !gameConfig.isInfinite
+    ? scores.X >= gameConfig.targetValue
+      ? 'X'
+      : scores.O >= gameConfig.targetValue
+        ? 'O'
+        : null
+    : null
   const hasBombTarget = squares.some(Boolean)
   const hasGameStarted =
     squares.some(Boolean) ||
@@ -137,6 +145,8 @@ useEffect(() => {
     setBoostedSquares([])
     setVisibleBoostedSquares([])
     setPlayerPowers(createInitialPlayerPowers())
+    setResultMessage(null)
+setLoserMessage(null)
   }
 
   function revealBoostedSquare(index) {
@@ -265,9 +275,9 @@ useEffect(() => {
   }
 
   function handleSquareClick(index) {
-    if (winner) {
-      return
-    }
+    if (winner || matchWinner) {
+  return
+}
 
     if (powersEnabled && activePower === 'bomb') {
       handleBombPower(index)
@@ -308,6 +318,19 @@ useEffect(() => {
   function handleRestart() {
     resetGame()
   }
+  function handleNewMatch() {
+  setSquares(initialSquares)
+  setXIsNext(true)
+  setScores(initialScores)
+  setMultipliers(multipliersEnabled ? createBoardMultipliers() : {})
+  setPlayerPowers(createInitialPlayerPowers())
+  setActivePower(null)
+  setShieldedSquares([])
+  setBoostedSquares([])
+  setVisibleBoostedSquares([])
+  setResultMessage(null)
+  setLoserMessage(null)
+}
 
   function handleResetScores() {
     setScores(initialScores)
@@ -364,6 +387,13 @@ if (!gameConfig) {
     </div>
   </div>
 )}
+<div className="match-target-info">
+  {gameConfig.isInfinite
+    ? 'Sonsuz mod aktif'
+    : gameConfig.gameMode === 'classic'
+      ? `${gameConfig.targetValue} round kazanan maçı alır`
+      : `${gameConfig.targetValue} puana ulaşan maçı alır`}
+</div>
         <GameModeToggle gameMode={gameMode} onGameModeChange={setGameMode} />
 
         {gameMode === 'arena' && (
@@ -396,9 +426,10 @@ if (!gameConfig) {
   roundScore={roundScore}
   resultMessage={resultMessage}
   loserMessage={loserMessage}
+  matchWinner={matchWinner}
 />
 
-        {powersEnabled && (
+        {powersEnabled && !matchWinner && (
           <PowerPanel
             currentPlayer={currentPlayer}
             powerCounts={playerPowers[currentPlayer]}
@@ -422,9 +453,12 @@ if (!gameConfig) {
           onSquareClick={handleSquareClick}
         />
 
-        <button className="restart-button" onClick={handleRestart}>
-          Yeni oyun
-        </button>
+        <button
+  className="restart-button"
+  onClick={matchWinner ? handleNewMatch : handleRestart}
+>
+  {matchWinner ? 'Yeni maç' : 'Yeni round'}
+</button>
       </section>
     </main>
   )

@@ -5,7 +5,18 @@ export default function GameStatus({
   roundScore,
   resultMessage,
   loserMessage,
+  matchWinner,
 }) {
+  if (matchWinner) {
+    return (
+      <div className="status winner result-status">
+        <span className="result-icon">🏆</span>
+        <strong>Maç kazananı: {matchWinner}</strong>
+        <small>Tahta kapandı. Rövanş için yeni maç başlat.</small>
+      </div>
+    )
+  }
+
   if (winner && resultMessage) {
     const [icon, title, subtitle] = resultMessage
     const loser = winner === 'X' ? 'O' : 'X'
