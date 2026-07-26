@@ -39,10 +39,10 @@ export default function GameSetup({ onStartGame }) {
   return (
     <main className="app-shell">
       <section className="game-card setup-card">
-        <header className="game-header">
-          <span className="eyebrow">XO ARENA</span>
-          <h1>Oyun Kurulumu</h1>
-          <p>Tahtayı, modu ve kazanma hedefini seç. Sonra sahaya çık.</p>
+        <header className="game-header brand-header setup-brand-header">
+          <span className="eyebrow">YENİ MAÇ</span>
+          <h1>XO ARENA</h1>
+          <p>Tahtanı seç. Modu kur. Rövanşa hazır ol.</p>
         </header>
 
         <div className="setup-group">

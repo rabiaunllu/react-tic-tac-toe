@@ -8,28 +8,20 @@ export default function GameStatus({
   matchWinner,
 }) {
   if (matchWinner) {
-    return (
-      <div className="status winner result-status">
-        <span className="result-icon">🏆</span>
-        <strong>Maç kazananı: {matchWinner}</strong>
-        <small>Tahta kapandı. Rövanş için yeni maç başlat.</small>
-      </div>
-    )
+    return null
   }
 
   if (winner && resultMessage) {
     const [icon, title, subtitle] = resultMessage
-    const loser = winner === 'X' ? 'O' : 'X'
 
     return (
-      <div className="status winner result-status">
+      <div className="status winner result-status round-result">
         <span className="result-icon">{icon}</span>
-        <span>
-          Kazanan: {winner}. +{roundScore} puan aldı.
-        </span>
-        <strong>{title}</strong>
-        <small>{subtitle}</small>
-        {loserMessage && <small>{loser} için not: {loserMessage}</small>}
+        <div className="result-copy">
+          <strong>{winner} roundu aldı</strong>
+          <span>+{roundScore} puan</span>
+          <small>{loserMessage || subtitle || title}</small>
+        </div>
       </div>
     )
   }
@@ -38,10 +30,12 @@ export default function GameStatus({
     const [icon, title, subtitle] = resultMessage
 
     return (
-      <div className="status draw result-status">
+      <div className="status draw result-status round-result">
         <span className="result-icon">{icon}</span>
-        <strong>{title}</strong>
-        <small>{subtitle}</small>
+        <div className="result-copy">
+          <strong>{title}</strong>
+          <small>{subtitle}</small>
+        </div>
       </div>
     )
   }
@@ -50,5 +44,10 @@ export default function GameStatus({
     return <div className="status draw">Berabere.</div>
   }
 
-  return <div className="status">Sıradaki oyuncu: {xIsNext ? 'X' : 'O'}</div>
+  return (
+    <div className={`status live-status ${xIsNext ? 'x-turn' : 'o-turn'}`}>
+      <span className="live-status-kicker">Arena sırası</span>
+      <strong>{xIsNext ? 'X hücumda' : 'O hücumda'}</strong>
+    </div>
+  )
 }
