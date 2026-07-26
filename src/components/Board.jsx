@@ -4,6 +4,7 @@
 import Square from './Square'
 
 export default function Board({
+  boardSize,
   squares,
   multipliers,
   winningLine,
@@ -12,7 +13,7 @@ export default function Board({
   onSquareClick,
 }) {
   return (
-    <div className="board">
+    <div className="board" style={{ '--board-size': boardSize }}>
       {squares.map((square, index) => (
         <Square
           key={index}

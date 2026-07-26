@@ -84,13 +84,14 @@ p {
 
 .board {
   display: grid;
-  grid-template-columns: repeat(3, 104px);
+  grid-template-columns: repeat(var(--board-size), minmax(0, 1fr));
+  width: min(100%, 360px);
   gap: 10px;
 }
 
 .square {
-  width: 104px;
-  height: 104px;
+  width: 100%;
+  aspect-ratio: 1;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 18px;
   background: #202432;
@@ -565,14 +566,10 @@ p {
   .board {
     width: 100%;
     max-width: 312px;
-    grid-template-columns: repeat(3, 1fr);
     gap: 8px;
   }
 
   .square {
-    width: 100%;
-    height: auto;
-    aspect-ratio: 1;
     border-radius: 14px;
     font-size: 38px;
   }

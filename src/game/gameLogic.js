@@ -1,22 +1,55 @@
-export function getWinningLine(squares) {
-  const lines = [
-    [0, 1, 2],
-    [3, 4, 5],
-    [6, 7, 8],
-    [0, 3, 6],
-    [1, 4, 7],
-    [2, 5, 8],
-    [0, 4, 8],
-    [2, 4, 6],
-  ]
-
-  return lines.find(([a, b, c]) => {
-    return squares[a] && squares[a] === squares[b] && squares[a] === squares[c]
-  }) || null
+export function createEmptyBoard(boardSize) {
+  return Array(boardSize * boardSize).fill(null)
 }
 
-export function calculateWinner(squares) {
-  const winningLine = getWinningLine(squares)
+export function getWinningLine(squares, boardSize = 3, winLength = 3) {
+  const directions = [
+    [0, 1],
+    [1, 0],
+    [1, 1],
+    [1, -1],
+  ]
+
+  for (let row = 0; row < boardSize; row += 1) {
+    for (let column = 0; column < boardSize; column += 1) {
+      const startIndex = row * boardSize + column
+      const player = squares[startIndex]
+
+      if (!player) {
+        continue
+      }
+
+      for (const [rowStep, columnStep] of directions) {
+        const endRow = row + rowStep * (winLength - 1)
+        const endColumn = column + columnStep * (winLength - 1)
+
+        if (
+          endRow < 0 ||
+          endRow >= boardSize ||
+          endColumn < 0 ||
+          endColumn >= boardSize
+        ) {
+          continue
+        }
+
+        const line = Array.from({ length: winLength }, (_, offset) => {
+          const lineRow = row + rowStep * offset
+          const lineColumn = column + columnStep * offset
+          return lineRow * boardSize + lineColumn
+        })
+
+        if (line.every((index) => squares[index] === player)) {
+          return line
+        }
+      }
+    }
+  }
+
+  return null
+}
+
+export function calculateWinner(squares, boardSize = 3, winLength = 3) {
+  const winningLine = getWinningLine(squares, boardSize, winLength)
 
   if (!winningLine) {
     return null
@@ -29,8 +62,8 @@ export function isBoardFull(squares) {
   return squares.every(Boolean)
 }
 
-export function createBoardMultipliers() {
-  const cellIndexes = [...Array(9).keys()]
+export function createBoardMultipliers(boardSize = 3) {
+  const cellIndexes = [...Array(boardSize * boardSize).keys()]
   const shuffledIndexes = cellIndexes.sort(() => Math.random() - 0.5)
 
   return {
