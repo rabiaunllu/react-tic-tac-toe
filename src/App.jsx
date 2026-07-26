@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import './App.css'
 import Board from './components/Board'
 import GameStatus from './components/GameStatus'
-import GameModeToggle from './components/GameModeToggle'
 import ScoreBoard from './components/ScoreBoard'
 import ArenaSettings from './components/ArenaSettings'
 import PowerPanel from './components/PowerPanel'
@@ -12,6 +11,7 @@ import {
   calculateRoundScore,
   calculateWinner,
   createBoardMultipliers,
+  createEmptyBoard,
   getWinningLine,
   isBoardFull,
 } from './game/gameLogic'
@@ -22,7 +22,7 @@ import {
   winnerMessages,
 } from './game/messages'
 
-const initialSquares = Array(9).fill(null)
+const defaultBoardSize = 3
 
 const initialScores = {
   X: 0,
@@ -43,7 +43,7 @@ function createInitialPlayerPowers() {
 }
 
 export default function App() {
-  const [squares, setSquares] = useState(initialSquares)
+  const [squares, setSquares] = useState(() => createEmptyBoard(defaultBoardSize))
   const [xIsNext, setXIsNext] = useState(true)
   const [gameMode, setGameMode] = useState('classic')
   const [scores, setScores] = useState(initialScores)
@@ -61,8 +61,10 @@ const [loserMessage, setLoserMessage] = useState(null)
 const [gameConfig, setGameConfig] = useState(null)
 const [showSetupReturnConfirm, setShowSetupReturnConfirm] = useState(false)
 
-  const winner = calculateWinner(squares)
-  const winningLine = getWinningLine(squares)
+  const boardSize = gameConfig?.boardSize ?? defaultBoardSize
+  const winLength = gameConfig?.winLength ?? 3
+  const winner = calculateWinner(squares, boardSize, winLength)
+  const winningLine = getWinningLine(squares, boardSize, winLength)
   const multipliersEnabled = gameMode === 'arena' && arenaSettings.multipliersEnabled
   const powersEnabled = gameMode === 'arena' && arenaSettings.powersEnabled
   const roundScore = calculateRoundScore(
@@ -112,18 +114,6 @@ useEffect(() => {
   setResultMessage(getRandomMessage(drawMessages))
   setLoserMessage(null)
 }, [isDraw])
-  useEffect(() => {
-    setSquares(initialSquares)
-    setXIsNext(true)
-    setMultipliers(multipliersEnabled ? createBoardMultipliers() : {})
-    setActivePower(null)
-    setShieldedSquares([])
-    setBoostedSquares([])
-    setVisibleBoostedSquares([])
-    setPlayerPowers(createInitialPlayerPowers())
-    
-  }, [gameMode, arenaSettings.multipliersEnabled, multipliersEnabled])
-
   function spendPlayerPower(player, powerId) {
     setPlayerPowers((currentPowers) => ({
       ...currentPowers,
@@ -134,12 +124,13 @@ useEffect(() => {
     }))
   }
 
-  function resetGame(nextSettings = arenaSettings) {
-    const shouldUseMultipliers = gameMode === 'arena' && nextSettings.multipliersEnabled
+  function resetGame(nextSettings = arenaSettings, nextGameMode = gameMode) {
+    const shouldUseMultipliers =
+      nextGameMode === 'arena' && nextSettings.multipliersEnabled
 
-    setSquares(initialSquares)
+    setSquares(createEmptyBoard(boardSize))
     setXIsNext(true)
-    setMultipliers(shouldUseMultipliers ? createBoardMultipliers() : {})
+    setMultipliers(shouldUseMultipliers ? createBoardMultipliers(boardSize) : {})
     setActivePower(null)
     setShieldedSquares([])
     setBoostedSquares([])
@@ -187,6 +178,15 @@ setLoserMessage(null)
     setArenaSettings(pendingArenaSettings)
     resetGame(pendingArenaSettings)
     setPendingArenaSettings(null)
+  }
+
+  function handleGameModeChange(nextGameMode) {
+    if (nextGameMode === gameMode) {
+      return
+    }
+
+    setGameMode(nextGameMode)
+    resetGame(arenaSettings, nextGameMode)
   }
 
   function handleCancelArenaSettingsChange() {
@@ -319,10 +319,10 @@ setLoserMessage(null)
     resetGame()
   }
   function handleNewMatch() {
-  setSquares(initialSquares)
+  setSquares(createEmptyBoard(boardSize))
   setXIsNext(true)
   setScores(initialScores)
-  setMultipliers(multipliersEnabled ? createBoardMultipliers() : {})
+  setMultipliers(multipliersEnabled ? createBoardMultipliers(boardSize) : {})
   setPlayerPowers(createInitialPlayerPowers())
   setActivePower(null)
   setShieldedSquares([])
@@ -339,6 +339,21 @@ setLoserMessage(null)
   function handleStartGame(config) {
   setGameConfig(config)
   setGameMode(config.gameMode)
+  setSquares(createEmptyBoard(config.boardSize))
+  setMultipliers(
+    config.gameMode === 'arena' && arenaSettings.multipliersEnabled
+      ? createBoardMultipliers(config.boardSize)
+      : {}
+  )
+  setScores(initialScores)
+  setXIsNext(true)
+  setPlayerPowers(createInitialPlayerPowers())
+  setActivePower(null)
+  setShieldedSquares([])
+  setBoostedSquares([])
+  setVisibleBoostedSquares([])
+  setResultMessage(null)
+  setLoserMessage(null)
   setShowSetupReturnConfirm(false)
 }
 if (!gameConfig) {
@@ -394,7 +409,7 @@ if (!gameConfig) {
       ? `${gameConfig.targetValue} round kazanan maçı alır`
       : `${gameConfig.targetValue} puana ulaşan maçı alır`}
 </div>
-        <GameModeToggle gameMode={gameMode} onGameModeChange={setGameMode} />
+        
 
         {gameMode === 'arena' && (
           <div className="arena-settings-wrapper">
@@ -445,6 +460,7 @@ if (!gameConfig) {
         )}
 
         <Board
+          boardSize={boardSize}
           squares={squares}
           multipliers={multipliers}
           winningLine={winningLine}
