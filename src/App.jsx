@@ -7,6 +7,7 @@ import ArenaSettings from './components/ArenaSettings'
 import PowerPanel from './components/PowerPanel'
 import { createInitialPowerCounts } from './game/powers'
 import GameSetup from './components/GameSetup'
+import HowToPlay from './components/HowToPlay'
 import {
   calculateRoundScore,
   calculateWinner,
@@ -60,6 +61,7 @@ export default function App() {
 const [loserMessage, setLoserMessage] = useState(null)
 const [gameConfig, setGameConfig] = useState(null)
 const [showSetupReturnConfirm, setShowSetupReturnConfirm] = useState(false)
+const [isHowToPlayOpen, setIsHowToPlayOpen] = useState(false)
 
   const boardSize = gameConfig?.boardSize ?? defaultBoardSize
   const winLength = gameConfig?.winLength ?? 3
@@ -230,22 +232,22 @@ setLoserMessage(null)
   }
 
   function handleJokerPower(index) {
-    const targetValue = squares[index]
+  const targetValue = squares[index]
+  const opponentPlayer = currentPlayer === 'X' ? 'O' : 'X'
 
-    if (targetValue === currentPlayer || shieldedSquares.includes(index)) {
-      return
-    }
-
-    const nextSquares = squares.slice()
-    nextSquares[index] = currentPlayer
-
-    setSquares(nextSquares)
-    revealBoostedSquare(index)
-    spendPlayerPower(currentPlayer, 'joker')
-    setActivePower(null)
-    setXIsNext(!xIsNext)
+  if (targetValue !== opponentPlayer || shieldedSquares.includes(index)) {
+    return
   }
 
+  const nextSquares = squares.slice()
+  nextSquares[index] = currentPlayer
+
+  setSquares(nextSquares)
+  revealBoostedSquare(index)
+  spendPlayerPower(currentPlayer, 'joker')
+  setActivePower(null)
+  setXIsNext(!xIsNext)
+}
   function handleBoostPower(index, isVisible = true) {
     if (squares[index] || boostedSquares.includes(index)) {
       return
@@ -371,12 +373,28 @@ if (!gameConfig) {
               : 'Arena modu aktif. Özel güçler yakında sahaya inecek.'}
           </p>
         </header>
-<button
-  className="setup-back-button"
-  onClick={() => setShowSetupReturnConfirm(true)}
->
-  Ayarlara dön
-</button>
+<div className="game-actions">
+  <button
+    className="setup-back-button"
+    onClick={() => setShowSetupReturnConfirm(true)}
+  >
+    Ayarlara dön
+  </button>
+    <button
+    className="setup-back-button"
+    onClick={() => setIsHowToPlayOpen(!isHowToPlayOpen)}
+  >
+    Nasıl oynanır?
+  </button>
+</div>
+{isHowToPlayOpen && (
+  <HowToPlay
+    gameConfig={gameConfig}
+    gameMode={gameMode}
+    arenaSettings={arenaSettings}
+    onClose={() => setIsHowToPlayOpen(false)}
+  />
+)}
 {showSetupReturnConfirm && (
   <div className="setup-return-confirm">
     <strong>Ayarlara dönülsün mü?</strong>
