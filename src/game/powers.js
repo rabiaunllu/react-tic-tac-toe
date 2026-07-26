@@ -24,7 +24,7 @@ export const powerDefinitions = [
     id: 'joker',
     name: 'Joker',
     icon: '🃏',
-    description: 'Dolu bir kareye hamle yapmanı sağlar.',
+    description: 'Rakibin taşını kendi taşına çevirir.',
     initialCount: 1,
   },
 ]

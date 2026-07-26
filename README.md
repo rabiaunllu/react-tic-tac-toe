@@ -81,3 +81,6 @@ Skor korunur; sadece oyun tahtası, sıra, aktif güçler, kalkanlar, boostlar v
 - Türkçe/İngilizce dil desteği
 - Oda koduyla online oynama
 - Turnuva mantığı
+
+###
+hepimizn bildiği klasik xox oyunun kurallarını bastan yazdıgımız xo arena işte karşınızda. beyin gucumuzu sonuna kadra aktif edeceğimiz, özel güçlerimizle kendi stratejimi geliştirceğimiz, rekabeti sevenler için işte karşınızd arena. 
