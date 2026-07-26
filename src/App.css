@@ -795,3 +795,13 @@ p {
   background: rgba(255, 179, 199, 0.22);
   color: #ffe6ef;
 }
+.match-target-info {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  color: #b8c0d9;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+}
