@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import './App.css'
 import Board from './components/Board'
 import GameStatus from './components/GameStatus'
@@ -59,10 +59,11 @@ export default function App() {
   const [boostedSquares, setBoostedSquares] = useState([])
   const [visibleBoostedSquares, setVisibleBoostedSquares] = useState([])
   const [resultMessage, setResultMessage] = useState(null)
-const [loserMessage, setLoserMessage] = useState(null)
-const [gameConfig, setGameConfig] = useState(null)
-const [showSetupReturnConfirm, setShowSetupReturnConfirm] = useState(false)
-const [isHowToPlayOpen, setIsHowToPlayOpen] = useState(false)
+  const [loserMessage, setLoserMessage] = useState(null)
+  const [gameConfig, setGameConfig] = useState(null)
+  const [showSetupReturnConfirm, setShowSetupReturnConfirm] = useState(false)
+  const [showScoreResetConfirm, setShowScoreResetConfirm] = useState(false)
+  const [isHowToPlayOpen, setIsHowToPlayOpen] = useState(false)
 
   const boardSize = gameConfig?.boardSize ?? defaultBoardSize
   const winLength = gameConfig?.winLength ?? 3
@@ -78,14 +79,14 @@ const [isHowToPlayOpen, setIsHowToPlayOpen] = useState(false)
   )
   const isDraw = !winner && isBoardFull(squares)
   const currentPlayer = xIsNext ? 'X' : 'O'
-const matchWinner =
-  gameConfig && !gameConfig.isInfinite
-    ? scores.X >= gameConfig.targetValue
-      ? 'X'
-      : scores.O >= gameConfig.targetValue
-        ? 'O'
-        : null
-    : null
+  const matchWinner =
+    gameConfig && !gameConfig.isInfinite
+      ? scores.X >= gameConfig.targetValue
+        ? 'X'
+        : scores.O >= gameConfig.targetValue
+          ? 'O'
+          : null
+      : null
   const hasBombTarget = squares.some(
     (square, index) => square && !shieldedSquares.includes(index)
   )
@@ -112,28 +113,34 @@ const matchWinner =
         : `${gameConfig.targetValue} PUAN`
     : 'YENİ MAÇ'
   const lineChip = `${winLength} TAŞ`
-  
 
-  useEffect(() => {
-    if (!winner) {
+  function finishRound(nextSquares, nextBoostedSquares = boostedSquares) {
+    const nextWinningLine = getWinningLine(nextSquares, boardSize, winLength)
+
+    if (nextWinningLine) {
+      const nextWinner = nextSquares[nextWinningLine[0]]
+      const nextRoundScore = calculateRoundScore(
+        nextWinningLine,
+        multipliers,
+        multipliersEnabled,
+        nextBoostedSquares
+      )
+
+      setScores((currentScores) => ({
+        ...currentScores,
+        [nextWinner]: currentScores[nextWinner] + nextRoundScore,
+      }))
+      setResultMessage(getRandomMessage(winnerMessages))
+      setLoserMessage(getRandomMessage(loserMessages))
       return
     }
 
-    setScores((currentScores) => ({
-      ...currentScores,
-      [winner]: currentScores[winner] + roundScore,
-    }))
-    setResultMessage(getRandomMessage(winnerMessages))
-setLoserMessage(getRandomMessage(loserMessages))
-  }, [winner, roundScore])
-useEffect(() => {
-  if (!isDraw) {
-    return
+    if (isBoardFull(nextSquares)) {
+      setResultMessage(getRandomMessage(drawMessages))
+      setLoserMessage(null)
+    }
   }
 
-  setResultMessage(getRandomMessage(drawMessages))
-  setLoserMessage(null)
-}, [isDraw])
   function spendPlayerPower(player, powerId) {
     setPlayerPowers((currentPowers) => ({
       ...currentPowers,
@@ -158,7 +165,7 @@ useEffect(() => {
     setVisibleBoostedSquares([])
     setPlayerPowers(createInitialPlayerPowers())
     setResultMessage(null)
-setLoserMessage(null)
+    setLoserMessage(null)
   }
 
   function revealBoostedSquare(index) {
@@ -199,15 +206,6 @@ setLoserMessage(null)
     setArenaSettings(pendingArenaSettings)
     resetGame(pendingArenaSettings)
     setPendingArenaSettings(null)
-  }
-
-  function handleGameModeChange(nextGameMode) {
-    if (nextGameMode === gameMode) {
-      return
-    }
-
-    setGameMode(nextGameMode)
-    resetGame(arenaSettings, nextGameMode)
   }
 
   function handleCancelArenaSettingsChange() {
@@ -263,27 +261,29 @@ setLoserMessage(null)
   }
 
   function handleJokerPower(index) {
-  const targetValue = squares[index]
-  const opponentPlayer = currentPlayer === 'X' ? 'O' : 'X'
+    const targetValue = squares[index]
+    const opponentPlayer = currentPlayer === 'X' ? 'O' : 'X'
 
-  if (
-    targetValue !== opponentPlayer ||
-    shieldedSquares.includes(index) ||
-    lockedSquares.includes(index)
-  ) {
-    return
+    if (
+      targetValue !== opponentPlayer ||
+      shieldedSquares.includes(index) ||
+      lockedSquares.includes(index)
+    ) {
+      return
+    }
+
+    const nextSquares = squares.slice()
+    nextSquares[index] = currentPlayer
+
+    setSquares(nextSquares)
+    revealBoostedSquare(index)
+    finishRound(nextSquares)
+    spendPlayerPower(currentPlayer, 'joker')
+    setLockedSquares([])
+    setActivePower(null)
+    setXIsNext(!xIsNext)
   }
 
-  const nextSquares = squares.slice()
-  nextSquares[index] = currentPlayer
-
-  setSquares(nextSquares)
-  revealBoostedSquare(index)
-  spendPlayerPower(currentPlayer, 'joker')
-  setLockedSquares([])
-  setActivePower(null)
-  setXIsNext(!xIsNext)
-}
   function handleBoostPower(index, isVisible = true) {
     if (squares[index] || boostedSquares.includes(index) || lockedSquares.includes(index)) {
       return
@@ -315,8 +315,8 @@ setLoserMessage(null)
 
   function handleSquareClick(index) {
     if (winner || matchWinner) {
-  return
-}
+      return
+    }
 
     if (powersEnabled && activePower === 'bomb') {
       handleBombPower(index)
@@ -351,6 +351,7 @@ setLoserMessage(null)
 
     setSquares(nextSquares)
     revealBoostedSquare(index)
+    finishRound(nextSquares)
     setLockedSquares([])
     setXIsNext(!xIsNext)
   }
@@ -358,49 +359,67 @@ setLoserMessage(null)
   function handleRestart() {
     resetGame()
   }
+
   function handleNewMatch() {
-  setSquares(createEmptyBoard(boardSize))
-  setXIsNext(true)
-  setScores(initialScores)
-  setMultipliers(multipliersEnabled ? createBoardMultipliers(boardSize) : {})
-  setPlayerPowers(createInitialPlayerPowers())
-  setActivePower(null)
-  setShieldedSquares([])
-  setLockedSquares([])
-  setBoostedSquares([])
-  setVisibleBoostedSquares([])
-  setResultMessage(null)
-  setLoserMessage(null)
-}
+    setSquares(createEmptyBoard(boardSize))
+    setXIsNext(true)
+    setScores(initialScores)
+    setMultipliers(multipliersEnabled ? createBoardMultipliers(boardSize) : {})
+    setPlayerPowers(createInitialPlayerPowers())
+    setActivePower(null)
+    setShieldedSquares([])
+    setLockedSquares([])
+    setBoostedSquares([])
+    setVisibleBoostedSquares([])
+    setResultMessage(null)
+    setLoserMessage(null)
+  }
 
   function handleResetScores() {
     setScores(initialScores)
   }
 
+  function handleRequestScoreReset() {
+    setShowSetupReturnConfirm(false)
+    setShowScoreResetConfirm(true)
+  }
+
+  function handleCancelScoreReset() {
+    setShowScoreResetConfirm(false)
+  }
+
+  function handleConfirmScoreReset() {
+    handleResetScores()
+    setShowScoreResetConfirm(false)
+  }
+
   function handleStartGame(config) {
-  setGameConfig(config)
-  setGameMode(config.gameMode)
-  setSquares(createEmptyBoard(config.boardSize))
-  setMultipliers(
-    config.gameMode === 'arena' && arenaSettings.multipliersEnabled
-      ? createBoardMultipliers(config.boardSize)
-      : {}
-  )
-  setScores(initialScores)
-  setXIsNext(true)
-  setPlayerPowers(createInitialPlayerPowers())
-  setActivePower(null)
-  setShieldedSquares([])
-  setLockedSquares([])
-  setBoostedSquares([])
-  setVisibleBoostedSquares([])
-  setResultMessage(null)
-  setLoserMessage(null)
-  setShowSetupReturnConfirm(false)
-}
-if (!gameConfig) {
-  return <GameSetup onStartGame={handleStartGame} />
-}
+    setGameConfig(config)
+    setGameMode(config.gameMode)
+    setSquares(createEmptyBoard(config.boardSize))
+    setMultipliers(
+      config.gameMode === 'arena' && arenaSettings.multipliersEnabled
+        ? createBoardMultipliers(config.boardSize)
+        : {}
+    )
+    setScores(initialScores)
+    setXIsNext(true)
+    setPlayerPowers(createInitialPlayerPowers())
+    setActivePower(null)
+    setShieldedSquares([])
+    setLockedSquares([])
+    setBoostedSquares([])
+    setVisibleBoostedSquares([])
+    setResultMessage(null)
+    setLoserMessage(null)
+    setShowSetupReturnConfirm(false)
+    setShowScoreResetConfirm(false)
+  }
+
+  if (!gameConfig) {
+    return <GameSetup onStartGame={handleStartGame} />
+  }
+
   return (
     <main className="app-shell">
       <section className="game-card">
@@ -415,53 +434,60 @@ if (!gameConfig) {
             <span className="match-chip">{lineChip}</span>
           </div>
         </header>
-<div className="game-actions">
-  <button
-    className="setup-back-button"
-    onClick={() => setShowSetupReturnConfirm(true)}
-  >
-    Ayarlara dön
-  </button>
-    <button
-    className="setup-back-button"
-    onClick={() => setIsHowToPlayOpen(!isHowToPlayOpen)}
-  >
-    Nasıl oynanır?
-  </button>
-</div>
-{isHowToPlayOpen && (
-  <HowToPlay
-    gameConfig={gameConfig}
-    gameMode={gameMode}
-    arenaSettings={arenaSettings}
-    onClose={() => setIsHowToPlayOpen(false)}
-  />
-)}
-{showSetupReturnConfirm && (
-  <div className="setup-return-confirm">
-    <strong>Ayarlara dönülsün mü?</strong>
-    <p>Mevcut maç sıfırlanacak, skor ve tahta temizlenecek.</p>
 
-    <div className="setup-return-actions">
-      <button
-        type="button"
-        onClick={() => setShowSetupReturnConfirm(false)}
-      >
-        Vazgeç
-      </button>
-      <button
-        type="button"
-        className="danger-action"
-        onClick={() => {
-          setShowSetupReturnConfirm(false)
-          setGameConfig(null)
-        }}
-      >
-        Ayarlara dön
-      </button>
-    </div>
-  </div>
-)}
+        <div className="game-actions">
+          <button
+            className="setup-back-button"
+            onClick={() => {
+              setShowScoreResetConfirm(false)
+              setShowSetupReturnConfirm(true)
+            }}
+          >
+            Ayarlara dön
+          </button>
+          <button
+            className="setup-back-button"
+            onClick={() => setIsHowToPlayOpen(!isHowToPlayOpen)}
+          >
+            Nasıl oynanır?
+          </button>
+        </div>
+
+        {isHowToPlayOpen && (
+          <HowToPlay
+            gameConfig={gameConfig}
+            gameMode={gameMode}
+            arenaSettings={arenaSettings}
+            onClose={() => setIsHowToPlayOpen(false)}
+          />
+        )}
+
+        {showSetupReturnConfirm && (
+          <div className="setup-return-confirm">
+            <strong>Ayarlara dönülsün mü?</strong>
+            <p>Mevcut maç sıfırlanacak, skor ve tahta temizlenecek.</p>
+
+            <div className="setup-return-actions">
+              <button
+                type="button"
+                onClick={() => setShowSetupReturnConfirm(false)}
+              >
+                Vazgeç
+              </button>
+              <button
+                type="button"
+                className="danger-action"
+                onClick={() => {
+                  setShowSetupReturnConfirm(false)
+                  setGameConfig(null)
+                }}
+              >
+                Ayarlara dön
+              </button>
+            </div>
+          </div>
+        )}
+
         {gameMode === 'arena' && (
           <div className="arena-settings-wrapper">
             <button
@@ -486,18 +512,38 @@ if (!gameConfig) {
         <ScoreBoard
           scores={scores}
           scoreLabel={scoreLabel}
-          onResetScores={handleResetScores}
+          onResetScores={handleRequestScoreReset}
         />
 
-<GameStatus
-  winner={winner}
-  isDraw={isDraw}
-  xIsNext={xIsNext}
-  roundScore={roundScore}
-  resultMessage={resultMessage}
-  loserMessage={loserMessage}
-  matchWinner={matchWinner}
-/>
+        {showScoreResetConfirm && (
+          <div className="setup-return-confirm">
+            <strong>Round skorları sıfırlansın mı?</strong>
+            <p>X ve O round skorları sıfırlanacak. Devam etmek istiyor musun?</p>
+
+            <div className="setup-return-actions">
+              <button type="button" onClick={handleCancelScoreReset}>
+                Hayır
+              </button>
+              <button
+                type="button"
+                className="danger-action"
+                onClick={handleConfirmScoreReset}
+              >
+                Evet
+              </button>
+            </div>
+          </div>
+        )}
+
+        <GameStatus
+          winner={winner}
+          isDraw={isDraw}
+          xIsNext={xIsNext}
+          roundScore={roundScore}
+          resultMessage={resultMessage}
+          loserMessage={loserMessage}
+          matchWinner={matchWinner}
+        />
 
         <div className="arena-board-stack">
           <PowerPanel
