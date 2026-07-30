@@ -89,6 +89,18 @@ p {
   gap: 10px;
 }
 
+.board-size-3 {
+  --board-size: 3;
+}
+
+.board-size-4 {
+  --board-size: 4;
+}
+
+.board-size-5 {
+  --board-size: 5;
+}
+
 .square {
   width: 100%;
   aspect-ratio: 1;
@@ -777,7 +789,7 @@ p {
 .setup-return-actions {
   display: flex;
   gap: 8px;
-  justify-content: flex-end;
+  justify-content: center;
 }
 
 .setup-return-actions button {
