@@ -1,6 +1,3 @@
-
-//9 elemanlı squares dizisini geziyor ve her eleman için bir Square oluşturuyor.
-
 import Square from './Square'
 
 export default function Board({
@@ -13,8 +10,11 @@ export default function Board({
   visibleBoostedSquares,
   onSquareClick,
 }) {
+  const supportedBoardSizes = [3, 4, 5]
+  const safeBoardSize = supportedBoardSizes.includes(boardSize) ? boardSize : 3
+
   return (
-    <div className="board" style={{ '--board-size': boardSize }}>
+    <div className={`board board-size-${safeBoardSize}`}>
       {squares.map((square, index) => (
         <Square
           key={index}
