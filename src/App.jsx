@@ -8,6 +8,7 @@ import PowerPanel from './components/PowerPanel'
 import { createInitialPowerCounts } from './game/powers'
 import GameSetup from './components/GameSetup'
 import HowToPlay from './components/HowToPlay'
+import RoundResultModal from './components/RoundResultModal'
 import {
   calculateRoundScore,
   calculateWinner,
@@ -64,6 +65,7 @@ export default function App() {
   const [showSetupReturnConfirm, setShowSetupReturnConfirm] = useState(false)
   const [showScoreResetConfirm, setShowScoreResetConfirm] = useState(false)
   const [isHowToPlayOpen, setIsHowToPlayOpen] = useState(false)
+  const [roundNumber, setRoundNumber] = useState(1)
 
   const boardSize = gameConfig?.boardSize ?? defaultBoardSize
   const winLength = gameConfig?.winLength ?? 3
@@ -103,13 +105,13 @@ export default function App() {
     )
     .filter((index) => index !== null)
   const hasBoostTarget = boostTargets.length > 0
-  const scoreLabel = gameMode === 'classic' ? 'Round' : 'Puan'
+  const scoreLabel = gameMode === 'classic' ? 'Tur' : 'Puan'
   const modeChip = gameMode === 'arena' ? 'ARENA' : 'KLASİK'
   const targetChip = gameConfig
     ? gameConfig.isInfinite
       ? 'SONSUZ'
       : gameConfig.gameMode === 'classic'
-        ? `${gameConfig.targetValue} ROUND`
+        ? `${gameConfig.targetValue} TUR`
         : `${gameConfig.targetValue} PUAN`
     : 'YENİ MAÇ'
   const lineChip = `${winLength} TAŞ`
@@ -356,13 +358,15 @@ export default function App() {
     setXIsNext(!xIsNext)
   }
 
-  function handleRestart() {
+  function handleNextRound() {
     resetGame()
+    setRoundNumber((currentRound) => currentRound + 1)
   }
 
   function handleNewMatch() {
     setSquares(createEmptyBoard(boardSize))
     setXIsNext(true)
+    setRoundNumber(1)
     setScores(initialScores)
     setMultipliers(multipliersEnabled ? createBoardMultipliers(boardSize) : {})
     setPlayerPowers(createInitialPlayerPowers())
@@ -377,6 +381,12 @@ export default function App() {
 
   function handleResetScores() {
     setScores(initialScores)
+  }
+
+  function handleResultMenu() {
+    setShowSetupReturnConfirm(false)
+    setShowScoreResetConfirm(false)
+    setGameConfig(null)
   }
 
   function handleRequestScoreReset() {
@@ -404,6 +414,7 @@ export default function App() {
     )
     setScores(initialScores)
     setXIsNext(true)
+    setRoundNumber(1)
     setPlayerPowers(createInitialPlayerPowers())
     setActivePower(null)
     setShieldedSquares([])
@@ -517,8 +528,8 @@ export default function App() {
 
         {showScoreResetConfirm && (
           <div className="setup-return-confirm">
-            <strong>Round skorları sıfırlansın mı?</strong>
-            <p>X ve O round skorları sıfırlanacak. Devam etmek istiyor musun?</p>
+            <strong>Tur skorları sıfırlansın mı?</strong>
+            <p>X ve O tur skorları sıfırlanacak. Devam etmek istiyor musun?</p>
 
             <div className="setup-return-actions">
               <button type="button" onClick={handleCancelScoreReset}>
@@ -592,42 +603,24 @@ export default function App() {
           />
         </div>
 
-        {!matchWinner && (
-          <button className="restart-button" onClick={handleRestart}>
-            Yeni round
-          </button>
-        )}
       </section>
 
-      {matchWinner && (
-        <div className="match-winner-modal" role="presentation">
-          <div
-            className="match-winner-card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="match-winner-title"
-          >
-            <span className="match-winner-trophy" aria-hidden="true">🏆</span>
-            <div className="match-winner-copy">
-              <strong id="match-winner-title">{matchWinner} maçı aldı</strong>
-              <span>{scores.X} - {scores.O}</span>
-              <small>Rövanş hazır.</small>
-            </div>
-            <div className="match-winner-actions">
-              <button type="button" onClick={handleNewMatch}>
-                Yeni maç
-              </button>
-              <button
-                type="button"
-                className="secondary-action"
-                onClick={() => setGameConfig(null)}
-              >
-                Ayarlara dön
-              </button>
-            </div>
-          </div>
-        </div>
+      {(winner || isDraw) && !showSetupReturnConfirm && (
+        <RoundResultModal
+          roundNumber={roundNumber}
+          winner={winner}
+          isDraw={isDraw}
+          matchWinner={matchWinner}
+          scores={scores}
+          scoreLabel={scoreLabel}
+          resultMessage={resultMessage}
+          loserMessage={loserMessage}
+          onNextRound={handleNextRound}
+          onNewMatch={handleNewMatch}
+          onMenu={handleResultMenu}
+        />
       )}
+
     </main>
   )
 }
