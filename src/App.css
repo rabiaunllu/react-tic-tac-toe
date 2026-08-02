@@ -1895,6 +1895,8 @@ button,
     font-size: 12px;
   }
 
+}
+
 .brand-header {
   width: 100%;
   gap: 9px;
@@ -2389,5 +2391,4 @@ button,
   border-color: rgba(255, 154, 192, 0.3);
   background: rgba(255, 154, 192, 0.12);
   color: #ffdbe9;
-}
 }
