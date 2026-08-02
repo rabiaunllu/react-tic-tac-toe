@@ -123,7 +123,7 @@ export default function RoundResultModal({
       </button>
     ) : (
       <button type="button" onClick={onNextRound} autoFocus>
-        Sonraki tur →
+        Sonraki tur
       </button>
     )}
 
