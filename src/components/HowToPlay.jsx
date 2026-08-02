@@ -1,11 +1,52 @@
+import { useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
+
 export default function HowToPlay({ gameConfig, gameMode, arenaSettings, onClose }) {
+  const lockedScrollYRef = useRef(null)
   const targetText = gameConfig.isInfinite
     ? 'Sonsuz mod aktif. Skor birikir, maç kazananı belirlenmez.'
     : gameMode === 'classic'
-      ? `${gameConfig.targetValue} round kazanan maçı kazanır.`
+      ? `${gameConfig.targetValue} tur kazanan maçı kazanır.`
       : `${gameConfig.targetValue} puana ilk ulaşan maçı kazanır.`
 
-  return (
+  useEffect(() => {
+    if (lockedScrollYRef.current === null) {
+      lockedScrollYRef.current = window.scrollY
+    }
+
+    const scrollY = lockedScrollYRef.current
+    const previousOverflow = document.body.style.overflow
+    const previousPosition = document.body.style.position
+    const previousTop = document.body.style.top
+    const previousWidth = document.body.style.width
+    const previousDocumentOverflow = document.documentElement.style.overflow
+
+    document.body.style.overflow = 'hidden'
+    document.body.style.position = 'fixed'
+    document.body.style.top = `-${scrollY}px`
+    document.body.style.width = '100%'
+    document.documentElement.style.overflow = 'hidden'
+
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        onClose()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.body.style.position = previousPosition
+      document.body.style.top = previousTop
+      document.body.style.width = previousWidth
+      document.documentElement.style.overflow = previousDocumentOverflow
+      document.removeEventListener('keydown', handleKeyDown)
+      window.scrollTo(0, scrollY)
+    }
+  }, [onClose])
+
+  return createPortal(
     <div className="how-to-play-modal" role="presentation" onClick={onClose}>
       <div
         className="how-to-play-panel"
@@ -30,7 +71,7 @@ export default function HowToPlay({ gameConfig, gameMode, arenaSettings, onClose
             <h3>Temel amaç</h3>
             <p>
               Sırayla X ve O yerleştir. {gameConfig.boardSize}x{gameConfig.boardSize}
-              tahtada {gameConfig.winLength} taşı yan yana getiren roundu alır.
+              tahtada {gameConfig.winLength} taşı yan yana getiren turu alır.
             </p>
           </div>
 
@@ -41,7 +82,7 @@ export default function HowToPlay({ gameConfig, gameMode, arenaSettings, onClose
 
           <div className="rule-section">
             <h3>Klasik mod</h3>
-            <p>Güç ve çarpan yok. Kazanan her round için 1 puan alır.</p>
+            <p>Güç ve çarpan yok. Kazanan her tur için 1 puan alır.</p>
           </div>
 
           <div className="rule-section">
@@ -76,6 +117,7 @@ export default function HowToPlay({ gameConfig, gameMode, arenaSettings, onClose
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

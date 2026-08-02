@@ -1660,13 +1660,17 @@ button,
   display: grid;
   place-items: center;
   padding: 18px;
+  min-height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: contain;
   background: rgba(3, 6, 14, 0.66);
   backdrop-filter: blur(10px);
+  animation: result-pop 180ms ease-out;
 }
 
 .how-to-play-modal .how-to-play-panel {
   width: min(620px, 100%);
-  max-height: min(82vh, 720px);
+  max-height: min(90dvh, 720px);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   gap: 12px;
@@ -1678,6 +1682,7 @@ button,
   box-shadow:
     0 30px 90px rgba(0, 0, 0, 0.52),
     inset 0 1px 0 rgba(255, 255, 255, 0.09);
+  overflow: hidden;
 }
 
 .how-to-play-content {
@@ -1775,14 +1780,13 @@ button,
 
 @media (max-width: 560px) {
   .how-to-play-modal {
-    align-items: end;
     padding: 10px;
   }
 
   .how-to-play-modal .how-to-play-panel {
-    max-height: 82vh;
+    max-height: min(90dvh, calc(100dvh - 20px));
     padding: 14px;
-    border-radius: 18px 18px 14px 14px;
+    border-radius: 18px;
   }
 
   .how-to-play-header {
@@ -2352,6 +2356,10 @@ button,
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .how-to-play-modal {
+    animation: none;
+  }
+
   .round-result-card {
     animation: none;
   }
