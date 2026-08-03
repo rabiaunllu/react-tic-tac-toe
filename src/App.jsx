@@ -442,9 +442,10 @@ const hasTrapTarget = squares.some(
   setXIsNext(!xIsNext)
 }
   useEffect(() => {
+    const isAiSupportedMode = gameMode === 'classic' || gameMode === 'arena'
     const isAiTurn =
       gameConfig &&
-      gameMode === 'classic' &&
+      isAiSupportedMode &&
       opponentType === 'ai' &&
       !xIsNext &&
       !winner &&
@@ -461,6 +462,7 @@ const hasTrapTarget = squares.some(
   boardSize,
   winLength,
   humanWinStreak,
+   blockedIndexes: lockedSquares,
 })
 
       if (aiMove === null) {
@@ -489,6 +491,7 @@ const hasTrapTarget = squares.some(
     boardSize,
     winLength,
     humanWinStreak,
+    lockedSquares,
     finishRound,
   ])
   useEffect(() => {

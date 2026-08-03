@@ -1,13 +1,15 @@
 import { calculateWinner } from './gameLogic'
 
-function getEmptyIndexes(squares) {
+function getEmptyIndexes(squares, blockedIndexes = []) {
   return squares
-    .map((square, index) => (square ? null : index))
+    .map((square, index) =>
+      square || blockedIndexes.includes(index) ? null : index
+    )
     .filter((index) => index !== null)
 }
 
-function getRandomMove(squares) {
-  const emptyIndexes = getEmptyIndexes(squares)
+function getRandomMove(squares, blockedIndexes = []) {
+  const emptyIndexes = getEmptyIndexes(squares, blockedIndexes)
 
   if (emptyIndexes.length === 0) {
     return null
@@ -16,9 +18,8 @@ function getRandomMove(squares) {
   const randomIndex = Math.floor(Math.random() * emptyIndexes.length)
   return emptyIndexes[randomIndex]
 }
-
-function findWinningMove(squares, boardSize, winLength, player) {
-  const emptyIndexes = getEmptyIndexes(squares)
+function findWinningMove(squares, boardSize, winLength, player, blockedIndexes = []) {
+  const emptyIndexes = getEmptyIndexes(squares, blockedIndexes)
 
   return (
     emptyIndexes.find((index) => {
@@ -29,20 +30,26 @@ function findWinningMove(squares, boardSize, winLength, player) {
     }) ?? null
   )
 }
-
-function getCenterMove(squares, boardSize) {
+function getCenterMove(squares, boardSize, blockedIndexes = []) {
   if (boardSize % 2 === 0) {
     return null
   }
 
   const centerIndex = Math.floor((boardSize * boardSize) / 2)
+
+  if (blockedIndexes.includes(centerIndex)) {
+    return null
+  }
+
   return squares[centerIndex] ? null : centerIndex
 }
 
-function getCornerMove(squares, boardSize) {
+function getCornerMove(squares, boardSize, blockedIndexes = []) {
   const lastRowStart = boardSize * (boardSize - 1)
   const corners = [0, boardSize - 1, lastRowStart, boardSize * boardSize - 1]
-  const availableCorners = corners.filter((index) => !squares[index])
+  const availableCorners = corners.filter(
+    (index) => !squares[index] && !blockedIndexes.includes(index)
+  )
 
   if (availableCorners.length === 0) {
     return null
@@ -51,20 +58,20 @@ function getCornerMove(squares, boardSize) {
   const randomIndex = Math.floor(Math.random() * availableCorners.length)
   return availableCorners[randomIndex]
 }
-
 function getTacticalMove({
   squares,
   boardSize,
   winLength,
   aiPlayer,
   humanPlayer,
+  blockedIndexes = [],
 }) {
   return (
-    findWinningMove(squares, boardSize, winLength, aiPlayer) ??
-    findWinningMove(squares, boardSize, winLength, humanPlayer) ??
-    getCenterMove(squares, boardSize) ??
-    getCornerMove(squares, boardSize) ??
-    getRandomMove(squares)
+    findWinningMove(squares, boardSize, winLength, aiPlayer, blockedIndexes) ??
+    findWinningMove(squares, boardSize, winLength, humanPlayer, blockedIndexes) ??
+    getCenterMove(squares, boardSize, blockedIndexes) ??
+    getCornerMove(squares, boardSize, blockedIndexes) ??
+    getRandomMove(squares, blockedIndexes)
   )
 }
 
@@ -92,13 +99,14 @@ export function getAdaptiveAiMove({
   boardSize,
   winLength,
   humanWinStreak,
+  blockedIndexes = [],
   aiPlayer = 'O',
   humanPlayer = 'X',
 }) {
   const randomChance = getAdaptiveRandomChance(humanWinStreak)
 
   if (Math.random() < randomChance) {
-    return getRandomMove(squares)
+    return getRandomMove(squares, blockedIndexes)
   }
 
   return getTacticalMove({
@@ -107,5 +115,6 @@ export function getAdaptiveAiMove({
     winLength,
     aiPlayer,
     humanPlayer,
+    blockedIndexes,
   })
 }

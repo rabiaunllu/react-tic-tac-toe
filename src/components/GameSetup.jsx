@@ -34,7 +34,7 @@ export default function GameSetup({ onStartGame }) {
       targetType: gameMode === 'classic' ? 'rounds' : 'points',
       targetValue: isInfinite ? null : targetValue,
       isInfinite,
-      opponentType: gameMode === 'classic' ? opponentType : 'human',
+      opponentType,
     })
   }
 
@@ -46,31 +46,29 @@ export default function GameSetup({ onStartGame }) {
           <h1>XO ARENA</h1>
           <p>Tahtanı seç. Modu kur. Rövanşa hazır ol.</p>
         </header>
- {gameMode === 'classic' && (
-  <div className="setup-control-group setup-opponent-group">
-    <span className="setup-control-label">Oyuncu modu</span>
+<div className="setup-control-group setup-opponent-group">
+  <span className="setup-control-label">OYUNCU MODU</span>
 
-    <div className="setup-segment-grid setup-segment-grid--two">
-      <button
-        type="button"
-        className={`setup-segment ${opponentType === 'human' ? 'is-selected' : ''}`}
-        onClick={() => setOpponentType('human')}
-        aria-pressed={opponentType === 'human'}
-      >
-        <span>PvP</span>
-      </button>
+  <div className="setup-segment-grid setup-segment-grid--two">
+    <button
+      type="button"
+      className={`setup-segment ${opponentType === 'human' ? 'is-selected' : ''}`}
+      onClick={() => setOpponentType('human')}
+      aria-pressed={opponentType === 'human'}
+    >
+      <span>PvP</span>
+    </button>
 
-      <button
-        type="button"
-        className={`setup-segment ${opponentType === 'ai' ? 'is-selected' : ''}`}
-        onClick={() => setOpponentType('ai')}
-        aria-pressed={opponentType === 'ai'}
-      >
-        <span>PvC</span>
-      </button>
-    </div>
+    <button
+      type="button"
+      className={`setup-segment ${opponentType === 'ai' ? 'is-selected' : ''}`}
+      onClick={() => setOpponentType('ai')}
+      aria-pressed={opponentType === 'ai'}
+    >
+      <span>PvC</span>
+    </button>
   </div>
-)}
+</div>
         <div className="setup-group">
           <span className="setup-label">Izgara Boyutu</span>
           <div className="setup-options">
@@ -85,7 +83,7 @@ export default function GameSetup({ onStartGame }) {
               </button>
             ))}
           </div>
-          <small>{selectedBoard.description}. Kazanmak için {selectedBoard.winLength} taş yan yana.</small>
+          
         </div>
 
         <div className="setup-group">
