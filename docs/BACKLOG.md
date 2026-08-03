@@ -155,6 +155,7 @@ Yapay zekâ tarayıcıda yerel olarak çalışacak. Ücretli veya üretken AI AP
 - [ ] Maç kazanma sesi
 - [ ] Sesleri açma/kapatma seçeneği
 - [ ] Kısa kutlama efekti veya konfeti
+- [ ]  Anlık Tepkiler (Emotes): Maç sırasında oyuncular birbirine anlık olarak gülen yüz, kızgın surat veya "Harika Hamle!" gibi emojiler atabilsin. Bu, sessiz bir oyuna can verir ve yayıncıların yayında komik tepkiler vermesini sağlar.
 
 ### Özelleştirme
 
@@ -168,3 +169,25 @@ Yapay zekâ tarayıcıda yerel olarak çalışacak. Ücretli veya üretken AI AP
 - [ ] Oyun dengesi ve kullanıcı geri bildirimleri toplandıktan sonra gelir modeli değerlendirilecek.
 - [ ] Reklamların oyun deneyimini bozmayacağı yerleşimler araştırılacak.
 - [ ] Ticari kullanıma uygun hosting ve yasal gereklilikler incelenecek.
+
+## Güç Sistemi Kararı
+
+### Classic PvC
+- Adaptif AI kullanılacak.
+
+### Arena Local PvP
+- Bomba, Kalkan, Boost, Joker aktif.
+- Tuzak kullanılmayacak; çünkü local aynı ekranda gizli bilgi korunamaz.
+
+### Arena PvC
+- Bomba, Kalkan, Boost, Tuzak aktif.
+- Joker, Freeze ve Çarpan Çal ileride reklam/ödül gücü olarak değerlendirilecek.
+
+### Online Arena
+- Bomba, Kalkan, Boost, Tuzak aktif.
+- Joker online modda kullanılmayacak; çünkü çok güçlü ve rekabet dengesini bozabilir.
+### 
+Rekabeti Kızıştır (Liderlik Tablosu ve Unvanlar)
+Anlık Liderlik Tablosu: Her gün, her hafta kimin birinci olduğu sitenin ana sayfasında devasa bir şekilde görünsün.
+
+Komik Unvanlar: 10 maç üst üste kazanana "Seri Katil", 10 maç kaybedene "Kum Torbası" gibi komik unvanlar ver ve bu unvanları oyuncu profillerinde göster. İnsanlar bu unvanları almak veya o unvana sahip birini yenmek için daha fazla oynayacaktır.

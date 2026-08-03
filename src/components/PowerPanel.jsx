@@ -1,4 +1,4 @@
-import { powerDefinitions } from '../game/powers'
+import { getAvailablePowerDefinitions } from '../game/powers'
 
 export default function PowerPanel({
   currentPlayer,
@@ -12,9 +12,11 @@ export default function PowerPanel({
   disabledPowers = {},
   onSelectPower,
   onUseRandomBoost,
+  powerOptions,
 }) {
-  const selectedPower = powerDefinitions.find((power) => power.id === activePower)
-
+  
+const availablePowers = getAvailablePowerDefinitions(powerOptions)
+const selectedPower = availablePowers.find((power) => power.id === activePower)
   function handlePowerClick(powerId, isActive) {
     if (!isActivePlayer || !isPowersEnabled) {
       return
@@ -69,7 +71,7 @@ export default function PowerPanel({
 
       {isPowersEnabled && (
         <div className="power-list">
-          {powerDefinitions.map((power) => {
+          {availablePowers.map((power) => {
             const count = powerCounts[power.id]
             const isActive = isActivePlayer && activePower === power.id
             const isDisabled = !isActivePlayer || count === 0 || disabledPowers[power.id]
