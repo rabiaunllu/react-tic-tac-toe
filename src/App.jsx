@@ -8,7 +8,6 @@ import ArenaSettings from './components/ArenaSettings'
 import PowerPanel from './components/PowerPanel'
 import { createInitialPowerCounts } from './game/powers'
 import GameSetup from './components/GameSetup'
-import HowToPlay from './components/HowToPlay'
 import RoundResultModal from './components/RoundResultModal'
 import {
   calculateRoundScore,
@@ -68,7 +67,6 @@ export default function App() {
   const [gameConfig, setGameConfig] = useState(null)
   const [showSetupReturnConfirm, setShowSetupReturnConfirm] = useState(false)
   const [showScoreResetConfirm, setShowScoreResetConfirm] = useState(false)
-  const [isHowToPlayOpen, setIsHowToPlayOpen] = useState(false)
   const [roundNumber, setRoundNumber] = useState(1)
  const [humanWinStreak, setHumanWinStreak] = useState(0)
  
@@ -748,22 +746,7 @@ const hasTrapTarget = squares.some(
           >
             Ayarlara dön
           </button>
-          <button
-            className="setup-back-button"
-            onClick={() => setIsHowToPlayOpen(!isHowToPlayOpen)}
-          >
-            Nasıl oynanır?
-          </button>
         </div>
-
-        {isHowToPlayOpen && (
-          <HowToPlay
-            gameConfig={gameConfig}
-            gameMode={gameMode}
-            arenaSettings={arenaSettings}
-            onClose={() => setIsHowToPlayOpen(false)}
-          />
-        )}
 
         {showSetupReturnConfirm && (
           <div className="setup-return-confirm">

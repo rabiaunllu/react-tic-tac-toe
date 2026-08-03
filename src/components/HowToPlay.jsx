@@ -1,13 +1,219 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
-export default function HowToPlay({ gameConfig, gameMode, arenaSettings, onClose }) {
+const fallbackGameConfig = {
+  boardSize: 3,
+  winLength: 3,
+  targetValue: 5,
+  isInfinite: false,
+  opponentType: 'human',
+}
+
+const fallbackArenaSettings = {
+  powersEnabled: true,
+  multipliersEnabled: true,
+  boostMode: 'random',
+}
+
+function RuleItem({ icon, title, children }) {
+  return (
+    <div className="accordion-rule-item">
+      <span className="accordion-rule-icon" aria-hidden="true">{icon}</span>
+      <div>
+        <strong>{title}</strong>
+        <p>{children}</p>
+      </div>
+    </div>
+  )
+}
+
+export default function HowToPlay({
+  gameConfig = fallbackGameConfig,
+  gameMode = gameConfig.gameMode ?? 'classic',
+  arenaSettings = fallbackArenaSettings,
+  onClose,
+}) {
+  const [openSection, setOpenSection] = useState(null)
   const lockedScrollYRef = useRef(null)
-  const targetText = gameConfig.isInfinite
-    ? 'Sonsuz mod aktif. Skor birikir, maç kazananı belirlenmez.'
-    : gameMode === 'classic'
-      ? `${gameConfig.targetValue} tur kazanan maçı kazanır.`
-      : `${gameConfig.targetValue} puana ilk ulaşan maçı kazanır.`
+
+  const sections = [
+    {
+      id: 'basics',
+      icon: '🎯',
+      title: 'Temel Kurallar',
+      content: (
+        <>
+          <RuleItem icon="🔵" title="Amaç">
+            Rakibinizden önce aynı sembolü (X veya O) belirtilen sayıda yan yana,
+            sütunda veya çaprazda dizerek kazanın.
+          </RuleItem>
+          <RuleItem icon="📐" title="Izgara Boyutları">
+            3x3 tahtada 3 taş, 4x4 ve 5x5 tahtada 4 taş yan yana kazandırır.
+          </RuleItem>
+          <RuleItem icon="🔁" title="X / O Rotasyonu">
+            Her turda X ve O rolleri otomatik olarak değişir; kimse sürekli
+            avantajlı tarafta kalmaz.
+          </RuleItem>
+          <RuleItem icon="↩️" title="Güçler Sıfırlanır">
+            Her yeni tur başlangıcında tüm güçler sıfırdan verilir. Ancak puanlar
+            ve tur galibiyet sayısı korunur.
+          </RuleItem>
+        </>
+      ),
+    },
+    {
+      id: 'modes',
+      icon: '🏅',
+      title: 'Oyun Modları',
+      content: (
+        <div className="how-to-play-card-grid">
+          <article className="how-to-play-info-card">
+            <strong>Klasik Mod</strong>
+            <ul>
+              <li>Belirlenen tur sayısı kadar oynanır (3, 5, 7, 9 veya özel).</li>
+              <li>Her turu kazanan 1 tur galibiyeti alır.</li>
+              <li>Turların yarısından fazlasını kazanan maçı alır.</li>
+              <li>∞ seçilirse maç hiç bitmez; süresiz oynayabilirsiniz.</li>
+            </ul>
+          </article>
+          <article className="how-to-play-info-card arena">
+            <strong>Arena Modu</strong>
+            <ul>
+              <li>Her turun kazanan çizgisindeki çarpanlar puana eklenir.</li>
+              <li>Puanlar turdan tura birikir.</li>
+              <li>Hedef puana (15, 30, 50, 100 veya özel) ilk ulaşan kazanır.</li>
+              <li>∞ modda puan hedefi yoktur, birikmeye devam eder.</li>
+            </ul>
+          </article>
+        </div>
+      ),
+    },
+    {
+      id: 'powers',
+      icon: '⚡',
+      title: 'Özel Güçler',
+      content: (
+        <>
+          <RuleItem icon="💣" title="Bomba">
+            Rakibinizin taşlarından birini patlat. Korumalı taşlara kullanılamaz.
+          </RuleItem>
+          <RuleItem icon="🛡️" title="Kalkan">
+            Yerleştirdiğin taşı koru. Korumalı taş bombayla patlatılamaz.
+          </RuleItem>
+          <RuleItem icon="⚡" title="Boost">
+            Yerleştirdiğin taşın hücre çarpanını 2 katına çıkarır.
+          </RuleItem>
+          <RuleItem icon="🕳️" title="Kara Delik">
+            Boş bir kareye gizli Kara Delik kur. Rakip oraya taş koyarsa taşı
+            anında kaybolur ve sırası geçer. Kara Deliği sadece sen görürsün.
+          </RuleItem>
+          <div className="locked-power-note">
+            <strong>Ödüllü özel güçler:</strong> Joker normal Arena gücü değildir;
+            ileride PvC ödüllü özel güç olarak değerlendirilecek. Vampir: Rakibin
+            bir taşının çarpanını alıp kendi taşına ekler.
+          </div>
+        </>
+      ),
+    },
+    {
+      id: 'multipliers',
+      icon: '🔢',
+      title: 'Çarpan Sistemi',
+      content: (
+        <>
+          <RuleItem icon="📊" title="Nasıl Çalışır?">
+            Her karedeki sayı (2x, 3x, 4x), o karede taşınız varken kazandığınızda
+            alacağınız puan çarpanıdır. Kazanan çizgideki tüm çarpanlar toplanır.
+          </RuleItem>
+          <RuleItem icon="⚡" title="Boost Etkisi">
+            1x + 3x + 2x karelerden oluşan bir çizgiyle kazanırsanız 6 puan
+            alırsınız. Boost kullandıysanız o kare 2 katına çıkar.
+          </RuleItem>
+          {gameMode === 'arena' && (
+            <div className="how-to-play-state-line">
+              Çarpanlar: {arenaSettings.multipliersEnabled ? 'Açık' : 'Kapalı'} ·
+              Güçler: {arenaSettings.powersEnabled ? 'Açık' : 'Kapalı'} ·
+              Boost: {arenaSettings.boostMode === 'random' ? 'Rastgele' : 'Seçimli'}
+            </div>
+          )}
+        </>
+      ),
+    },
+    {
+      id: 'ai',
+      icon: '🤖',
+      title: 'Yapay Zeka',
+      content: (
+        <>
+          <RuleItem icon="X" title="İnsan Oyuncu">
+            PvC modunda insan X olarak oynar.
+          </RuleItem>
+          <RuleItem icon="O" title="Bilgisayar">
+            Bilgisayar O oynar. Klasik modda taş koyar; Arena PvC modunda bomba,
+            kalkan, boost ve Kara Delik güçlerini kontrollü şekilde kullanabilir.
+          </RuleItem>
+        </>
+      ),
+    },
+    {
+      id: 'tournament',
+      icon: '⚔️',
+      title: 'Turnuva Modu',
+      content: (
+        <>
+          <RuleItem icon="🔒" title="Yakında">
+            2, 4 veya 6 oyuncu katılabilir. Her oyuncu bir isim alır.
+          </RuleItem>
+          <RuleItem icon="🎲" title="Takım Ataması">
+            Oyuncular rastgele veya manuel olarak Takım A ve Takım B'ye atanır.
+            Takımlar eşit sayıda oyuncu içermelidir.
+          </RuleItem>
+          <RuleItem icon="🔁" title="Maç Rotasyonu">
+            Her takımdan karşılıklı oyuncular birbirleriyle oynar. Her çift iki kez
+            oynar: bir kez A=X, bir kez B=X olarak. Böylece taraflar adil olur.
+          </RuleItem>
+          <RuleItem icon="🏆" title="Puanlama">
+            Galibiyet = 3 puan, beraberlik = 1 puan, mağlubiyet = 0. En yüksek
+            puanlı oyuncu MVP seçilir.
+          </RuleItem>
+          <RuleItem icon="🎮" title="Cihaz Paylaşımı">
+            Her maç öncesi “Cihazı oyuncuya verin” ekranı gösterilir. Bu şekilde
+            oyuncular birbirinin stratejisini görmez.
+          </RuleItem>
+        </>
+      ),
+    },
+    {
+      id: 'tips',
+      icon: '💡',
+      title: 'Strateji İpuçları',
+      content: (
+        <>
+          <RuleItem icon="🎯" title="Tehdit Kontrolü">
+            Yüksek çarpanlı kareleri (3x veya 4x) önce kapat ya da rakibini
+            oralardan uzak tut.
+          </RuleItem>
+          <RuleItem icon="⚡" title="Boost Zamanı">
+            Boost gücünü 3x kare üzerinde kullanırsan 6x puan alırsın; bu oyun
+            belirleyici olabilir.
+          </RuleItem>
+          <RuleItem icon="💣" title="Bomba">
+            Bombayı rakibin kazanacak hamlesini engellemek için kullan. Panikle harcama.
+          </RuleItem>
+          <RuleItem icon="🛡️" title="Kalkan">
+            Kalkanı yüksek çarpanlı bir kare üzerine koy; rakip oraya bomba atamaz.
+          </RuleItem>
+          <RuleItem icon="🕳️" title="Kara Delik">
+            Kara Deliği rakibin en çok tercih ettiği yüksek çarpanlı kareye kur;
+            fark etmeden basarsa sırası boşa gider.
+          </RuleItem>
+          <RuleItem icon="🔁" title="X/O Değişimi">
+            X/O değişimini unutma; bir sonraki turda hangi tarafta olacağını hesapla.
+          </RuleItem>
+        </>
+      ),
+    },
+  ]
 
   useEffect(() => {
     if (lockedScrollYRef.current === null) {
@@ -58,7 +264,7 @@ export default function HowToPlay({ gameConfig, gameMode, arenaSettings, onClose
         <div className="how-to-play-header">
           <div>
             <span className="eyebrow">KURALLAR</span>
-            <h2 id="how-to-play-title">Nasıl oynanır?</h2>
+            <h2 id="how-to-play-title">Nasıl Oynanır?</h2>
           </div>
 
           <button type="button" className="panel-close-button" onClick={onClose}>
@@ -67,54 +273,53 @@ export default function HowToPlay({ gameConfig, gameMode, arenaSettings, onClose
         </div>
 
         <div className="how-to-play-content">
-          <div className="rule-section">
-            <h3>Temel amaç</h3>
-            <p>
-              Sırayla X ve O yerleştir. {gameConfig.boardSize}x{gameConfig.boardSize}
-              tahtada {gameConfig.winLength} taşı yan yana getiren turu alır.
-            </p>
+          <div className="how-to-play-accordion">
+            {sections.map((section) => {
+              const isOpen = openSection === section.id
+
+              return (
+                <section
+                  key={section.id}
+                  className={`accordion-section ${isOpen ? 'is-open' : ''}`}
+                >
+                  <button
+                    type="button"
+                    className="accordion-trigger"
+                    aria-expanded={isOpen}
+                    aria-controls={`how-to-play-${section.id}`}
+                    onClick={() => setOpenSection(isOpen ? null : section.id)}
+                  >
+                    <span className="accordion-title">
+                      <span aria-hidden="true">{section.icon}</span>
+                      {section.title}
+                    </span>
+                    <span className="accordion-caret" aria-hidden="true">▾</span>
+                  </button>
+
+                  {isOpen && (
+                    <div
+                      id={`how-to-play-${section.id}`}
+                      className="accordion-content"
+                    >
+                      {section.content}
+                    </div>
+                  )}
+                </section>
+              )
+            })}
           </div>
 
-          <div className="rule-section">
-            <h3>Maç hedefi</h3>
-            <p>{targetText}</p>
-          </div>
-
-          <div className="rule-section">
-            <h3>Klasik mod</h3>
-            <p>Güç ve çarpan yok. Kazanan her tur için 1 puan alır.</p>
-          </div>
-
-          <div className="rule-section">
-            <h3>Arena mod</h3>
-            <p>Çarpanlı hücreler ve özel güçler oyuna ekstra risk katar.</p>
-
-            {gameMode === 'arena' && (
-              <ul>
-                <li>Çarpanlar: {arenaSettings.multipliersEnabled ? 'Açık' : 'Kapalı'}</li>
-                <li>Özel güçler: {arenaSettings.powersEnabled ? 'Açık' : 'Kapalı'}</li>
-                <li>
-                  Boost modu:{' '}
-                  {arenaSettings.boostMode === 'random' ? 'Rastgele' : 'Seçimli'}
-                </li>
-              </ul>
-            )}
-          </div>
-
-          <div className="rule-section">
-            <h3>Özel güçler</h3>
-            <ul>
-              <li><strong>💣 Bomba:</strong> Dolu ve kalkansız bir taşı siler.</li>
-              <li><strong>🛡️ Kalkan:</strong> Kendi taşını bombaya karşı korur.</li>
-              <li><strong>🃏 Joker:</strong> Rakibin taşını kendi taşına çevirir.</li>
-              <li><strong>⚡ Boost:</strong> Bir hücreyi ekstra puanlı yapar.</li>
-            </ul>
-          </div>
-
-          <div className="rule-section">
-            <h3>Online oyun</h3>
-            <p>Oda koduyla farklı cihazlardan oynama sonraki geliştirme aşamasında.</p>
-          </div>
+          <section className="rule-section quick-reference">
+            <h3>Hızlı Başvuru</h3>
+            <div className="quick-reference-list">
+              <span>💣 Bomba</span>
+              <span>🛡️ Kalkan</span>
+              <span>⚡ Boost</span>
+              <span>🕳️ Kara Delik</span>
+              <span>🔒🃏 Joker</span>
+              <span>🔒🧛 Vampir</span>
+            </div>
+          </section>
         </div>
       </div>
     </div>,
