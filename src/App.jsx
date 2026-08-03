@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { getRandomAiMove } from './game/aiPlayer'
 import './App.css'
 import Board from './components/Board'
 import GameStatus from './components/GameStatus'
@@ -66,6 +67,7 @@ export default function App() {
   const [showScoreResetConfirm, setShowScoreResetConfirm] = useState(false)
   const [isHowToPlayOpen, setIsHowToPlayOpen] = useState(false)
   const [roundNumber, setRoundNumber] = useState(1)
+  const [opponentType] = useState('ai')
 
   const boardSize = gameConfig?.boardSize ?? defaultBoardSize
   const winLength = gameConfig?.winLength ?? 3
@@ -116,33 +118,36 @@ export default function App() {
     : 'YENİ MAÇ'
   const lineChip = `${winLength} TAŞ`
 
-  function finishRound(nextSquares, nextBoostedSquares = boostedSquares) {
-    const nextWinningLine = getWinningLine(nextSquares, boardSize, winLength)
 
-    if (nextWinningLine) {
-      const nextWinner = nextSquares[nextWinningLine[0]]
-      const nextRoundScore = calculateRoundScore(
-        nextWinningLine,
-        multipliers,
-        multipliersEnabled,
-        nextBoostedSquares
-      )
+    const finishRound = useCallback(
+    (nextSquares, nextBoostedSquares = boostedSquares) => {
+      const nextWinningLine = getWinningLine(nextSquares, boardSize, winLength)
 
-      setScores((currentScores) => ({
-        ...currentScores,
-        [nextWinner]: currentScores[nextWinner] + nextRoundScore,
-      }))
-      setResultMessage(getRandomMessage(winnerMessages))
-      setLoserMessage(getRandomMessage(loserMessages))
-      return
-    }
+      if (nextWinningLine) {
+        const nextWinner = nextSquares[nextWinningLine[0]]
+        const nextRoundScore = calculateRoundScore(
+          nextWinningLine,
+          multipliers,
+          multipliersEnabled,
+          nextBoostedSquares
+        )
 
-    if (isBoardFull(nextSquares)) {
-      setResultMessage(getRandomMessage(drawMessages))
-      setLoserMessage(null)
-    }
-  }
+        setScores((currentScores) => ({
+          ...currentScores,
+          [nextWinner]: currentScores[nextWinner] + nextRoundScore,
+        }))
+        setResultMessage(getRandomMessage(winnerMessages))
+        setLoserMessage(getRandomMessage(loserMessages))
+        return
+      }
 
+      if (isBoardFull(nextSquares)) {
+        setResultMessage(getRandomMessage(drawMessages))
+        setLoserMessage(null)
+      }
+    },
+    [boardSize, winLength, multipliers, multipliersEnabled, boostedSquares]
+  )
   function spendPlayerPower(player, powerId) {
     setPlayerPowers((currentPowers) => ({
       ...currentPowers,
@@ -357,7 +362,48 @@ export default function App() {
     setLockedSquares([])
     setXIsNext(!xIsNext)
   }
+  useEffect(() => {
+    const isAiTurn =
+      gameConfig &&
+      gameMode === 'classic' &&
+      opponentType === 'ai' &&
+      !xIsNext &&
+      !winner &&
+      !matchWinner &&
+      !isDraw
 
+    if (!isAiTurn) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      const aiMove = getRandomAiMove(squares)
+
+      if (aiMove === null) {
+        return
+      }
+
+      const nextSquares = squares.slice()
+      nextSquares[aiMove] = 'O'
+
+      setSquares(nextSquares)
+      finishRound(nextSquares)
+      setLockedSquares([])
+      setXIsNext(true)
+    }, 450)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [
+    gameConfig,
+    gameMode,
+    opponentType,
+    xIsNext,
+    winner,
+    matchWinner,
+    isDraw,
+    squares,
+    finishRound,
+  ])
   function handleNextRound() {
     resetGame()
     setRoundNumber((currentRound) => currentRound + 1)
