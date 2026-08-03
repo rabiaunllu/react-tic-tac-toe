@@ -39,10 +39,10 @@ const initialArenaSettings = {
 }
 
 
-function createInitialPlayerPowers() {
+function createInitialPlayerPowers(powerOptions = { gameMode: 'arena' }) {
   return {
-    X: createInitialPowerCounts(),
-    O: createInitialPowerCounts(),
+    X: createInitialPowerCounts(powerOptions),
+    O: createInitialPowerCounts(powerOptions),
   }
 }
 
@@ -61,6 +61,8 @@ export default function App() {
   const [lockedSquares, setLockedSquares] = useState([])
   const [boostedSquares, setBoostedSquares] = useState([])
   const [visibleBoostedSquares, setVisibleBoostedSquares] = useState([])
+  const [traps, setTraps] = useState([])
+  const [blackHoleEvent, setBlackHoleEvent] = useState(null)
   const [resultMessage, setResultMessage] = useState(null)
   const [loserMessage, setLoserMessage] = useState(null)
   const [gameConfig, setGameConfig] = useState(null)
@@ -70,10 +72,16 @@ export default function App() {
   const [roundNumber, setRoundNumber] = useState(1)
  const [humanWinStreak, setHumanWinStreak] = useState(0)
  
+ 
 
   const boardSize = gameConfig?.boardSize ?? defaultBoardSize
   const winLength = gameConfig?.winLength ?? 3
   const opponentType = gameConfig?.opponentType ?? 'human'
+  const powerOptions = {
+  gameMode,
+  opponentType,
+  playContext: 'local',
+}
   const winner = calculateWinner(squares, boardSize, winLength)
   const winningLine = getWinningLine(squares, boardSize, winLength)
   const multipliersEnabled = gameMode === 'arena' && arenaSettings.multipliersEnabled
@@ -97,11 +105,12 @@ export default function App() {
   const hasBombTarget = squares.some(
     (square, index) => square && !shieldedSquares.includes(index)
   )
-  const hasGameStarted =
-    squares.some(Boolean) ||
-    shieldedSquares.length > 0 ||
-    lockedSquares.length > 0 ||
-    boostedSquares.length > 0
+const hasGameStarted =
+  squares.some(Boolean) ||
+  shieldedSquares.length > 0 ||
+  lockedSquares.length > 0 ||
+  boostedSquares.length > 0 ||
+  traps.length > 0
   const boostTargets = squares
     .map((square, index) =>
       square || boostedSquares.includes(index) || lockedSquares.includes(index)
@@ -110,6 +119,12 @@ export default function App() {
     )
     .filter((index) => index !== null)
   const hasBoostTarget = boostTargets.length > 0
+const hasTrapTarget = squares.some(
+  (square, index) =>
+    !square &&
+    !lockedSquares.includes(index) &&
+    !traps.some((trap) => trap.index === index && trap.owner === currentPlayer)
+)
   const scoreLabel = gameMode === 'classic' ? 'Tur' : 'Puan'
   const modeChip = gameMode === 'arena' ? 'ARENA' : 'KLASİK'
   const targetChip = gameConfig
@@ -186,9 +201,12 @@ export default function App() {
     setLockedSquares([])
     setBoostedSquares([])
     setVisibleBoostedSquares([])
-    setPlayerPowers(createInitialPlayerPowers())
+    setTraps([])
+    setBlackHoleEvent(null)
+    setPlayerPowers(createInitialPlayerPowers({ gameMode: nextGameMode, opponentType }))
     setResultMessage(null)
     setLoserMessage(null)
+    
   }
 
   function revealBoostedSquare(index) {
@@ -282,7 +300,28 @@ export default function App() {
     setActivePower(null)
     setXIsNext(!xIsNext)
   }
+  function handleTrapPower(index) {
+    if (
+      squares[index] ||
+      lockedSquares.includes(index) ||
+      traps.some((trap) => trap.index === index && trap.owner === currentPlayer)
+    ) {
+      return
+    }
 
+    setTraps((currentTraps) => [
+      ...currentTraps,
+      {
+        index,
+        owner: currentPlayer,
+      },
+    ])
+
+    spendPlayerPower(currentPlayer, 'trap')
+    setLockedSquares([])
+    setActivePower(null)
+    setXIsNext(!xIsNext)
+  }
   function handleJokerPower(index) {
     const targetValue = squares[index]
     const opponentPlayer = currentPlayer === 'X' ? 'O' : 'X'
@@ -337,47 +376,71 @@ export default function App() {
   }
 
   function handleSquareClick(index) {
-    if (winner || matchWinner) {
-      return
-    }
-
-    if (powersEnabled && activePower === 'bomb') {
-      handleBombPower(index)
-      return
-    }
-
-    if (powersEnabled && activePower === 'shield') {
-      handleShieldPower(index)
-      return
-    }
-
-    if (powersEnabled && activePower === 'joker') {
-      if (isDraw) {
-        return
-      }
-
-      handleJokerPower(index)
-      return
-    }
-
-    if (powersEnabled && activePower === 'boost') {
-      handleBoostPower(index)
-      return
-    }
-
-    if (squares[index] || lockedSquares.includes(index)) {
-      return
-    }
-
-    const nextSquares = squares.slice()
-    nextSquares[index] = currentPlayer
-
-    setSquares(nextSquares)
-    revealBoostedSquare(index)
-    finishRound(nextSquares)
-    setLockedSquares([])
-    setXIsNext(!xIsNext)
+  if (winner || matchWinner) {
+    return
   }
+
+  if (powersEnabled && activePower === 'bomb') {
+    handleBombPower(index)
+    return
+  }
+
+  if (powersEnabled && activePower === 'shield') {
+    handleShieldPower(index)
+    return
+  }
+
+  if (powersEnabled && activePower === 'joker') {
+    if (isDraw) {
+      return
+    }
+
+    handleJokerPower(index)
+    return
+  }
+
+  if (powersEnabled && activePower === 'trap') {
+    handleTrapPower(index)
+    return
+  }
+
+  if (powersEnabled && activePower === 'boost') {
+    handleBoostPower(index)
+    return
+  }
+
+  if (squares[index] || lockedSquares.includes(index)) {
+    return
+  }
+
+  const triggeredTrap = traps.find(
+    (trap) => trap.index === index && trap.owner !== currentPlayer
+  )
+
+  if (triggeredTrap) {
+    setBlackHoleEvent({
+      index,
+      player: currentPlayer,
+      id: Date.now(),
+    })
+    setTraps((currentTraps) =>
+      currentTraps.filter((trap) => trap.index !== index)
+    )
+    setLockedSquares([])
+    setActivePower(null)
+    setXIsNext(!xIsNext)
+    return
+  }
+
+  const nextSquares = squares.slice()
+  nextSquares[index] = currentPlayer
+
+  setSquares(nextSquares)
+  revealBoostedSquare(index)
+  finishRound(nextSquares)
+  setLockedSquares([])
+  setXIsNext(!xIsNext)
+}
   useEffect(() => {
     const isAiTurn =
       gameConfig &&
@@ -428,6 +491,18 @@ export default function App() {
     humanWinStreak,
     finishRound,
   ])
+  useEffect(() => {
+    if (!blackHoleEvent) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setBlackHoleEvent(null)
+    }, 1100)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [blackHoleEvent])
+
   function handleNextRound() {
     resetGame()
     setRoundNumber((currentRound) => currentRound + 1)
@@ -439,7 +514,9 @@ export default function App() {
     setRoundNumber(1)
     setScores(initialScores)
     setMultipliers(multipliersEnabled ? createBoardMultipliers(boardSize) : {})
-    setPlayerPowers(createInitialPlayerPowers())
+    setPlayerPowers(createInitialPlayerPowers({ gameMode, opponentType }))
+    setTraps([])
+    setBlackHoleEvent(null)
     setActivePower(null)
     setShieldedSquares([])
     setLockedSquares([])
@@ -458,6 +535,8 @@ export default function App() {
     setShowSetupReturnConfirm(false)
     setShowScoreResetConfirm(false)
     setGameConfig(null)
+    setTraps([])
+    setBlackHoleEvent(null)
   }
 
   function handleRequestScoreReset() {
@@ -486,12 +565,20 @@ export default function App() {
     setScores(initialScores)
     setXIsNext(true)
     setRoundNumber(1)
-    setPlayerPowers(createInitialPlayerPowers())
+    setPlayerPowers(
+  createInitialPlayerPowers({
+    gameMode: config.gameMode,
+    opponentType: config.opponentType ?? 'human',
+    playContext: 'local',
+  })
+)
     setActivePower(null)
     setShieldedSquares([])
     setLockedSquares([])
     setBoostedSquares([])
     setVisibleBoostedSquares([])
+    setTraps([])
+    setBlackHoleEvent(null)
     setResultMessage(null)
     setLoserMessage(null)
     setShowSetupReturnConfirm(false)
@@ -627,11 +714,18 @@ export default function App() {
           matchWinner={matchWinner}
         />
 
+        {blackHoleEvent && (
+          <div className="black-hole-message" role="status" aria-live="assertive">
+            KARA DELİK! {blackHoleEvent.player} taşı yutuldu!
+          </div>
+        )}
+
         <div className="arena-board-stack">
           <PowerPanel
             currentPlayer="X"
             score={scores.X}
             scoreLabel={scoreLabel}
+            powerOptions={powerOptions}
             isActivePlayer={currentPlayer === 'X' && !winner && !matchWinner && !isDraw}
             isPowersEnabled={powersEnabled && !matchWinner}
             powerCounts={playerPowers.X}
@@ -640,6 +734,7 @@ export default function App() {
             disabledPowers={{
               bomb: !hasBombTarget,
               boost: !hasBoostTarget || Boolean(winner),
+              trap: !hasTrapTarget || Boolean(winner),
             }}
             onSelectPower={setActivePower}
             onUseRandomBoost={handleRandomBoostPower}
@@ -654,12 +749,16 @@ export default function App() {
             lockedSquares={lockedSquares}
             visibleBoostedSquares={visibleBoostedSquares}
             onSquareClick={handleSquareClick}
+            traps={traps}
+            currentPlayer={currentPlayer}
+            blackHoleEventIndex={blackHoleEvent?.index}
           />
 
           <PowerPanel
             currentPlayer="O"
             score={scores.O}
             scoreLabel={scoreLabel}
+            powerOptions={powerOptions}
             isActivePlayer={currentPlayer === 'O' && !winner && !matchWinner && !isDraw}
             isPowersEnabled={powersEnabled && !matchWinner}
             powerCounts={playerPowers.O}
@@ -668,6 +767,7 @@ export default function App() {
             disabledPowers={{
               bomb: !hasBombTarget,
               boost: !hasBoostTarget || Boolean(winner),
+              trap: !hasTrapTarget || Boolean(winner),
             }}
             onSelectPower={setActivePower}
             onUseRandomBoost={handleRandomBoostPower}

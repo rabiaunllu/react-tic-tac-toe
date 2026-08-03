@@ -27,10 +27,47 @@ export const powerDefinitions = [
     description: 'Rakibin taşını kendi taşına çevirir.',
     initialCount: 1,
   },
+  {
+    id: 'trap',
+    name: 'Kara Delik',
+    icon: '🕳️',
+    description: 'Boş kareye gizli kara delik kurar. Rakip basarsa taşı kaybolur.',
+    initialCount: 1,
+  },
 ]
 
-export function createInitialPowerCounts() {
-  return powerDefinitions.reduce((counts, power) => {
+const localHumanPowerIds = ['bomb', 'shield', 'boost', 'trap']
+const localAiPowerIds = ['bomb', 'shield', 'boost', 'trap']
+const onlinePowerIds = ['bomb', 'shield', 'boost', 'trap']
+
+export function getAvailablePowerIds({
+  gameMode,
+  opponentType = 'human',
+  playContext = 'local',
+}) {
+  if (gameMode !== 'arena') {
+    return []
+  }
+
+  if (playContext === 'online') {
+    return onlinePowerIds
+  }
+
+  if (opponentType === 'ai') {
+    return localAiPowerIds
+  }
+
+  return localHumanPowerIds
+}
+
+export function getAvailablePowerDefinitions(options) {
+  const availablePowerIds = getAvailablePowerIds(options)
+
+  return powerDefinitions.filter((power) => availablePowerIds.includes(power.id))
+}
+
+export function createInitialPowerCounts(options = { gameMode: 'arena' }) {
+  return getAvailablePowerDefinitions(options).reduce((counts, power) => {
     counts[power.id] = power.initialCount
     return counts
   }, {})

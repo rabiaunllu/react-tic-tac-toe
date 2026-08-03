@@ -8,6 +8,9 @@ export default function Board({
   shieldedSquares,
   lockedSquares,
   visibleBoostedSquares,
+  traps = [],
+  currentPlayer,
+  blackHoleEventIndex,
   onSquareClick,
 }) {
   const supportedBoardSizes = [3, 4, 5]
@@ -15,18 +18,27 @@ export default function Board({
 
   return (
     <div className={`board board-size-${safeBoardSize}`}>
-      {squares.map((square, index) => (
-        <Square
-          key={index}
-          value={square}
-          multiplier={multipliers[index]}
-          isWinningSquare={winningLine?.includes(index)}
-          isShielded={shieldedSquares.includes(index)}
-          isLocked={lockedSquares.includes(index)}
-          isBoosted={visibleBoostedSquares.includes(index)}
-          onSquareClick={() => onSquareClick(index)}
-        />
-      ))}
+      {squares.map((square, index) => {
+        const visibleTrap = traps.find(
+          (trap) => trap.index === index && trap.owner === currentPlayer
+        )
+        const isBlackHoleTriggered = blackHoleEventIndex === index
+
+        return (
+          <Square
+            key={index}
+            value={square}
+            multiplier={multipliers[index]}
+            isWinningSquare={winningLine?.includes(index)}
+            isShielded={shieldedSquares.includes(index)}
+            isLocked={lockedSquares.includes(index)}
+            isBoosted={visibleBoostedSquares.includes(index)}
+            isTrapped={Boolean(visibleTrap)}
+            isBlackHoleTriggered={isBlackHoleTriggered}
+            onSquareClick={() => onSquareClick(index)}
+          />
+        )
+      })}
     </div>
   )
 }
