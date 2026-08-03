@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { getAdaptiveAiMove } from './game/aiPlayer'
 import './App.css'
 import Board from './components/Board'
 import GameStatus from './components/GameStatus'
@@ -8,6 +9,7 @@ import PowerPanel from './components/PowerPanel'
 import { createInitialPowerCounts } from './game/powers'
 import GameSetup from './components/GameSetup'
 import HowToPlay from './components/HowToPlay'
+import RoundResultModal from './components/RoundResultModal'
 import {
   calculateRoundScore,
   calculateWinner,
@@ -35,6 +37,7 @@ const initialArenaSettings = {
   multipliersEnabled: true,
   boostMode: 'random',
 }
+
 
 function createInitialPlayerPowers() {
   return {
@@ -64,9 +67,13 @@ export default function App() {
   const [showSetupReturnConfirm, setShowSetupReturnConfirm] = useState(false)
   const [showScoreResetConfirm, setShowScoreResetConfirm] = useState(false)
   const [isHowToPlayOpen, setIsHowToPlayOpen] = useState(false)
+  const [roundNumber, setRoundNumber] = useState(1)
+ const [humanWinStreak, setHumanWinStreak] = useState(0)
+ 
 
   const boardSize = gameConfig?.boardSize ?? defaultBoardSize
   const winLength = gameConfig?.winLength ?? 3
+  const opponentType = gameConfig?.opponentType ?? 'human'
   const winner = calculateWinner(squares, boardSize, winLength)
   const winningLine = getWinningLine(squares, boardSize, winLength)
   const multipliersEnabled = gameMode === 'arena' && arenaSettings.multipliersEnabled
@@ -103,44 +110,60 @@ export default function App() {
     )
     .filter((index) => index !== null)
   const hasBoostTarget = boostTargets.length > 0
-  const scoreLabel = gameMode === 'classic' ? 'Round' : 'Puan'
+  const scoreLabel = gameMode === 'classic' ? 'Tur' : 'Puan'
   const modeChip = gameMode === 'arena' ? 'ARENA' : 'KLASİK'
   const targetChip = gameConfig
     ? gameConfig.isInfinite
       ? 'SONSUZ'
       : gameConfig.gameMode === 'classic'
-        ? `${gameConfig.targetValue} ROUND`
+        ? `${gameConfig.targetValue} TUR`
         : `${gameConfig.targetValue} PUAN`
     : 'YENİ MAÇ'
   const lineChip = `${winLength} TAŞ`
 
-  function finishRound(nextSquares, nextBoostedSquares = boostedSquares) {
-    const nextWinningLine = getWinningLine(nextSquares, boardSize, winLength)
 
-    if (nextWinningLine) {
-      const nextWinner = nextSquares[nextWinningLine[0]]
-      const nextRoundScore = calculateRoundScore(
-        nextWinningLine,
-        multipliers,
-        multipliersEnabled,
-        nextBoostedSquares
-      )
+    const finishRound = useCallback(
+    (nextSquares, nextBoostedSquares = boostedSquares) => {
+      const nextWinningLine = getWinningLine(nextSquares, boardSize, winLength)
 
-      setScores((currentScores) => ({
-        ...currentScores,
-        [nextWinner]: currentScores[nextWinner] + nextRoundScore,
-      }))
-      setResultMessage(getRandomMessage(winnerMessages))
-      setLoserMessage(getRandomMessage(loserMessages))
-      return
+      if (nextWinningLine) {
+        const nextWinner = nextSquares[nextWinningLine[0]]
+        const nextRoundScore = calculateRoundScore(
+          nextWinningLine,
+          multipliers,
+          multipliersEnabled,
+          nextBoostedSquares
+        )
+
+        setScores((currentScores) => ({
+          ...currentScores,
+          [nextWinner]: currentScores[nextWinner] + nextRoundScore,
+        }))
+        if (opponentType === 'ai' && gameMode === 'classic') {
+  setHumanWinStreak((currentStreak) => {
+    if (nextWinner === 'X') {
+      return Math.min(currentStreak + 1, 3)
     }
 
-    if (isBoardFull(nextSquares)) {
-      setResultMessage(getRandomMessage(drawMessages))
-      setLoserMessage(null)
+    if (nextWinner === 'O') {
+      return Math.max(currentStreak - 1, -3)
     }
-  }
 
+    return currentStreak
+  })
+}
+        setResultMessage(getRandomMessage(winnerMessages))
+        setLoserMessage(getRandomMessage(loserMessages))
+        return
+      }
+
+      if (isBoardFull(nextSquares)) {
+        setResultMessage(getRandomMessage(drawMessages))
+        setLoserMessage(null)
+      }
+    },
+    [boardSize, winLength, multipliers, multipliersEnabled, boostedSquares,opponentType, gameMode,]
+  )
   function spendPlayerPower(player, powerId) {
     setPlayerPowers((currentPowers) => ({
       ...currentPowers,
@@ -355,14 +378,65 @@ export default function App() {
     setLockedSquares([])
     setXIsNext(!xIsNext)
   }
+  useEffect(() => {
+    const isAiTurn =
+      gameConfig &&
+      gameMode === 'classic' &&
+      opponentType === 'ai' &&
+      !xIsNext &&
+      !winner &&
+      !matchWinner &&
+      !isDraw
 
-  function handleRestart() {
+    if (!isAiTurn) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      const aiMove = getAdaptiveAiMove({
+  squares,
+  boardSize,
+  winLength,
+  humanWinStreak,
+})
+
+      if (aiMove === null) {
+        return
+      }
+
+      const nextSquares = squares.slice()
+      nextSquares[aiMove] = 'O'
+
+      setSquares(nextSquares)
+      finishRound(nextSquares)
+      setLockedSquares([])
+      setXIsNext(true)
+    }, 450)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [
+    gameConfig,
+    gameMode,
+    opponentType,
+    xIsNext,
+    winner,
+    matchWinner,
+    isDraw,
+    squares,
+    boardSize,
+    winLength,
+    humanWinStreak,
+    finishRound,
+  ])
+  function handleNextRound() {
     resetGame()
+    setRoundNumber((currentRound) => currentRound + 1)
   }
 
   function handleNewMatch() {
     setSquares(createEmptyBoard(boardSize))
     setXIsNext(true)
+    setRoundNumber(1)
     setScores(initialScores)
     setMultipliers(multipliersEnabled ? createBoardMultipliers(boardSize) : {})
     setPlayerPowers(createInitialPlayerPowers())
@@ -373,10 +447,17 @@ export default function App() {
     setVisibleBoostedSquares([])
     setResultMessage(null)
     setLoserMessage(null)
+    setHumanWinStreak(0)
   }
 
   function handleResetScores() {
     setScores(initialScores)
+  }
+
+  function handleResultMenu() {
+    setShowSetupReturnConfirm(false)
+    setShowScoreResetConfirm(false)
+    setGameConfig(null)
   }
 
   function handleRequestScoreReset() {
@@ -404,6 +485,7 @@ export default function App() {
     )
     setScores(initialScores)
     setXIsNext(true)
+    setRoundNumber(1)
     setPlayerPowers(createInitialPlayerPowers())
     setActivePower(null)
     setShieldedSquares([])
@@ -414,6 +496,7 @@ export default function App() {
     setLoserMessage(null)
     setShowSetupReturnConfirm(false)
     setShowScoreResetConfirm(false)
+    setHumanWinStreak(0)
   }
 
   if (!gameConfig) {
@@ -424,7 +507,6 @@ export default function App() {
     <main className="app-shell">
       <section className="game-card">
         <header className="game-header brand-header">
-          <span className="eyebrow">REKABET MODU</span>
           <h1>XO ARENA</h1>
           <p>Taşını koy. Gücünü kullan. Rövanşı al.</p>
           <div className="match-chip-row" aria-label="Maç bilgileri">
@@ -517,8 +599,8 @@ export default function App() {
 
         {showScoreResetConfirm && (
           <div className="setup-return-confirm">
-            <strong>Round skorları sıfırlansın mı?</strong>
-            <p>X ve O round skorları sıfırlanacak. Devam etmek istiyor musun?</p>
+            <strong>Tur skorları sıfırlansın mı?</strong>
+            <p>X ve O tur skorları sıfırlanacak. Devam etmek istiyor musun?</p>
 
             <div className="setup-return-actions">
               <button type="button" onClick={handleCancelScoreReset}>
@@ -592,42 +674,24 @@ export default function App() {
           />
         </div>
 
-        {!matchWinner && (
-          <button className="restart-button" onClick={handleRestart}>
-            Yeni round
-          </button>
-        )}
       </section>
 
-      {matchWinner && (
-        <div className="match-winner-modal" role="presentation">
-          <div
-            className="match-winner-card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="match-winner-title"
-          >
-            <span className="match-winner-trophy" aria-hidden="true">🏆</span>
-            <div className="match-winner-copy">
-              <strong id="match-winner-title">{matchWinner} maçı aldı</strong>
-              <span>{scores.X} - {scores.O}</span>
-              <small>Rövanş hazır.</small>
-            </div>
-            <div className="match-winner-actions">
-              <button type="button" onClick={handleNewMatch}>
-                Yeni maç
-              </button>
-              <button
-                type="button"
-                className="secondary-action"
-                onClick={() => setGameConfig(null)}
-              >
-                Ayarlara dön
-              </button>
-            </div>
-          </div>
-        </div>
+      {(winner || isDraw) && !showSetupReturnConfirm && (
+        <RoundResultModal
+          roundNumber={roundNumber}
+          winner={winner}
+          isDraw={isDraw}
+          matchWinner={matchWinner}
+          scores={scores}
+          scoreLabel={scoreLabel}
+          resultMessage={resultMessage}
+          loserMessage={loserMessage}
+          onNextRound={handleNextRound}
+          onNewMatch={handleNewMatch}
+          onMenu={handleResultMenu}
+        />
       )}
+
     </main>
   )
 }

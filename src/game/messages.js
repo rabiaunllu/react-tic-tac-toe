@@ -1,10 +1,10 @@
 export const winnerMessages = [
   ['✨', 'Plan çalıştı.', 'Rövanş kokusu geldi.'],
-  ['⚡', 'Bu round hızlı bitti.', 'Rakip ısınamadı.'],
+  ['⚡', 'Bu tur hızlı bitti.', 'Rakip ısınamadı.'],
   ['🎯', 'Temiz çizgi.', 'Hamleler cuk oturdu.'],
   ['🔥', 'Tempo sende.', 'Baskı hissedildi.'],
   ['💫', 'Güzel kapanış.', 'Ego hafif çizildi.'],
-  ['🏆', 'Round cepte.', 'Bir sonraki daha sert.'],
+  ['🏆', 'Tur cepte.', 'Bir sonraki daha sert.'],
 ]
 
 export const loserMessages = [

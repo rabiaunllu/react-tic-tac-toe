@@ -18,7 +18,7 @@ export default function GameStatus({
       <div className="status winner result-status round-result">
         <span className="result-icon">{icon}</span>
         <div className="result-copy">
-          <strong>{winner} roundu aldı</strong>
+          <strong>{winner} turu aldı</strong>
           <span>+{roundScore} puan</span>
           <small>{loserMessage || subtitle || title}</small>
         </div>
