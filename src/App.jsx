@@ -67,10 +67,11 @@ export default function App() {
   const [showScoreResetConfirm, setShowScoreResetConfirm] = useState(false)
   const [isHowToPlayOpen, setIsHowToPlayOpen] = useState(false)
   const [roundNumber, setRoundNumber] = useState(1)
-  const [opponentType] = useState('ai')
+ 
 
   const boardSize = gameConfig?.boardSize ?? defaultBoardSize
   const winLength = gameConfig?.winLength ?? 3
+  const opponentType = gameConfig?.opponentType ?? 'human'
   const winner = calculateWinner(squares, boardSize, winLength)
   const winningLine = getWinningLine(squares, boardSize, winLength)
   const multipliersEnabled = gameMode === 'arena' && arenaSettings.multipliersEnabled
@@ -481,7 +482,6 @@ export default function App() {
     <main className="app-shell">
       <section className="game-card">
         <header className="game-header brand-header">
-          <span className="eyebrow">REKABET MODU</span>
           <h1>XO ARENA</h1>
           <p>Taşını koy. Gücünü kullan. Rövanşı al.</p>
           <div className="match-chip-row" aria-label="Maç bilgileri">

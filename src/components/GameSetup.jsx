@@ -12,6 +12,7 @@ const arenaTargets = [15, 30, 50, 100]
 export default function GameSetup({ onStartGame }) {
   const [boardSize, setBoardSize] = useState(3)
   const [gameMode, setGameMode] = useState('classic')
+  const [opponentType, setOpponentType] = useState('human')
   const [targetValue, setTargetValue] = useState(5)
   const [isInfinite, setIsInfinite] = useState(false)
 
@@ -33,6 +34,7 @@ export default function GameSetup({ onStartGame }) {
       targetType: gameMode === 'classic' ? 'rounds' : 'points',
       targetValue: isInfinite ? null : targetValue,
       isInfinite,
+      opponentType: gameMode === 'classic' ? opponentType : 'human',
     })
   }
 
@@ -40,11 +42,35 @@ export default function GameSetup({ onStartGame }) {
     <main className="app-shell">
       <section className="game-card setup-card">
         <header className="game-header brand-header setup-brand-header">
-          <span className="eyebrow">YENİ MAÇ</span>
+          
           <h1>XO ARENA</h1>
           <p>Tahtanı seç. Modu kur. Rövanşa hazır ol.</p>
         </header>
+ {gameMode === 'classic' && (
+  <div className="setup-control-group setup-opponent-group">
+    <span className="setup-control-label">Oyuncu modu</span>
 
+    <div className="setup-segment-grid setup-segment-grid--two">
+      <button
+        type="button"
+        className={`setup-segment ${opponentType === 'human' ? 'is-selected' : ''}`}
+        onClick={() => setOpponentType('human')}
+        aria-pressed={opponentType === 'human'}
+      >
+        <span>PvP</span>
+      </button>
+
+      <button
+        type="button"
+        className={`setup-segment ${opponentType === 'ai' ? 'is-selected' : ''}`}
+        onClick={() => setOpponentType('ai')}
+        aria-pressed={opponentType === 'ai'}
+      >
+        <span>PvC</span>
+      </button>
+    </div>
+  </div>
+)}
         <div className="setup-group">
           <span className="setup-label">Izgara Boyutu</span>
           <div className="setup-options">
@@ -117,6 +143,7 @@ export default function GameSetup({ onStartGame }) {
         <button className="start-game-button" onClick={handleStartGame}>
           Oyuna Başla
         </button>
+
       </section>
     </main>
   )
