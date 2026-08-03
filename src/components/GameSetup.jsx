@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import HowToPlay from './HowToPlay'
 
 const boardOptions = [
   { size: 3, label: '3x3', description: 'Klasik hızlı oyun', winLength: 3 },
@@ -15,10 +16,19 @@ export default function GameSetup({ onStartGame }) {
   const [opponentType, setOpponentType] = useState('human')
   const [targetValue, setTargetValue] = useState(5)
   const [isInfinite, setIsInfinite] = useState(false)
+  const [isHowToPlayOpen, setIsHowToPlayOpen] = useState(false)
 
   const selectedBoard = boardOptions.find((board) => board.size === boardSize)
   const targetOptions = gameMode === 'classic' ? classicTargets : arenaTargets
   const targetLabel = gameMode === 'classic' ? 'Tur Sayısı' : 'Hedef Puan'
+  const previewGameConfig = {
+    boardSize,
+    winLength: selectedBoard.winLength,
+    gameMode,
+    targetValue,
+    isInfinite,
+    opponentType,
+  }
 
   function handleModeChange(nextMode) {
     setGameMode(nextMode)
@@ -138,11 +148,44 @@ export default function GameSetup({ onStartGame }) {
             : `Arena mod: ${isInfinite ? 'Sonsuz puan' : `${targetValue} puan hedefi`}. Izgara ${selectedBoard.label}, ${selectedBoard.winLength} taş yan yana kazandırır.`}
         </div>
 
+        <div className="setup-action-row" aria-label="Setup ek aksiyonları">
+          <button
+            type="button"
+            className="setup-secondary-action setup-secondary-action--disabled"
+            disabled
+            aria-disabled="true"
+          >
+            <span>Turnuva</span>
+            <small>Yakında</small>
+          </button>
+          <button
+            type="button"
+            className="setup-secondary-action setup-secondary-action--help"
+            onClick={() => setIsHowToPlayOpen(true)}
+          >
+            <span>Nasıl Oynanır</span>
+            <small>Kurallar ve güçler</small>
+          </button>
+        </div>
+
         <button className="start-game-button" onClick={handleStartGame}>
           Oyuna Başla
         </button>
 
       </section>
+
+      {isHowToPlayOpen && (
+        <HowToPlay
+          gameConfig={previewGameConfig}
+          gameMode={gameMode}
+          arenaSettings={{
+            powersEnabled: true,
+            multipliersEnabled: true,
+            boostMode: 'random',
+          }}
+          onClose={() => setIsHowToPlayOpen(false)}
+        />
+      )}
     </main>
   )
 }
