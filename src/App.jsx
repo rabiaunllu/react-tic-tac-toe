@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { getAdaptiveAiMove } from './game/aiPlayer'
+import { getAdaptiveAiMove, getArenaAiPowerAction } from './game/aiPlayer'
 import './App.css'
 import Board from './components/Board'
 import GameStatus from './components/GameStatus'
@@ -154,7 +154,7 @@ const hasTrapTarget = squares.some(
           ...currentScores,
           [nextWinner]: currentScores[nextWinner] + nextRoundScore,
         }))
-        if (opponentType === 'ai' && gameMode === 'classic') {
+        if (opponentType === 'ai' && (gameMode === 'classic' || gameMode === 'arena')) {
   setHumanWinStreak((currentStreak) => {
     if (nextWinner === 'X') {
       return Math.min(currentStreak + 1, 3)
@@ -441,6 +441,7 @@ const hasTrapTarget = squares.some(
   setLockedSquares([])
   setXIsNext(!xIsNext)
 }
+
   useEffect(() => {
     const isAiSupportedMode = gameMode === 'classic' || gameMode === 'arena'
     const isAiTurn =
@@ -457,25 +458,149 @@ const hasTrapTarget = squares.some(
     }
 
     const timeoutId = window.setTimeout(() => {
+      const spendAiPower = (powerId) => {
+        setPlayerPowers((currentPowers) => ({
+          ...currentPowers,
+          O: {
+            ...currentPowers.O,
+            [powerId]: currentPowers.O[powerId] - 1,
+          },
+        }))
+      }
+
+      const placeAiStone = (index, nextBoostedSquares = boostedSquares) => {
+        if (squares[index] || lockedSquares.includes(index)) {
+          return
+        }
+
+        const triggeredTrap = traps.find(
+          (trap) => trap.index === index && trap.owner !== 'O'
+        )
+
+        if (triggeredTrap) {
+          setBlackHoleEvent({
+            index,
+            player: 'O',
+            id: Date.now(),
+          })
+          setTraps((currentTraps) =>
+            currentTraps.filter((trap) => trap.index !== index)
+          )
+          setLockedSquares([])
+          setActivePower(null)
+          setXIsNext(true)
+          return
+        }
+
+        const nextSquares = squares.slice()
+        nextSquares[index] = 'O'
+
+        setSquares(nextSquares)
+        if (
+          nextBoostedSquares.includes(index) &&
+          !visibleBoostedSquares.includes(index)
+        ) {
+          setVisibleBoostedSquares((currentVisibleBoostedSquares) => [
+            ...currentVisibleBoostedSquares,
+            index,
+          ])
+        }
+        finishRound(nextSquares, nextBoostedSquares)
+        setLockedSquares([])
+        setXIsNext(true)
+      }
+
+      if (gameMode === 'arena' && powersEnabled) {
+        const aiPowerAction = getArenaAiPowerAction({
+          squares,
+          boardSize,
+          winLength,
+          humanWinStreak,
+          playerPowers: playerPowers.O,
+          shieldedSquares,
+          boostedSquares,
+          blockedIndexes: lockedSquares,
+          aiTrapIndexes: traps
+            .filter((trap) => trap.owner === 'O')
+            .map((trap) => trap.index),
+        })
+
+        if (aiPowerAction?.type === 'bomb') {
+          const nextSquares = squares.slice()
+          nextSquares[aiPowerAction.index] = null
+
+          setSquares(nextSquares)
+          setShieldedSquares((currentShieldedSquares) =>
+            currentShieldedSquares.filter((squareIndex) => squareIndex !== aiPowerAction.index)
+          )
+          setBoostedSquares((currentBoostedSquares) =>
+            currentBoostedSquares.filter((squareIndex) => squareIndex !== aiPowerAction.index)
+          )
+          setVisibleBoostedSquares((currentVisibleBoostedSquares) =>
+            currentVisibleBoostedSquares.filter((squareIndex) => squareIndex !== aiPowerAction.index)
+          )
+          setLockedSquares([aiPowerAction.index])
+          spendAiPower('bomb')
+          setActivePower(null)
+          setXIsNext(true)
+          return
+        }
+
+        if (aiPowerAction?.type === 'shield') {
+          setShieldedSquares((currentShieldedSquares) => [
+            ...currentShieldedSquares,
+            aiPowerAction.index,
+          ])
+          spendAiPower('shield')
+          setLockedSquares([])
+          setActivePower(null)
+          setXIsNext(true)
+          return
+        }
+
+        if (aiPowerAction?.type === 'trap') {
+          setTraps((currentTraps) => [
+            ...currentTraps,
+            {
+              index: aiPowerAction.index,
+              owner: 'O',
+            },
+          ])
+          spendAiPower('trap')
+          setLockedSquares([])
+          setActivePower(null)
+          setXIsNext(true)
+          return
+        }
+
+        if (aiPowerAction?.type === 'boost') {
+          const nextBoostedSquares = [...boostedSquares, aiPowerAction.index]
+          setBoostedSquares(nextBoostedSquares)
+          setVisibleBoostedSquares((currentVisibleBoostedSquares) => [
+            ...currentVisibleBoostedSquares,
+            aiPowerAction.index,
+          ])
+          spendAiPower('boost')
+          setLockedSquares([])
+          setActivePower(null)
+          placeAiStone(aiPowerAction.index, nextBoostedSquares)
+          return
+        }
+      }
+
       const aiMove = getAdaptiveAiMove({
-  squares,
-  boardSize,
-  winLength,
-  humanWinStreak,
-   blockedIndexes: lockedSquares,
-})
+        squares,
+        boardSize,
+        winLength,
+        humanWinStreak,
+        blockedIndexes: lockedSquares,
+      })
 
       if (aiMove === null) {
         return
       }
 
-      const nextSquares = squares.slice()
-      nextSquares[aiMove] = 'O'
-
-      setSquares(nextSquares)
-      finishRound(nextSquares)
-      setLockedSquares([])
-      setXIsNext(true)
+      placeAiStone(aiMove)
     }, 450)
 
     return () => window.clearTimeout(timeoutId)
@@ -492,6 +617,12 @@ const hasTrapTarget = squares.some(
     winLength,
     humanWinStreak,
     lockedSquares,
+    powersEnabled,
+    playerPowers,
+    shieldedSquares,
+    boostedSquares,
+    visibleBoostedSquares,
+    traps,
     finishRound,
   ])
   useEffect(() => {
