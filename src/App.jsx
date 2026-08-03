@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { getRandomAiMove } from './game/aiPlayer'
+import { getAdaptiveAiMove } from './game/aiPlayer'
 import './App.css'
 import Board from './components/Board'
 import GameStatus from './components/GameStatus'
@@ -38,6 +38,7 @@ const initialArenaSettings = {
   boostMode: 'random',
 }
 
+
 function createInitialPlayerPowers() {
   return {
     X: createInitialPowerCounts(),
@@ -67,6 +68,7 @@ export default function App() {
   const [showScoreResetConfirm, setShowScoreResetConfirm] = useState(false)
   const [isHowToPlayOpen, setIsHowToPlayOpen] = useState(false)
   const [roundNumber, setRoundNumber] = useState(1)
+ const [humanWinStreak, setHumanWinStreak] = useState(0)
  
 
   const boardSize = gameConfig?.boardSize ?? defaultBoardSize
@@ -137,6 +139,19 @@ export default function App() {
           ...currentScores,
           [nextWinner]: currentScores[nextWinner] + nextRoundScore,
         }))
+        if (opponentType === 'ai' && gameMode === 'classic') {
+  setHumanWinStreak((currentStreak) => {
+    if (nextWinner === 'X') {
+      return Math.min(currentStreak + 1, 3)
+    }
+
+    if (nextWinner === 'O') {
+      return Math.max(currentStreak - 1, -3)
+    }
+
+    return currentStreak
+  })
+}
         setResultMessage(getRandomMessage(winnerMessages))
         setLoserMessage(getRandomMessage(loserMessages))
         return
@@ -147,7 +162,7 @@ export default function App() {
         setLoserMessage(null)
       }
     },
-    [boardSize, winLength, multipliers, multipliersEnabled, boostedSquares]
+    [boardSize, winLength, multipliers, multipliersEnabled, boostedSquares,opponentType, gameMode,]
   )
   function spendPlayerPower(player, powerId) {
     setPlayerPowers((currentPowers) => ({
@@ -378,7 +393,12 @@ export default function App() {
     }
 
     const timeoutId = window.setTimeout(() => {
-      const aiMove = getRandomAiMove(squares)
+      const aiMove = getAdaptiveAiMove({
+  squares,
+  boardSize,
+  winLength,
+  humanWinStreak,
+})
 
       if (aiMove === null) {
         return
@@ -403,6 +423,9 @@ export default function App() {
     matchWinner,
     isDraw,
     squares,
+    boardSize,
+    winLength,
+    humanWinStreak,
     finishRound,
   ])
   function handleNextRound() {
@@ -424,6 +447,7 @@ export default function App() {
     setVisibleBoostedSquares([])
     setResultMessage(null)
     setLoserMessage(null)
+    setHumanWinStreak(0)
   }
 
   function handleResetScores() {
@@ -472,6 +496,7 @@ export default function App() {
     setLoserMessage(null)
     setShowSetupReturnConfirm(false)
     setShowScoreResetConfirm(false)
+    setHumanWinStreak(0)
   }
 
   if (!gameConfig) {
