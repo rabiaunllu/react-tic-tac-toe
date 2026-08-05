@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.SignalR;
 using XoArena.Api.Hubs;
 using XoArena.Api.Contracts;
 using XoArena.Api.Models;
@@ -86,6 +87,46 @@ app.MapPost("/api/rooms/{roomCode}/join", (string roomCode, JoinRoomRequest requ
             error = result.ErrorMessage
         }),
         _ => Results.Problem("Unexpected join room result.")
+    };
+});
+
+app.MapPost("/api/rooms/{roomCode}/moves", async (
+    string roomCode,
+    MoveRoomRequest request,
+    IRoomStore roomStore,
+    IHubContext<RoomsHub> roomsHub) =>
+{
+    if (!Guid.TryParse(request.PlayerId, out var playerId))
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["playerId"] = ["Player id must be a valid Guid."]
+        });
+    }
+
+    var result = roomStore.Move(roomCode, playerId, request.Index);
+
+    if (result.Status is MoveRoomStatus.Moved)
+    {
+        var roomResponse = RoomResponse.FromRoom(result.Room!);
+        await roomsHub.Clients.Group(result.Room!.Code).SendAsync("RoomUpdated", roomResponse);
+
+        return Results.Ok(roomResponse);
+    }
+
+    return result.Status switch
+    {
+        MoveRoomStatus.NotFound => Results.NotFound(),
+        MoveRoomStatus.Forbidden => Results.StatusCode(StatusCodes.Status403Forbidden),
+        MoveRoomStatus.BadRequest => Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            [result.ErrorField ?? "request"] = [result.ErrorMessage ?? "Invalid move request."]
+        }),
+        MoveRoomStatus.Conflict => Results.Conflict(new
+        {
+            error = result.ErrorMessage
+        }),
+        _ => Results.Problem("Unexpected move room result.")
     };
 });
 

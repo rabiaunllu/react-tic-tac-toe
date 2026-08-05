@@ -67,4 +67,19 @@ POST /api/rooms/{roomCode}/join
 }
 ```
 
+Play a move:
+
+```text
+POST /api/rooms/{roomCode}/moves
+```
+
+```json
+{
+  "playerId": "46ece7a1f7714a0fbe114bec814b18b9",
+  "index": 4
+}
+```
+
+Move validation currently uses Classic board win rules even when the room `gameMode` is `arena`. Arena multipliers and powers are intentionally not part of the backend game state yet.
+
 Local Vite is allowed by CORS via `http://localhost:5173`. Add the future GitHub Pages origin to `Cors:AllowedOrigins` in `appsettings.json` when the frontend starts calling the API from Pages.
