@@ -12,5 +12,7 @@ public interface IRoomStore
 
     MoveRoomResult Move(string roomCode, Guid playerId, int index);
 
+    StartRoomResult Start(string roomCode, Guid playerId);
+
     NextRoundResult NextRound(string roomCode, Guid playerId);
 }

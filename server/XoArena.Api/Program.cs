@@ -130,6 +130,42 @@ app.MapPost("/api/rooms/{roomCode}/moves", async (
     };
 });
 
+app.MapPost("/api/rooms/{roomCode}/start", async (
+    string roomCode,
+    StartRoomRequest request,
+    IRoomStore roomStore,
+    IHubContext<RoomsHub> roomsHub) =>
+{
+    if (!Guid.TryParse(request.PlayerId, out var playerId))
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["playerId"] = ["Player id must be a valid Guid."]
+        });
+    }
+
+    var result = roomStore.Start(roomCode, playerId);
+
+    if (result.Status is StartRoomStatus.Started)
+    {
+        var roomResponse = RoomResponse.FromRoom(result.Room!);
+        await roomsHub.Clients.Group(result.Room!.Code).SendAsync("RoomUpdated", roomResponse);
+
+        return Results.Ok(roomResponse);
+    }
+
+    return result.Status switch
+    {
+        StartRoomStatus.NotFound => Results.NotFound(),
+        StartRoomStatus.Forbidden => Results.StatusCode(StatusCodes.Status403Forbidden),
+        StartRoomStatus.Conflict => Results.Conflict(new
+        {
+            error = result.ErrorMessage
+        }),
+        _ => Results.Problem("Unexpected start room result.")
+    };
+});
+
 app.MapPost("/api/rooms/{roomCode}/next-round", async (
     string roomCode,
     NextRoundRequest request,

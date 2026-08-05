@@ -8,6 +8,7 @@ import ArenaSettings from './components/ArenaSettings'
 import PowerPanel from './components/PowerPanel'
 import { createInitialPowerCounts } from './game/powers'
 import GameSetup from './components/GameSetup'
+import OnlineGame from './components/OnlineGame'
 import RoundResultModal from './components/RoundResultModal'
 import {
   calculateRoundScore,
@@ -65,6 +66,7 @@ export default function App() {
   const [resultMessage, setResultMessage] = useState(null)
   const [loserMessage, setLoserMessage] = useState(null)
   const [gameConfig, setGameConfig] = useState(null)
+  const [onlineGame, setOnlineGame] = useState(null)
   const [showSetupReturnConfirm, setShowSetupReturnConfirm] = useState(false)
   const [showScoreResetConfirm, setShowScoreResetConfirm] = useState(false)
   const [roundNumber, setRoundNumber] = useState(1)
@@ -686,6 +688,7 @@ const hasTrapTarget = squares.some(
   }
 
   function handleStartGame(config) {
+    setOnlineGame(null)
     setGameConfig(config)
     setGameMode(config.gameMode)
     setSquares(createEmptyBoard(config.boardSize))
@@ -718,8 +721,27 @@ const hasTrapTarget = squares.some(
     setHumanWinStreak(0)
   }
 
+  function handleStartOnlineGame(nextOnlineGame) {
+    setGameConfig(null)
+    setOnlineGame(nextOnlineGame)
+  }
+
+  function handleOnlineMenu() {
+    setOnlineGame(null)
+    setGameConfig(null)
+  }
+
+  if (onlineGame) {
+    return <OnlineGame initialOnlineGame={onlineGame} onMenu={handleOnlineMenu} />
+  }
+
   if (!gameConfig) {
-    return <GameSetup onStartGame={handleStartGame} />
+    return (
+      <GameSetup
+        onStartGame={handleStartGame}
+        onStartOnlineGame={handleStartOnlineGame}
+      />
+    )
   }
 
   return (
