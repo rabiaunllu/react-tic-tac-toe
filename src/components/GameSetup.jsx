@@ -11,7 +11,12 @@ const boardOptions = [
 const classicTargets = [3, 5, 7, 9]
 const arenaTargets = [15, 30, 50, 100]
 
-export default function GameSetup({ onStartGame, onStartOnlineGame }) {
+export default function GameSetup({
+  onStartGame,
+  onStartOnlineGame,
+  onSaveOnlineSession,
+  restoreMessage,
+}) {
   const [boardSize, setBoardSize] = useState(3)
   const [gameMode, setGameMode] = useState('classic')
   const [opponentType, setOpponentType] = useState('human')
@@ -109,6 +114,13 @@ export default function GameSetup({ onStartGame, onStartOnlineGame }) {
         room,
         playerId: player.id,
         symbol: player.symbol,
+        playerName,
+      })
+      onSaveOnlineSession({
+        roomCode: room.roomCode,
+        playerId: player.id,
+        symbol: player.symbol,
+        playerName,
       })
     } catch (error) {
       setOnlineError(error.message)
@@ -146,6 +158,13 @@ export default function GameSetup({ onStartGame, onStartOnlineGame }) {
         room,
         playerId: player.id,
         symbol: player.symbol,
+        playerName,
+      })
+      onSaveOnlineSession({
+        roomCode: room.roomCode,
+        playerId: player.id,
+        symbol: player.symbol,
+        playerName,
       })
     } catch (error) {
       setOnlineError(error.message)
@@ -232,6 +251,7 @@ export default function GameSetup({ onStartGame, onStartOnlineGame }) {
       roomCode: onlineLobby.room.roomCode,
       playerId: onlineLobby.playerId,
       symbol: onlineLobby.symbol,
+      playerName: onlineLobby.playerName,
       room: onlineLobby.room,
     })
   }, [onlineLobby, onStartOnlineGame])
@@ -243,6 +263,12 @@ export default function GameSetup({ onStartGame, onStartOnlineGame }) {
           <h1>XO ARENA</h1>
           <p>Tahtanı seç. Modu kur. Rövanşa hazır ol.</p>
         </header>
+
+        {restoreMessage && (
+          <div className="online-message" role="status">
+            {restoreMessage}
+          </div>
+        )}
 
         <div className="setup-control-group setup-opponent-group">
           <span className="setup-control-label">OYUNCU MODU</span>
@@ -408,12 +434,8 @@ export default function GameSetup({ onStartGame, onStartOnlineGame }) {
 
                 <div className="online-room-details">
                   <div>
-                    <span>Player ID</span>
-                    <strong>{onlineLobby.playerId}</strong>
-                  </div>
-                  <div>
-                    <span>Sembol</span>
-                    <strong>{onlineLobby.symbol}</strong>
+                    <span>Rol</span>
+                    <strong>{onlineLobby.symbol === 'X' ? 'Oda sahibi' : 'Misafir'}</strong>
                   </div>
                   <div>
                     <span>Durum</span>

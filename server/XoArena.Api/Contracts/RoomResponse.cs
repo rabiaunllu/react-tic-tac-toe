@@ -10,7 +10,9 @@ public sealed record RoomResponse(
     string GameMode,
     int TargetValue,
     IReadOnlyList<PlayerResponse> Players,
-    GameStateResponse Game)
+    GameStateResponse Game,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt)
 {
     public static RoomResponse FromRoom(Room room)
         => new(
@@ -21,5 +23,7 @@ public sealed record RoomResponse(
             room.GameMode,
             room.TargetValue,
             room.Players.Select(PlayerResponse.FromPlayer).ToArray(),
-            GameStateResponse.FromGameState(room.Game));
+            GameStateResponse.FromGameState(room.Game),
+            room.CreatedAt,
+            room.UpdatedAt);
 }

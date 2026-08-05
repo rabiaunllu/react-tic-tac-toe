@@ -3081,6 +3081,7 @@ button,
   .online-join-row {
     grid-template-columns: 1fr;
   }
+
 }
 .trapped-square {
   border-color: rgba(255, 209, 102, 0.58);

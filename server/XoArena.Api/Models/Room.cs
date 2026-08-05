@@ -8,4 +8,6 @@ public sealed record Room(
     string GameMode,
     int TargetValue,
     IReadOnlyList<Player> Players,
-    GameState Game);
+    GameState Game,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);
