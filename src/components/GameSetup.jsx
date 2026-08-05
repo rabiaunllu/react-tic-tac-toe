@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
+import { getRoomStatusText, requestRoomJson, startRoom } from '../api/roomsApi'
 import HowToPlay from './HowToPlay'
-
-const API_BASE_URL = 'http://localhost:5243'
 
 const boardOptions = [
   { size: 3, label: '3x3', description: 'Klasik hızlı oyun', winLength: 3 },
@@ -12,51 +11,7 @@ const boardOptions = [
 const classicTargets = [3, 5, 7, 9]
 const arenaTargets = [15, 30, 50, 100]
 
-function getRoomStatusText(status) {
-  const statusMap = {
-    waiting: 'Rakip bekleniyor',
-    playing: 'Oyun hazır',
-    completed: 'Tamamlandı',
-  }
-
-  return statusMap[status] ?? 'Durum bilinmiyor'
-}
-
-async function requestJson(path, options = {}) {
-  let response
-
-  try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      ...options,
-    })
-  } catch {
-    throw new Error('Backend çalışmıyor olabilir. Önce server/XoArena.Api projesini başlatın.')
-  }
-
-  if (!response.ok) {
-    if (response.status === 404) {
-      throw new Error('Oda bulunamadı. Kodu kontrol edip tekrar deneyin.')
-    }
-
-    if (response.status === 400) {
-      throw new Error('Eksik veya hatalı bilgi var. Oyuncu adı ve oda ayarlarını kontrol edin.')
-    }
-
-    if (response.status === 409) {
-      throw new Error('Oda şu anda bu işleme uygun değil.')
-    }
-
-    throw new Error('Beklenmeyen bir hata oluştu. Biraz sonra tekrar deneyin.')
-  }
-
-  return response.json()
-}
-
-export default function GameSetup({ onStartGame }) {
+export default function GameSetup({ onStartGame, onStartOnlineGame }) {
   const [boardSize, setBoardSize] = useState(3)
   const [gameMode, setGameMode] = useState('classic')
   const [opponentType, setOpponentType] = useState('human')
@@ -137,7 +92,7 @@ export default function GameSetup({ onStartGame }) {
     setOnlineLoadingAction('create')
 
     try {
-      const room = await requestJson('/api/rooms', {
+      const room = await requestRoomJson('/api/rooms', {
         method: 'POST',
         body: JSON.stringify({
           playerName,
@@ -180,7 +135,7 @@ export default function GameSetup({ onStartGame }) {
     setOnlineLoadingAction('join')
 
     try {
-      const room = await requestJson(`/api/rooms/${roomCode}/join`, {
+      const room = await requestRoomJson(`/api/rooms/${roomCode}/join`, {
         method: 'POST',
         body: JSON.stringify({ playerName }),
       })
@@ -199,6 +154,34 @@ export default function GameSetup({ onStartGame }) {
     }
   }
 
+  async function handleStartOnlineRoom() {
+    if (!onlineLobby || onlineLobby.symbol !== 'X' || onlineLobby.room.status !== 'ready') {
+      return
+    }
+
+    setOnlineError('')
+    setOnlineLoadingAction('start')
+
+    try {
+      const room = await startRoom(onlineLobby.room.roomCode, onlineLobby.playerId)
+
+      setOnlineLobby((currentLobby) => {
+        if (!currentLobby) {
+          return currentLobby
+        }
+
+        return {
+          ...currentLobby,
+          room,
+        }
+      })
+    } catch (error) {
+      setOnlineError(error.message)
+    } finally {
+      setOnlineLoadingAction(null)
+    }
+  }
+
   useEffect(() => {
     if (!isOnlineMode || !onlineLobby?.room.roomCode) {
       return undefined
@@ -209,7 +192,7 @@ export default function GameSetup({ onStartGame }) {
 
     async function pollRoom() {
       try {
-        const room = await requestJson(`/api/rooms/${roomCode}`)
+        const room = await requestRoomJson(`/api/rooms/${roomCode}`)
 
         if (!isPollingActive) {
           return
@@ -239,6 +222,19 @@ export default function GameSetup({ onStartGame }) {
       window.clearInterval(pollingId)
     }
   }, [isOnlineMode, onlineLobby?.room.roomCode])
+
+  useEffect(() => {
+    if (onlineLobby?.room.status !== 'playing') {
+      return
+    }
+
+    onStartOnlineGame({
+      roomCode: onlineLobby.room.roomCode,
+      playerId: onlineLobby.playerId,
+      symbol: onlineLobby.symbol,
+      room: onlineLobby.room,
+    })
+  }, [onlineLobby, onStartOnlineGame])
 
   return (
     <main className="app-shell">
@@ -438,10 +434,22 @@ export default function GameSetup({ onStartGame }) {
                   {getRoomStatusText(onlineLobby.room.status)}
                 </div>
 
-                {onlineLobby.room.status === 'playing' && (
+                {onlineLobby.room.status === 'ready' && onlineLobby.symbol === 'X' && (
+                  <button
+                    type="button"
+                    className="online-play-action"
+                    onClick={handleStartOnlineRoom}
+                    disabled={isOnlineLoading}
+                  >
+                    <span>{onlineLoadingAction === 'start' ? 'Başlatılıyor...' : 'Oyuna Geç'}</span>
+                    <small>Odayı başlat ve online oyun ekranına geç</small>
+                  </button>
+                )}
+
+                {onlineLobby.room.status === 'ready' && onlineLobby.symbol === 'O' && (
                   <button type="button" className="online-play-action" disabled>
                     <span>Oyuna Geç</span>
-                    <small>Online oyun ekranı bir sonraki adımda bağlanacak</small>
+                    <small>Oda sahibi oyunu başlatacak</small>
                   </button>
                 )}
               </div>

@@ -68,7 +68,7 @@ public sealed class InMemoryRoomStore : IRoomStore
                 return JoinRoomResult.NotFound();
             }
 
-            if (room.Status is RoomStatuses.Playing or RoomStatuses.Completed)
+            if (room.Status is RoomStatuses.Ready or RoomStatuses.Playing or RoomStatuses.Completed)
             {
                 return JoinRoomResult.Conflict("Room is not accepting new players.");
             }
@@ -80,7 +80,7 @@ public sealed class InMemoryRoomStore : IRoomStore
 
             var joinedRoom = room with
             {
-                Status = RoomStatuses.Playing,
+                Status = RoomStatuses.Ready,
                 Players =
                 [
                     .. room.Players,
@@ -94,6 +94,58 @@ public sealed class InMemoryRoomStore : IRoomStore
             if (rooms.TryUpdate(normalizedRoomCode, joinedRoom, room))
             {
                 return JoinRoomResult.Joined(joinedRoom);
+            }
+        }
+    }
+
+    public StartRoomResult Start(string roomCode, Guid playerId)
+    {
+        var normalizedRoomCode = NormalizeRoomCode(roomCode);
+
+        if (normalizedRoomCode is null)
+        {
+            return StartRoomResult.NotFound();
+        }
+
+        while (true)
+        {
+            if (!rooms.TryGetValue(normalizedRoomCode, out var room))
+            {
+                return StartRoomResult.NotFound();
+            }
+
+            var player = room.Players.FirstOrDefault(currentPlayer =>
+                Guid.TryParse(currentPlayer.Id, out var currentPlayerId)
+                && currentPlayerId == playerId);
+
+            if (player is null)
+            {
+                return StartRoomResult.Forbidden();
+            }
+
+            if (player.Symbol is not "X")
+            {
+                return StartRoomResult.Forbidden();
+            }
+
+            if (room.Players.Count < 2)
+            {
+                return StartRoomResult.Conflict("Room needs two players before starting.");
+            }
+
+            if (room.Status is not RoomStatuses.Ready)
+            {
+                return StartRoomResult.Conflict("Room is not ready to start.");
+            }
+
+            var startedRoom = room with
+            {
+                Status = RoomStatuses.Playing
+            };
+
+            if (rooms.TryUpdate(normalizedRoomCode, startedRoom, room))
+            {
+                return StartRoomResult.Started(startedRoom);
             }
         }
     }

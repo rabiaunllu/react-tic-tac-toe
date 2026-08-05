@@ -2979,7 +2979,12 @@ button,
   padding: 11px 12px;
   background: rgba(18, 245, 220, 0.09);
   color: #c9fff8;
-  cursor: not-allowed;
+  cursor: pointer;
+}
+
+.online-play-action:hover {
+  border-color: rgba(18, 245, 220, 0.5);
+  background: rgba(18, 245, 220, 0.14);
 }
 
 .online-play-action span {
@@ -2996,9 +3001,80 @@ button,
   text-align: center;
 }
 
+.online-game-card {
+  width: min(560px, 100%);
+}
+
+.online-game-meta {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.online-game-meta div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.online-game-meta span {
+  color: #9aa8c2;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.online-game-meta strong {
+  min-width: 0;
+  color: #f5f7fb;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.online-score-board {
+  max-width: 100%;
+}
+
+.online-score-board .match-target-info {
+  border-radius: 14px;
+}
+
+.online-game-players {
+  width: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.online-player-row.is-current {
+  border: 1px solid rgba(18, 245, 220, 0.32);
+  background: rgba(18, 245, 220, 0.1);
+}
+
+.online-round-panel {
+  width: 100%;
+  display: grid;
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid rgba(255, 209, 102, 0.24);
+  border-radius: 14px;
+  background: rgba(255, 209, 102, 0.08);
+  text-align: center;
+}
+
+.online-round-panel strong {
+  color: #fff0bd;
+  font-size: 14px;
+}
+
 @media (max-width: 420px) {
   .setup-segment-grid--three,
-  .online-room-details {
+  .online-room-details,
+  .online-game-meta,
+  .online-game-players {
     grid-template-columns: 1fr;
   }
 
