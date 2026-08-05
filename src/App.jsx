@@ -92,6 +92,7 @@ export default function App() {
   )
   const isDraw = !winner && isBoardFull(squares)
   const currentPlayer = xIsNext ? 'X' : 'O'
+  const visibleTrapOwner = opponentType === 'ai' ? 'X' : currentPlayer
   const matchWinner =
     gameConfig && !gameConfig.isInfinite
       ? scores.X >= gameConfig.targetValue
@@ -865,10 +866,9 @@ const hasTrapTarget = squares.some(
             shieldedSquares={shieldedSquares}
             lockedSquares={lockedSquares}
             visibleBoostedSquares={visibleBoostedSquares}
-            onSquareClick={handleSquareClick}
             traps={traps}
-            currentPlayer={currentPlayer}
-            blackHoleEventIndex={blackHoleEvent?.index}
+            visibleTrapOwner={visibleTrapOwner}
+            onSquareClick={handleSquareClick}
           />
 
           <PowerPanel
