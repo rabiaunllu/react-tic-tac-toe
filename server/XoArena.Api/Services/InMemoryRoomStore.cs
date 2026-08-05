@@ -39,14 +39,62 @@ public sealed class InMemoryRoomStore : IRoomStore
 
     public Room? GetByCode(string roomCode)
     {
-        if (string.IsNullOrWhiteSpace(roomCode))
+        var normalizedRoomCode = NormalizeRoomCode(roomCode);
+
+        if (normalizedRoomCode is null)
         {
             return null;
         }
 
-        return rooms.TryGetValue(roomCode.Trim().ToUpperInvariant(), out var room)
+        return rooms.TryGetValue(normalizedRoomCode, out var room)
             ? room
             : null;
+    }
+
+    public JoinRoomResult Join(string roomCode, string playerName)
+    {
+        var normalizedRoomCode = NormalizeRoomCode(roomCode);
+
+        if (normalizedRoomCode is null)
+        {
+            return JoinRoomResult.NotFound();
+        }
+
+        while (true)
+        {
+            if (!rooms.TryGetValue(normalizedRoomCode, out var room))
+            {
+                return JoinRoomResult.NotFound();
+            }
+
+            if (room.Status is RoomStatuses.Playing or RoomStatuses.Completed)
+            {
+                return JoinRoomResult.Conflict("Room is not accepting new players.");
+            }
+
+            if (room.Players.Count >= 2)
+            {
+                return JoinRoomResult.Conflict("Room is full.");
+            }
+
+            var joinedRoom = room with
+            {
+                Status = RoomStatuses.Playing,
+                Players =
+                [
+                    .. room.Players,
+                    new Player(
+                        Guid.NewGuid().ToString("N"),
+                        playerName,
+                        "O")
+                ]
+            };
+
+            if (rooms.TryUpdate(normalizedRoomCode, joinedRoom, room))
+            {
+                return JoinRoomResult.Joined(joinedRoom);
+            }
+        }
     }
 
     private static string GenerateRoomCode()
@@ -60,4 +108,9 @@ public sealed class InMemoryRoomStore : IRoomStore
 
         return new string(characters);
     }
+
+    private static string? NormalizeRoomCode(string roomCode)
+        => string.IsNullOrWhiteSpace(roomCode)
+            ? null
+            : roomCode.Trim().ToUpperInvariant();
 }
