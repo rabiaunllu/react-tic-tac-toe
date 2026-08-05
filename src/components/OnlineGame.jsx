@@ -1,8 +1,20 @@
 import { useEffect, useState } from 'react'
-import { getRoomStatusText, requestRoomJson } from '../api/roomsApi'
+import { getRoomStatusText, requestRoomJson, startRoom } from '../api/roomsApi'
 import Board from './Board'
 
 function getOnlineStatusMessage(room, symbol) {
+  if (room.status === 'waiting') {
+    return 'Rakip bekleniyor'
+  }
+
+  if (room.status === 'ready') {
+    return symbol === 'X' ? 'Oyunu başlatabilirsin' : 'Oda sahibi oyunu başlatacak'
+  }
+
+  if (room.status !== 'playing') {
+    return getRoomStatusText(room.status)
+  }
+
   if (room.game.winner) {
     return room.game.winner === symbol ? 'Turu kazandın' : `${room.game.winner} turu kazandı`
   }
@@ -20,6 +32,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
   const [room, setRoom] = useState(initialOnlineGame.room)
   const [actionError, setActionError] = useState('')
   const [isMovePending, setIsMovePending] = useState(false)
+  const [isStartPending, setIsStartPending] = useState(false)
   const [isNextRoundPending, setIsNextRoundPending] = useState(false)
 
   const { roomCode, playerId, symbol } = initialOnlineGame
@@ -85,6 +98,24 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
     }
   }
 
+  async function handleStartRoom() {
+    if (room.status !== 'ready' || symbol !== 'X') {
+      return
+    }
+
+    setActionError('')
+    setIsStartPending(true)
+
+    try {
+      const nextRoom = await startRoom(roomCode, playerId)
+      setRoom(nextRoom)
+    } catch (error) {
+      setActionError(error.message)
+    } finally {
+      setIsStartPending(false)
+    }
+  }
+
   useEffect(() => {
     let isPollingActive = true
 
@@ -115,7 +146,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
       <section className="game-card online-game-card">
         <header className="game-header brand-header">
           <h1>XO ARENA</h1>
-          <p>Online oda hazır. Hamleler REST ve polling ile eşitleniyor.</p>
+          <p>Taşını koy. Gücünü kullan. Rövanşı al.</p>
           <div className="match-chip-row" aria-label="Online maç bilgileri">
             <span className={`match-chip ${room.gameMode}`}>{room.gameMode === 'arena' ? 'ARENA' : 'KLASİK'}</span>
             <span className="match-chip">{room.boardSize}x{room.boardSize}</span>
@@ -176,6 +207,17 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
           <div className="online-message online-message--error" role="alert">
             {actionError}
           </div>
+        )}
+
+        {room.status === 'ready' && symbol === 'X' && (
+          <button
+            type="button"
+            className="online-primary-action"
+            onClick={handleStartRoom}
+            disabled={isStartPending}
+          >
+            {isStartPending ? 'Başlatılıyor...' : 'Oyuna Geç'}
+          </button>
         )}
 
         <Board
