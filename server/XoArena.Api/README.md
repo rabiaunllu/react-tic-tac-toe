@@ -31,4 +31,26 @@ SignalR rooms hub:
 /hubs/rooms
 ```
 
+Create an in-memory room:
+
+```text
+POST /api/rooms
+```
+
+```json
+{
+  "playerName": "Rabia",
+  "boardSize": 3,
+  "winLength": 3,
+  "gameMode": "classic",
+  "targetValue": 5
+}
+```
+
+Fetch an in-memory room:
+
+```text
+GET /api/rooms/{roomCode}
+```
+
 Local Vite is allowed by CORS via `http://localhost:5173`. Add the future GitHub Pages origin to `Cors:AllowedOrigins` in `appsettings.json` when the frontend starts calling the API from Pages.
