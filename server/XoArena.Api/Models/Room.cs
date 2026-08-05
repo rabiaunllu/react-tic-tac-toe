@@ -7,4 +7,5 @@ public sealed record Room(
     int WinLength,
     string GameMode,
     int TargetValue,
-    IReadOnlyList<Player> Players);
+    IReadOnlyList<Player> Players,
+    GameState Game);
