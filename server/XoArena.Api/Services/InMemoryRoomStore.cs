@@ -16,6 +16,7 @@ public sealed class InMemoryRoomStore : IRoomStore
         while (true)
         {
             var roomCode = GenerateRoomCode();
+            var now = DateTimeOffset.UtcNow;
             var room = new Room(
                 roomCode,
                 RoomStatuses.Waiting,
@@ -29,7 +30,9 @@ public sealed class InMemoryRoomStore : IRoomStore
                         options.PlayerName,
                         "X")
                 ],
-                CreateInitialGameState(options.BoardSize));
+                CreateInitialGameState(options.BoardSize),
+                now,
+                now);
 
             if (rooms.TryAdd(roomCode, room))
             {
@@ -81,6 +84,7 @@ public sealed class InMemoryRoomStore : IRoomStore
             var joinedRoom = room with
             {
                 Status = RoomStatuses.Ready,
+                UpdatedAt = DateTimeOffset.UtcNow,
                 Players =
                 [
                     .. room.Players,
@@ -140,7 +144,8 @@ public sealed class InMemoryRoomStore : IRoomStore
 
             var startedRoom = room with
             {
-                Status = RoomStatuses.Playing
+                Status = RoomStatuses.Playing,
+                UpdatedAt = DateTimeOffset.UtcNow
             };
 
             if (rooms.TryUpdate(normalizedRoomCode, startedRoom, room))
@@ -217,6 +222,7 @@ public sealed class InMemoryRoomStore : IRoomStore
 
             var updatedRoom = room with
             {
+                UpdatedAt = DateTimeOffset.UtcNow,
                 Game = room.Game with
                 {
                     Squares = squares,
@@ -272,6 +278,7 @@ public sealed class InMemoryRoomStore : IRoomStore
 
             var updatedRoom = room with
             {
+                UpdatedAt = DateTimeOffset.UtcNow,
                 Game = room.Game with
                 {
                     Squares = CreateEmptySquares(room.BoardSize),

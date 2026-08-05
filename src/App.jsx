@@ -24,6 +24,17 @@ import {
   loserMessages,
   winnerMessages,
 } from './game/messages'
+import {
+  clearLocalSession,
+  clearOnlineSession,
+  hasStoredLocalSession,
+  hasStoredOnlineSession,
+  readLocalSession,
+  readOnlineSession,
+  writeLocalSession,
+  writeOnlineSession,
+} from './sessionStorage'
+import { requestRoomJson } from './api/roomsApi'
 
 const defaultBoardSize = 3
 
@@ -67,6 +78,10 @@ export default function App() {
   const [loserMessage, setLoserMessage] = useState(null)
   const [gameConfig, setGameConfig] = useState(null)
   const [onlineGame, setOnlineGame] = useState(null)
+  const [isSessionRestoreChecked, setIsSessionRestoreChecked] = useState(
+    () => !hasStoredOnlineSession() && !hasStoredLocalSession()
+  )
+  const [setupRestoreMessage, setSetupRestoreMessage] = useState('')
   const [showSetupReturnConfirm, setShowSetupReturnConfirm] = useState(false)
   const [showScoreResetConfirm, setShowScoreResetConfirm] = useState(false)
   const [roundNumber, setRoundNumber] = useState(1)
@@ -442,6 +457,107 @@ const hasTrapTarget = squares.some(
   setXIsNext(!xIsNext)
 }
 
+  const restoreLocalGameSession = useCallback((session) => {
+    setOnlineGame(null)
+    setGameConfig(session.gameConfig)
+    setGameMode(session.gameMode)
+    setScores(session.scores)
+    setArenaSettings(session.arenaSettings)
+    setPendingArenaSettings(null)
+    setIsArenaSettingsOpen(false)
+    setMultipliers(session.multipliers ?? {})
+    setPlayerPowers(session.playerPowers)
+    setActivePower(session.activePower ?? null)
+    setShieldedSquares(session.shieldedSquares)
+    setLockedSquares(session.lockedSquares)
+    setBoostedSquares(session.boostedSquares)
+    setVisibleBoostedSquares(session.visibleBoostedSquares)
+    setTraps(session.traps)
+    setBlackHoleEvent(session.blackHoleEvent ?? null)
+    setResultMessage(session.resultMessage ?? null)
+    setLoserMessage(session.loserMessage ?? null)
+    setSquares(session.squares)
+    setXIsNext(session.xIsNext)
+    setRoundNumber(session.roundNumber)
+    setHumanWinStreak(session.humanWinStreak ?? 0)
+    setShowSetupReturnConfirm(false)
+    setShowScoreResetConfirm(false)
+  }, [])
+
+  useEffect(() => {
+    let isMounted = true
+
+    async function restoreInitialSession() {
+      const hadOnlineSession = hasStoredOnlineSession()
+      const onlineSession = readOnlineSession()
+
+      if (hadOnlineSession) {
+        if (!onlineSession) {
+          if (isMounted) {
+            setSetupRestoreMessage('Online oda bulunamadı, tekrar oda oluşturabilir veya koda katılabilirsin.')
+            setIsSessionRestoreChecked(true)
+          }
+          return
+        }
+
+        try {
+          const room = await requestRoomJson(`/api/rooms/${onlineSession.roomCode}`)
+
+          if (!isMounted) {
+            return
+          }
+
+          setGameConfig(null)
+          setOnlineGame({
+            roomCode: room.roomCode,
+            playerId: onlineSession.playerId,
+            symbol: onlineSession.symbol,
+            playerName: onlineSession.playerName,
+            room,
+          })
+          setSetupRestoreMessage('')
+          setIsSessionRestoreChecked(true)
+        } catch {
+          clearOnlineSession()
+
+          if (isMounted) {
+            setSetupRestoreMessage('Online oda bulunamadı, tekrar oda oluşturabilir veya koda katılabilirsin.')
+            setIsSessionRestoreChecked(true)
+          }
+        }
+        return
+      }
+
+      const hadLocalSession = hasStoredLocalSession()
+      const localSession = readLocalSession()
+
+      if (hadLocalSession && !localSession) {
+        if (isMounted) {
+          setSetupRestoreMessage('Kayıtlı oyun yüklenemedi, yeni oyun başlatabilirsin.')
+          setIsSessionRestoreChecked(true)
+        }
+        return
+      }
+
+      if (localSession) {
+        if (isMounted) {
+          restoreLocalGameSession(localSession)
+          setSetupRestoreMessage('')
+        }
+      }
+
+      if (isMounted) {
+        setIsSessionRestoreChecked(true)
+      }
+    }
+
+    restoreInitialSession()
+
+    return () => {
+      isMounted = false
+    }
+  }, [restoreLocalGameSession])
+
   useEffect(() => {
     const isAiSupportedMode = gameMode === 'classic' || gameMode === 'arena'
     const isAiTurn =
@@ -637,6 +753,68 @@ const hasTrapTarget = squares.some(
     return () => window.clearTimeout(timeoutId)
   }, [blackHoleEvent])
 
+  useEffect(() => {
+    if (!gameConfig || onlineGame) {
+      return
+    }
+
+    const localSession = {
+      gameConfig,
+      gameMode,
+      opponentType,
+      playerSymbol: 'X',
+      squares,
+      xIsNext,
+      scores,
+      arenaSettings,
+      multipliers,
+      playerPowers,
+      activePower,
+      shieldedSquares,
+      lockedSquares,
+      boostedSquares,
+      visibleBoostedSquares,
+      traps,
+      blackHoleEvent,
+      resultMessage,
+      loserMessage,
+      roundNumber,
+      isRoundResultOpen: Boolean((winner || isDraw) && !showSetupReturnConfirm),
+      humanWinStreak,
+    }
+
+    writeLocalSession(localSession)
+  }, [
+    gameConfig,
+    onlineGame,
+    gameMode,
+    opponentType,
+    squares,
+    xIsNext,
+    scores,
+    arenaSettings,
+    multipliers,
+    playerPowers,
+    activePower,
+    shieldedSquares,
+    lockedSquares,
+    boostedSquares,
+    visibleBoostedSquares,
+    traps,
+    blackHoleEvent,
+    resultMessage,
+    loserMessage,
+    roundNumber,
+    winner,
+    isDraw,
+    showSetupReturnConfirm,
+    humanWinStreak,
+  ])
+
+  function handleSaveOnlineSession(session) {
+    writeOnlineSession(session)
+  }
+
   function handleNextRound() {
     resetGame()
     setRoundNumber((currentRound) => currentRound + 1)
@@ -671,6 +849,7 @@ const hasTrapTarget = squares.some(
     setGameConfig(null)
     setTraps([])
     setBlackHoleEvent(null)
+    clearLocalSession()
   }
 
   function handleRequestScoreReset() {
@@ -689,6 +868,7 @@ const hasTrapTarget = squares.some(
 
   function handleStartGame(config) {
     setOnlineGame(null)
+    setSetupRestoreMessage('')
     setGameConfig(config)
     setGameMode(config.gameMode)
     setSquares(createEmptyBoard(config.boardSize))
@@ -724,15 +904,35 @@ const hasTrapTarget = squares.some(
   function handleStartOnlineGame(nextOnlineGame) {
     setGameConfig(null)
     setOnlineGame(nextOnlineGame)
+    handleSaveOnlineSession({
+      roomCode: nextOnlineGame.roomCode,
+      playerId: nextOnlineGame.playerId,
+      symbol: nextOnlineGame.symbol,
+      playerName: nextOnlineGame.playerName,
+    })
   }
 
   function handleOnlineMenu() {
     setOnlineGame(null)
     setGameConfig(null)
+    clearOnlineSession()
   }
 
   if (onlineGame) {
     return <OnlineGame initialOnlineGame={onlineGame} onMenu={handleOnlineMenu} />
+  }
+
+  if (!isSessionRestoreChecked) {
+    return (
+      <main className="app-shell">
+        <section className="game-card setup-card">
+          <header className="game-header brand-header setup-brand-header">
+            <h1>XO ARENA</h1>
+            <p>Kayıt kontrol ediliyor...</p>
+          </header>
+        </section>
+      </main>
+    )
   }
 
   if (!gameConfig) {
@@ -740,6 +940,8 @@ const hasTrapTarget = squares.some(
       <GameSetup
         onStartGame={handleStartGame}
         onStartOnlineGame={handleStartOnlineGame}
+        onSaveOnlineSession={handleSaveOnlineSession}
+        restoreMessage={setupRestoreMessage}
       />
     )
   }
@@ -788,6 +990,7 @@ const hasTrapTarget = squares.some(
                 onClick={() => {
                   setShowSetupReturnConfirm(false)
                   setGameConfig(null)
+                  clearLocalSession()
                 }}
               >
                 Ayarlara dön
