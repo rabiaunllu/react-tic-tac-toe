@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import HowToPlay from './HowToPlay'
 
+const API_BASE_URL = 'http://localhost:5243'
+
 const boardOptions = [
   { size: 3, label: '3x3', description: 'Klasik hızlı oyun', winLength: 3 },
   { size: 4, label: '4x4', description: 'Dengeli arena', winLength: 3 },
@@ -17,10 +19,17 @@ export default function GameSetup({ onStartGame }) {
   const [targetValue, setTargetValue] = useState(5)
   const [isInfinite, setIsInfinite] = useState(false)
   const [isHowToPlayOpen, setIsHowToPlayOpen] = useState(false)
+  const [onlinePlayerName, setOnlinePlayerName] = useState('')
+  const [onlineRoomCode, setOnlineRoomCode] = useState('')
+  const [onlineLobby, setOnlineLobby] = useState(null)
+  const [onlineError, setOnlineError] = useState('')
+  const [onlineLoadingAction, setOnlineLoadingAction] = useState(null)
 
   const selectedBoard = boardOptions.find((board) => board.size === boardSize)
   const targetOptions = gameMode === 'classic' ? classicTargets : arenaTargets
   const targetLabel = gameMode === 'classic' ? 'Tur Sayısı' : 'Hedef Puan'
+  const isOnlineMode = opponentType === 'online'
+  const isOnlineLoading = onlineLoadingAction !== null
   const previewGameConfig = {
     boardSize,
     winLength: selectedBoard.winLength,
@@ -34,6 +43,17 @@ export default function GameSetup({ onStartGame }) {
     setGameMode(nextMode)
     setTargetValue(nextMode === 'classic' ? 5 : 30)
     setIsInfinite(false)
+    setOnlineLobby(null)
+    setOnlineError('')
+  }
+
+  function handleOpponentTypeChange(nextOpponentType) {
+    setOpponentType(nextOpponentType)
+    setOnlineError('')
+
+    if (nextOpponentType !== 'online') {
+      setOnlineLobby(null)
+    }
   }
 
   function handleStartGame() {
@@ -48,37 +68,168 @@ export default function GameSetup({ onStartGame }) {
     })
   }
 
+  async function requestJson(path, options = {}) {
+    let response
+
+    try {
+      response = await fetch(`${API_BASE_URL}${path}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+        ...options,
+      })
+    } catch {
+      throw new Error('Backend çalışmıyor olabilir. Önce server/XoArena.Api projesini başlatın.')
+    }
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('Oda bulunamadı. Kodu kontrol edip tekrar deneyin.')
+      }
+
+      if (response.status === 400) {
+        throw new Error('Eksik veya hatalı bilgi var. Oyuncu adı ve oda ayarlarını kontrol edin.')
+      }
+
+      if (response.status === 409) {
+        throw new Error('Oda şu anda bu işleme uygun değil.')
+      }
+
+      throw new Error('Beklenmeyen bir hata oluştu. Biraz sonra tekrar deneyin.')
+    }
+
+    return response.json()
+  }
+
+  function getCurrentOnlinePlayer(room, playerName, preferredSymbol) {
+    const normalizedPlayerName = playerName.trim().toLowerCase()
+    const matchingPlayers = room.players.filter(
+      (player) => player.name.trim().toLowerCase() === normalizedPlayerName
+    )
+
+    return (
+      matchingPlayers.find((player) => player.symbol === preferredSymbol) ??
+      matchingPlayers.at(-1) ??
+      room.players.at(-1)
+    )
+  }
+
+  async function handleCreateOnlineRoom() {
+    const playerName = onlinePlayerName.trim()
+
+    if (!playerName) {
+      setOnlineError('Oyuncu adı boş olamaz.')
+      return
+    }
+
+    setOnlineError('')
+    setOnlineLoadingAction('create')
+
+    try {
+      const room = await requestJson('/api/rooms', {
+        method: 'POST',
+        body: JSON.stringify({
+          playerName,
+          gameMode,
+          boardSize,
+          winLength: selectedBoard.winLength,
+          targetValue,
+        }),
+      })
+      const player = getCurrentOnlinePlayer(room, playerName, 'X')
+
+      setOnlineRoomCode(room.roomCode)
+      setOnlineLobby({
+        room,
+        playerId: player.id,
+        symbol: player.symbol,
+      })
+    } catch (error) {
+      setOnlineError(error.message)
+    } finally {
+      setOnlineLoadingAction(null)
+    }
+  }
+
+  async function handleJoinOnlineRoom() {
+    const playerName = onlinePlayerName.trim()
+    const roomCode = onlineRoomCode.trim().toUpperCase()
+
+    if (!playerName) {
+      setOnlineError('Oyuncu adı boş olamaz.')
+      return
+    }
+
+    if (!roomCode) {
+      setOnlineError('Oda kodu boş olamaz.')
+      return
+    }
+
+    setOnlineError('')
+    setOnlineLoadingAction('join')
+
+    try {
+      const room = await requestJson(`/api/rooms/${roomCode}/join`, {
+        method: 'POST',
+        body: JSON.stringify({ playerName }),
+      })
+      const player = getCurrentOnlinePlayer(room, playerName, 'O')
+
+      setOnlineRoomCode(room.roomCode)
+      setOnlineLobby({
+        room,
+        playerId: player.id,
+        symbol: player.symbol,
+      })
+    } catch (error) {
+      setOnlineError(error.message)
+    } finally {
+      setOnlineLoadingAction(null)
+    }
+  }
+
   return (
     <main className="app-shell">
       <section className="game-card setup-card">
         <header className="game-header brand-header setup-brand-header">
-          
           <h1>XO ARENA</h1>
           <p>Tahtanı seç. Modu kur. Rövanşa hazır ol.</p>
         </header>
-<div className="setup-control-group setup-opponent-group">
-  <span className="setup-control-label">OYUNCU MODU</span>
 
-  <div className="setup-segment-grid setup-segment-grid--two">
-    <button
-      type="button"
-      className={`setup-segment ${opponentType === 'human' ? 'is-selected' : ''}`}
-      onClick={() => setOpponentType('human')}
-      aria-pressed={opponentType === 'human'}
-    >
-      <span>PvP</span>
-    </button>
+        <div className="setup-control-group setup-opponent-group">
+          <span className="setup-control-label">OYUNCU MODU</span>
 
-    <button
-      type="button"
-      className={`setup-segment ${opponentType === 'ai' ? 'is-selected' : ''}`}
-      onClick={() => setOpponentType('ai')}
-      aria-pressed={opponentType === 'ai'}
-    >
-      <span>PvC</span>
-    </button>
-  </div>
-</div>
+          <div className="setup-segment-grid setup-segment-grid--three">
+            <button
+              type="button"
+              className={`setup-segment ${opponentType === 'human' ? 'is-selected' : ''}`}
+              onClick={() => handleOpponentTypeChange('human')}
+              aria-pressed={opponentType === 'human'}
+            >
+              <span>PvP</span>
+            </button>
+
+            <button
+              type="button"
+              className={`setup-segment ${opponentType === 'ai' ? 'is-selected' : ''}`}
+              onClick={() => handleOpponentTypeChange('ai')}
+              aria-pressed={opponentType === 'ai'}
+            >
+              <span>PvC</span>
+            </button>
+
+            <button
+              type="button"
+              className={`setup-segment ${opponentType === 'online' ? 'is-selected' : ''}`}
+              onClick={() => handleOpponentTypeChange('online')}
+              aria-pressed={opponentType === 'online'}
+            >
+              <span>Online</span>
+            </button>
+          </div>
+        </div>
+
         <div className="setup-group">
           <span className="setup-label">Izgara Boyutu</span>
           <div className="setup-options">
@@ -93,7 +244,6 @@ export default function GameSetup({ onStartGame }) {
               </button>
             ))}
           </div>
-          
         </div>
 
         <div className="setup-group">
@@ -127,6 +277,7 @@ export default function GameSetup({ onStartGame }) {
                 onClick={() => {
                   setTargetValue(target)
                   setIsInfinite(false)
+                  setOnlineLobby(null)
                 }}
               >
                 {gameMode === 'classic' ? `${target} Tur` : `${target} Pts`}
@@ -135,7 +286,10 @@ export default function GameSetup({ onStartGame }) {
             <button
               className={isInfinite ? 'setup-option active infinite-option' : 'setup-option infinite-option'}
               type="button"
-              onClick={() => setIsInfinite(true)}
+              onClick={() => {
+                setIsInfinite(true)
+                setOnlineLobby(null)
+              }}
             >
               ∞
             </button>
@@ -147,6 +301,95 @@ export default function GameSetup({ onStartGame }) {
             ? `Klasik mod: ${isInfinite ? 'Sonsuz oyun' : `${targetValue} tur hedefi`}. Izgara ${selectedBoard.label}, ${selectedBoard.winLength} taş yan yana kazandırır.`
             : `Arena mod: ${isInfinite ? 'Sonsuz puan' : `${targetValue} puan hedefi`}. Izgara ${selectedBoard.label}, ${selectedBoard.winLength} taş yan yana kazandırır.`}
         </div>
+
+        {isOnlineMode && (
+          <div className="online-lobby-panel">
+            <div className="online-field">
+              <label htmlFor="online-player-name">Oyuncu Adı</label>
+              <input
+                id="online-player-name"
+                type="text"
+                value={onlinePlayerName}
+                onChange={(event) => setOnlinePlayerName(event.target.value)}
+                placeholder="Adınızı yazın"
+                disabled={isOnlineLoading}
+              />
+            </div>
+
+            <div className="online-action-grid">
+              <button
+                type="button"
+                className="online-primary-action"
+                onClick={handleCreateOnlineRoom}
+                disabled={isOnlineLoading}
+              >
+                {onlineLoadingAction === 'create' ? 'Oluşturuluyor...' : 'Oda Oluştur'}
+              </button>
+
+              <div className="online-join-row">
+                <input
+                  type="text"
+                  value={onlineRoomCode}
+                  onChange={(event) => setOnlineRoomCode(event.target.value.toUpperCase())}
+                  placeholder="Oda kodu"
+                  disabled={isOnlineLoading}
+                  aria-label="Oda kodu"
+                />
+                <button
+                  type="button"
+                  className="online-secondary-action"
+                  onClick={handleJoinOnlineRoom}
+                  disabled={isOnlineLoading}
+                >
+                  {onlineLoadingAction === 'join' ? 'Katılıyor...' : 'Katıl'}
+                </button>
+              </div>
+            </div>
+
+            {onlineError && (
+              <div className="online-message online-message--error" role="alert">
+                {onlineError}
+              </div>
+            )}
+
+            {onlineLobby && (
+              <div className="online-room-summary" aria-live="polite">
+                <div className="online-room-code">
+                  <span>Oda Kodu</span>
+                  <strong>{onlineLobby.room.roomCode}</strong>
+                </div>
+
+                <div className="online-room-details">
+                  <div>
+                    <span>Player ID</span>
+                    <strong>{onlineLobby.playerId}</strong>
+                  </div>
+                  <div>
+                    <span>Sembol</span>
+                    <strong>{onlineLobby.symbol}</strong>
+                  </div>
+                  <div>
+                    <span>Status</span>
+                    <strong>{onlineLobby.room.status}</strong>
+                  </div>
+                </div>
+
+                <div className="online-player-list">
+                  {onlineLobby.room.players.map((player) => (
+                    <div key={player.id} className="online-player-row">
+                      <strong>{player.symbol}</strong>
+                      <span>{player.name}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="online-message">
+                  {onlineLobby.room.status === 'waiting' ? 'Rakip bekleniyor' : 'Oyun hazır'}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="setup-action-row" aria-label="Setup ek aksiyonları">
           <button
@@ -168,10 +411,11 @@ export default function GameSetup({ onStartGame }) {
           </button>
         </div>
 
-        <button className="start-game-button" onClick={handleStartGame}>
-          Oyuna Başla
-        </button>
-
+        {!isOnlineMode && (
+          <button className="start-game-button" onClick={handleStartGame}>
+            Oyuna Başla
+          </button>
+        )}
       </section>
 
       {isHowToPlayOpen && (
