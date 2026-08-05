@@ -130,6 +130,42 @@ app.MapPost("/api/rooms/{roomCode}/moves", async (
     };
 });
 
+app.MapPost("/api/rooms/{roomCode}/next-round", async (
+    string roomCode,
+    NextRoundRequest request,
+    IRoomStore roomStore,
+    IHubContext<RoomsHub> roomsHub) =>
+{
+    if (!Guid.TryParse(request.PlayerId, out var playerId))
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["playerId"] = ["Player id must be a valid Guid."]
+        });
+    }
+
+    var result = roomStore.NextRound(roomCode, playerId);
+
+    if (result.Status is NextRoundStatus.Started)
+    {
+        var roomResponse = RoomResponse.FromRoom(result.Room!);
+        await roomsHub.Clients.Group(result.Room!.Code).SendAsync("RoomUpdated", roomResponse);
+
+        return Results.Ok(roomResponse);
+    }
+
+    return result.Status switch
+    {
+        NextRoundStatus.NotFound => Results.NotFound(),
+        NextRoundStatus.Forbidden => Results.StatusCode(StatusCodes.Status403Forbidden),
+        NextRoundStatus.Conflict => Results.Conflict(new
+        {
+            error = result.ErrorMessage
+        }),
+        _ => Results.Problem("Unexpected next round result.")
+    };
+});
+
 app.Run();
 
 static Dictionary<string, string[]> ValidateCreateRoomRequest(CreateRoomRequest request)

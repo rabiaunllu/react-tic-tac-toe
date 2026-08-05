@@ -11,4 +11,6 @@ public interface IRoomStore
     JoinRoomResult Join(string roomCode, string playerName);
 
     MoveRoomResult Move(string roomCode, Guid playerId, int index);
+
+    NextRoundResult NextRound(string roomCode, Guid playerId);
 }
