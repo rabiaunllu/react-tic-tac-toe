@@ -9,4 +9,6 @@ public interface IRoomStore
     Room? GetByCode(string roomCode);
 
     JoinRoomResult Join(string roomCode, string playerName);
+
+    MoveRoomResult Move(string roomCode, Guid playerId, int index);
 }
