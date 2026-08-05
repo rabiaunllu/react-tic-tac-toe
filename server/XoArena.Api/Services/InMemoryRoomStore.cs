@@ -183,6 +183,61 @@ public sealed class InMemoryRoomStore : IRoomStore
         }
     }
 
+    public NextRoundResult NextRound(string roomCode, Guid playerId)
+    {
+        var normalizedRoomCode = NormalizeRoomCode(roomCode);
+
+        if (normalizedRoomCode is null)
+        {
+            return NextRoundResult.NotFound();
+        }
+
+        while (true)
+        {
+            if (!rooms.TryGetValue(normalizedRoomCode, out var room))
+            {
+                return NextRoundResult.NotFound();
+            }
+
+            var playerIsInRoom = room.Players.Any(currentPlayer =>
+                Guid.TryParse(currentPlayer.Id, out var currentPlayerId)
+                && currentPlayerId == playerId);
+
+            if (!playerIsInRoom)
+            {
+                return NextRoundResult.Forbidden();
+            }
+
+            if (room.Status is not RoomStatuses.Playing)
+            {
+                return NextRoundResult.Conflict("Room is not playing.");
+            }
+
+            if (room.Game.Winner is null && !room.Game.IsDraw)
+            {
+                return NextRoundResult.Conflict("Game is not finished yet.");
+            }
+
+            var updatedRoom = room with
+            {
+                Game = room.Game with
+                {
+                    Squares = CreateEmptySquares(room.BoardSize),
+                    XIsNext = true,
+                    RoundNumber = room.Game.RoundNumber + 1,
+                    Winner = null,
+                    IsDraw = false,
+                    WinningLine = []
+                }
+            };
+
+            if (rooms.TryUpdate(normalizedRoomCode, updatedRoom, room))
+            {
+                return NextRoundResult.Started(updatedRoom);
+            }
+        }
+    }
+
     private static string GenerateRoomCode()
     {
         var characters = new char[RoomCodeLength];
@@ -197,13 +252,16 @@ public sealed class InMemoryRoomStore : IRoomStore
 
     private static GameState CreateInitialGameState(int boardSize)
         => new(
-            Enumerable.Repeat<string?>(null, boardSize * boardSize).ToArray(),
+            CreateEmptySquares(boardSize),
             true,
             new GameScore(0, 0),
             1,
             null,
             false,
             []);
+
+    private static IReadOnlyList<string?> CreateEmptySquares(int boardSize)
+        => Enumerable.Repeat<string?>(null, boardSize * boardSize).ToArray();
 
     private static IReadOnlyList<int> CalculateWinningLine(
         IReadOnlyList<string?> squares,

@@ -82,4 +82,16 @@ POST /api/rooms/{roomCode}/moves
 
 Move validation currently uses Classic board win rules even when the room `gameMode` is `arena`. Arena multipliers and powers are intentionally not part of the backend game state yet.
 
+Start the next round after a win or draw:
+
+```text
+POST /api/rooms/{roomCode}/next-round
+```
+
+```json
+{
+  "playerId": "46ece7a1f7714a0fbe114bec814b18b9"
+}
+```
+
 Local Vite is allowed by CORS via `http://localhost:5173`. Add the future GitHub Pages origin to `Cors:AllowedOrigins` in `appsettings.json` when the frontend starts calling the API from Pages.
