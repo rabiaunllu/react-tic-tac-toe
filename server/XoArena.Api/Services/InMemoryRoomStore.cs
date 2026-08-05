@@ -28,7 +28,8 @@ public sealed class InMemoryRoomStore : IRoomStore
                         Guid.NewGuid().ToString("N"),
                         options.PlayerName,
                         "X")
-                ]);
+                ],
+                CreateInitialGameState(options.BoardSize));
 
             if (rooms.TryAdd(roomCode, room))
             {
@@ -108,6 +109,16 @@ public sealed class InMemoryRoomStore : IRoomStore
 
         return new string(characters);
     }
+
+    private static GameState CreateInitialGameState(int boardSize)
+        => new(
+            Enumerable.Repeat<string?>(null, boardSize * boardSize).ToArray(),
+            true,
+            new GameScore(0, 0),
+            1,
+            null,
+            false,
+            []);
 
     private static string? NormalizeRoomCode(string roomCode)
         => string.IsNullOrWhiteSpace(roomCode)

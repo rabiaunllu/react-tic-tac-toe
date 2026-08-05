@@ -53,6 +53,8 @@ Fetch an in-memory room:
 GET /api/rooms/{roomCode}
 ```
 
+Room responses include the current game state with `squares`, `xIsNext`, `scores`, `roundNumber`, `winner`, `isDraw`, and `winningLine`.
+
 Join an in-memory room:
 
 ```text

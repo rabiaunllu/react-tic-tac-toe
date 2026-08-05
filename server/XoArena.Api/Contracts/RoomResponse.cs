@@ -9,7 +9,8 @@ public sealed record RoomResponse(
     int WinLength,
     string GameMode,
     int TargetValue,
-    IReadOnlyList<PlayerResponse> Players)
+    IReadOnlyList<PlayerResponse> Players,
+    GameStateResponse Game)
 {
     public static RoomResponse FromRoom(Room room)
         => new(
@@ -19,5 +20,6 @@ public sealed record RoomResponse(
             room.WinLength,
             room.GameMode,
             room.TargetValue,
-            room.Players.Select(PlayerResponse.FromPlayer).ToArray());
+            room.Players.Select(PlayerResponse.FromPlayer).ToArray(),
+            GameStateResponse.FromGameState(room.Game));
 }
