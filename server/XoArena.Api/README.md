@@ -53,4 +53,16 @@ Fetch an in-memory room:
 GET /api/rooms/{roomCode}
 ```
 
+Join an in-memory room:
+
+```text
+POST /api/rooms/{roomCode}/join
+```
+
+```json
+{
+  "playerName": "Mert"
+}
+```
+
 Local Vite is allowed by CORS via `http://localhost:5173`. Add the future GitHub Pages origin to `Cors:AllowedOrigins` in `appsettings.json` when the frontend starts calling the API from Pages.

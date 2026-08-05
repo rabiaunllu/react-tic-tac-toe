@@ -65,6 +65,30 @@ app.MapGet("/api/rooms/{roomCode}", (string roomCode, IRoomStore roomStore) =>
         : Results.Ok(RoomResponse.FromRoom(room));
 });
 
+app.MapPost("/api/rooms/{roomCode}/join", (string roomCode, JoinRoomRequest request, IRoomStore roomStore) =>
+{
+    if (string.IsNullOrWhiteSpace(request.PlayerName))
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["playerName"] = ["Player name is required."]
+        });
+    }
+
+    var result = roomStore.Join(roomCode, request.PlayerName.Trim());
+
+    return result.Status switch
+    {
+        JoinRoomStatus.Joined => Results.Ok(RoomResponse.FromRoom(result.Room!)),
+        JoinRoomStatus.NotFound => Results.NotFound(),
+        JoinRoomStatus.Conflict => Results.Conflict(new
+        {
+            error = result.ErrorMessage
+        }),
+        _ => Results.Problem("Unexpected join room result.")
+    };
+});
+
 app.Run();
 
 static Dictionary<string, string[]> ValidateCreateRoomRequest(CreateRoomRequest request)
