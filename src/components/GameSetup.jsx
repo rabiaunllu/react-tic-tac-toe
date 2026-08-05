@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import HowToPlay from './HowToPlay'
 
 const API_BASE_URL = 'http://localhost:5243'
@@ -11,6 +11,50 @@ const boardOptions = [
 
 const classicTargets = [3, 5, 7, 9]
 const arenaTargets = [15, 30, 50, 100]
+
+function getRoomStatusText(status) {
+  const statusMap = {
+    waiting: 'Rakip bekleniyor',
+    playing: 'Oyun hazır',
+    completed: 'Tamamlandı',
+  }
+
+  return statusMap[status] ?? 'Durum bilinmiyor'
+}
+
+async function requestJson(path, options = {}) {
+  let response
+
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+      ...options,
+    })
+  } catch {
+    throw new Error('Backend çalışmıyor olabilir. Önce server/XoArena.Api projesini başlatın.')
+  }
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error('Oda bulunamadı. Kodu kontrol edip tekrar deneyin.')
+    }
+
+    if (response.status === 400) {
+      throw new Error('Eksik veya hatalı bilgi var. Oyuncu adı ve oda ayarlarını kontrol edin.')
+    }
+
+    if (response.status === 409) {
+      throw new Error('Oda şu anda bu işleme uygun değil.')
+    }
+
+    throw new Error('Beklenmeyen bir hata oluştu. Biraz sonra tekrar deneyin.')
+  }
+
+  return response.json()
+}
 
 export default function GameSetup({ onStartGame }) {
   const [boardSize, setBoardSize] = useState(3)
@@ -66,40 +110,6 @@ export default function GameSetup({ onStartGame }) {
       isInfinite,
       opponentType,
     })
-  }
-
-  async function requestJson(path, options = {}) {
-    let response
-
-    try {
-      response = await fetch(`${API_BASE_URL}${path}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...options.headers,
-        },
-        ...options,
-      })
-    } catch {
-      throw new Error('Backend çalışmıyor olabilir. Önce server/XoArena.Api projesini başlatın.')
-    }
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        throw new Error('Oda bulunamadı. Kodu kontrol edip tekrar deneyin.')
-      }
-
-      if (response.status === 400) {
-        throw new Error('Eksik veya hatalı bilgi var. Oyuncu adı ve oda ayarlarını kontrol edin.')
-      }
-
-      if (response.status === 409) {
-        throw new Error('Oda şu anda bu işleme uygun değil.')
-      }
-
-      throw new Error('Beklenmeyen bir hata oluştu. Biraz sonra tekrar deneyin.')
-    }
-
-    return response.json()
   }
 
   function getCurrentOnlinePlayer(room, playerName, preferredSymbol) {
@@ -188,6 +198,47 @@ export default function GameSetup({ onStartGame }) {
       setOnlineLoadingAction(null)
     }
   }
+
+  useEffect(() => {
+    if (!isOnlineMode || !onlineLobby?.room.roomCode) {
+      return undefined
+    }
+
+    let isPollingActive = true
+    const roomCode = onlineLobby.room.roomCode
+
+    async function pollRoom() {
+      try {
+        const room = await requestJson(`/api/rooms/${roomCode}`)
+
+        if (!isPollingActive) {
+          return
+        }
+
+        setOnlineLobby((currentLobby) => {
+          if (!currentLobby || currentLobby.room.roomCode !== roomCode) {
+            return currentLobby
+          }
+
+          return {
+            ...currentLobby,
+            room,
+          }
+        })
+      } catch (error) {
+        if (isPollingActive) {
+          setOnlineError(error.message)
+        }
+      }
+    }
+
+    const pollingId = window.setInterval(pollRoom, 2000)
+
+    return () => {
+      isPollingActive = false
+      window.clearInterval(pollingId)
+    }
+  }, [isOnlineMode, onlineLobby?.room.roomCode])
 
   return (
     <main className="app-shell">
@@ -369,8 +420,8 @@ export default function GameSetup({ onStartGame }) {
                     <strong>{onlineLobby.symbol}</strong>
                   </div>
                   <div>
-                    <span>Status</span>
-                    <strong>{onlineLobby.room.status}</strong>
+                    <span>Durum</span>
+                    <strong>{getRoomStatusText(onlineLobby.room.status)}</strong>
                   </div>
                 </div>
 
@@ -384,8 +435,15 @@ export default function GameSetup({ onStartGame }) {
                 </div>
 
                 <div className="online-message">
-                  {onlineLobby.room.status === 'waiting' ? 'Rakip bekleniyor' : 'Oyun hazır'}
+                  {getRoomStatusText(onlineLobby.room.status)}
                 </div>
+
+                {onlineLobby.room.status === 'playing' && (
+                  <button type="button" className="online-play-action" disabled>
+                    <span>Oyuna Geç</span>
+                    <small>Online oyun ekranı bir sonraki adımda bağlanacak</small>
+                  </button>
+                )}
               </div>
             )}
           </div>
