@@ -9,7 +9,7 @@ export default function Board({
   lockedSquares,
   visibleBoostedSquares,
   traps = [],
-  currentPlayer,
+  visibleTrapOwner,
   blackHoleEventIndex,
   onSquareClick,
 }) {
@@ -20,7 +20,7 @@ export default function Board({
     <div className={`board board-size-${safeBoardSize}`}>
       {squares.map((square, index) => {
         const visibleTrap = traps.find(
-          (trap) => trap.index === index && trap.owner === currentPlayer
+          (trap) => trap.index === index && trap.owner === visibleTrapOwner
         )
         const isBlackHoleTriggered = blackHoleEventIndex === index
 
