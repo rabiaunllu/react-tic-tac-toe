@@ -36,7 +36,7 @@ export const powerDefinitions = [
   },
 ]
 
-const localHumanPowerIds = ['bomb', 'shield', 'boost', 'trap']
+const localHumanPowerIds = ['bomb', 'shield', 'boost', 'joker']
 const localAiPowerIds = ['bomb', 'shield', 'boost', 'trap']
 const onlinePowerIds = ['bomb', 'shield', 'boost', 'trap']
 
