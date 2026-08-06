@@ -1,4 +1,4 @@
-import { getAvailablePowerDefinitions } from '../game/powers'
+import { getAvailablePowerDefinitions, getPowerDefinitions } from '../game/powers'
 
 export default function PowerPanel({
   currentPlayer,
@@ -13,10 +13,13 @@ export default function PowerPanel({
   onSelectPower,
   onUseRandomBoost,
   powerOptions,
+  extraPowerIds = [],
+  rewardedPack,
 }) {
-  
-const availablePowers = getAvailablePowerDefinitions(powerOptions)
-const selectedPower = availablePowers.find((power) => power.id === activePower)
+  const basePowers = getAvailablePowerDefinitions(powerOptions)
+  const extraPowers = getPowerDefinitions(extraPowerIds)
+  const availablePowers = [...basePowers, ...extraPowers]
+  const selectedPower = availablePowers.find((power) => power.id === activePower)
   function handlePowerClick(powerId, isActive) {
     if (!isActivePlayer || !isPowersEnabled) {
       return
@@ -41,6 +44,18 @@ const selectedPower = availablePowers.find((power) => power.id === activePower)
         <div className="player-identity">
           <span className="player-symbol">{currentPlayer}</span>
           <span className="player-name">Oyuncu {currentPlayer}</span>
+          {rewardedPack && (
+            <button
+              type="button"
+              className={`reward-pack-button ${rewardedPack.claimed ? 'claimed' : ''}`}
+              disabled={rewardedPack.disabled || rewardedPack.isRewarding}
+              onClick={rewardedPack.onToggle}
+              aria-expanded={rewardedPack.isPickerOpen}
+              aria-label={rewardedPack.claimed ? 'Sürpriz paket alındı' : 'Sürpriz paketi aç'}
+            >
+              <span aria-hidden="true">{rewardedPack.claimed ? '✓' : '🎁'}</span>
+            </button>
+          )}
         </div>
         <div className="player-score">
           <small>{scoreLabel}</small>
@@ -49,7 +64,7 @@ const selectedPower = availablePowers.find((power) => power.id === activePower)
       </div>
 
       <div className="power-panel-header">
-        <span>{isPowersEnabled ? 'Güç seti' : 'Klasik mod'}</span>
+        {!isPowersEnabled && <span>Klasik mod</span>}
         <small>
           {isPowersEnabled
             ? isActivePlayer
@@ -69,9 +84,50 @@ const selectedPower = availablePowers.find((power) => power.id === activePower)
         </div>
       )}
 
+      {rewardedPack && (rewardedPack.isPickerOpen || rewardedPack.message) && (
+        <div className="reward-pack-popover" aria-live="polite">
+          {rewardedPack.message && <p>{rewardedPack.message}</p>}
+          {rewardedPack.isPickerOpen && (
+            <div className="rewarded-power-options" aria-label="Paket güç seçimi">
+              <span></span>
+              {rewardedPack.powerIds.map((powerId) => (
+                <button key={powerId} type="button" onClick={() => rewardedPack.onClaim(powerId)}>
+                  {powerId === 'joker' ? '🃏 Joker' : powerId === 'freeze' ? '❄️ Freeze' : '🧛 Vampir'}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {isPowersEnabled && (
         <div className="power-list">
-          {availablePowers.map((power) => {
+          {basePowers.map((power) => {
+            const count = powerCounts[power.id]
+            const isActive = isActivePlayer && activePower === power.id
+            const isDisabled = !isActivePlayer || count === 0 || disabledPowers[power.id]
+
+            return (
+              <button
+                key={power.id}
+                className={`power-button ${isActive ? 'active' : ''}`}
+                disabled={isDisabled}
+                aria-label={`${power.name}: ${power.description}`}
+                data-hint={disabledPowers[power.id] ? 'Hedef yok' : power.description}
+                onClick={() => handlePowerClick(power.id, isActive)}
+              >
+                <span className="power-icon">{power.icon}</span>
+                <span className="power-name">{power.name}</span>
+                <span className="power-count">{count}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {isPowersEnabled && extraPowers.length > 0 && (
+        <div className="power-list rewarded-power-list">
+          {extraPowers.map((power) => {
             const count = powerCounts[power.id]
             const isActive = isActivePlayer && activePower === power.id
             const isDisabled = !isActivePlayer || count === 0 || disabledPowers[power.id]
