@@ -23,7 +23,7 @@ export async function requestRoomJson(path, options = {}) {
       ...options,
     })
   } catch {
-    throw new Error('Backend çalışmıyor olabilir. Önce server/XoArena.Api projesini başlatın.')
+    throw new Error('Online bağlantı kurulamadı. Biraz sonra tekrar deneyin.')
   }
 
   if (!response.ok) {
