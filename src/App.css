@@ -3159,6 +3159,25 @@ button,
   overflow-wrap: anywhere;
 }
 
+.online-compact-meta {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 11px;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.055);
+  color: #cfd7e8;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.online-compact-meta strong {
+  color: #8ed8ff;
+  font-size: 12px;
+}
+
 .online-score-board {
   max-width: 100%;
 }
@@ -3175,6 +3194,19 @@ button,
 .online-player-row.is-current {
   border: 1px solid rgba(18, 245, 220, 0.32);
   background: rgba(18, 245, 220, 0.1);
+}
+
+.online-classic-stack {
+  width: 100%;
+}
+
+.online-seat-panel {
+  width: 100%;
+  padding: 12px;
+}
+
+.online-seat-panel .player-panel-topline {
+  width: 100%;
 }
 
 @media (max-width: 420px) {

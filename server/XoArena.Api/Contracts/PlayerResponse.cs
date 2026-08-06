@@ -5,8 +5,9 @@ namespace XoArena.Api.Contracts;
 public sealed record PlayerResponse(
     string Id,
     string Name,
-    string Symbol)
+    string Symbol,
+    int Score)
 {
-    public static PlayerResponse FromPlayer(Player player)
-        => new(player.Id, player.Name, player.Symbol);
+    public static PlayerResponse FromPlayer(Player player, string symbol, int score)
+        => new(player.Id, player.Name, symbol, score);
 }

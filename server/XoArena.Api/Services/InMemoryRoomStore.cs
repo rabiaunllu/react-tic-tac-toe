@@ -183,11 +183,9 @@ public sealed class InMemoryRoomStore : IRoomStore
                 return MoveRoomResult.NotFound();
             }
 
-            var player = room.Players.FirstOrDefault(currentPlayer =>
-                Guid.TryParse(currentPlayer.Id, out var currentPlayerId)
-                && currentPlayerId == playerId);
+            var playerIndex = FindPlayerIndex(room, playerId);
 
-            if (player is null)
+            if (playerIndex < 0)
             {
                 return MoveRoomResult.Forbidden();
             }
@@ -213,24 +211,22 @@ public sealed class InMemoryRoomStore : IRoomStore
             }
 
             var expectedSymbol = room.Game.XIsNext ? "X" : "O";
+            var playerSymbol = GetPlayerSymbol(room.Game.RoundNumber, playerIndex);
 
-            if (player.Symbol != expectedSymbol)
+            if (playerSymbol != expectedSymbol)
             {
                 return MoveRoomResult.Conflict("It is not this player's turn.");
             }
 
             var squares = room.Game.Squares.ToArray();
-            squares[index] = player.Symbol;
+            squares[index] = playerSymbol;
 
-            var winningLine = CalculateWinningLine(squares, room.BoardSize, room.WinLength, player.Symbol);
-            var winner = winningLine.Count > 0 ? player.Symbol : null;
+            var winningLine = CalculateWinningLine(squares, room.BoardSize, room.WinLength, playerSymbol);
+            var winner = winningLine.Count > 0 ? playerSymbol : null;
             var isDraw = winner is null && squares.All(square => square is not null);
-            var scores = winner switch
-            {
-                "X" => room.Game.Scores with { X = room.Game.Scores.X + 1 },
-                "O" => room.Game.Scores with { O = room.Game.Scores.O + 1 },
-                _ => room.Game.Scores
-            };
+            var scores = winner is null
+                ? room.Game.Scores
+                : AddPlayerScore(room.Game.Scores, playerIndex);
 
             var updatedRoom = room with
             {
@@ -359,6 +355,28 @@ public sealed class InMemoryRoomStore : IRoomStore
 
     private static IReadOnlyList<string?> CreateEmptySquares(int boardSize)
         => Enumerable.Repeat<string?>(null, boardSize * boardSize).ToArray();
+
+    private static int FindPlayerIndex(Room room, Guid playerId)
+    {
+        for (var index = 0; index < room.Players.Count; index++)
+        {
+            if (Guid.TryParse(room.Players[index].Id, out var currentPlayerId)
+                && currentPlayerId == playerId)
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
+    private static string GetPlayerSymbol(int roundNumber, int playerIndex)
+        => (roundNumber + playerIndex) % 2 == 1 ? "X" : "O";
+
+    private static GameScore AddPlayerScore(GameScore scores, int playerIndex)
+        => playerIndex == 0
+            ? scores with { X = scores.X + 1 }
+            : scores with { O = scores.O + 1 };
 
     private static IReadOnlyList<int> CalculateWinningLine(
         IReadOnlyList<string?> squares,
