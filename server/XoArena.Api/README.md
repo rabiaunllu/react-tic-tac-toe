@@ -24,15 +24,19 @@ For local development, create a local `.env` file in the repository root:
 
 ```env
 VITE_API_BASE_URL=http://localhost:5243
+VITE_ENABLE_ONLINE=true
 ```
 
-The committed `.env.example` documents the same value. Do not commit `.env` or other secret-bearing environment files. If `.env` is absent, the frontend falls back to `http://localhost:5243`.
+The committed `.env.example` documents the same values. Do not commit `.env` or other secret-bearing environment files. In development, if `.env` is absent, the frontend can fall back to `http://localhost:5243` and keep Online enabled for local testing.
 
-When the GitHub Pages frontend should call a live backend, set `VITE_API_BASE_URL` during the frontend build to the deployed backend origin, for example:
+When the GitHub Pages frontend should call a live backend, set `VITE_ENABLE_ONLINE=true` and `VITE_API_BASE_URL` during the frontend build to the deployed backend origin, for example:
 
 ```env
 VITE_API_BASE_URL=https://api.example.com
+VITE_ENABLE_ONLINE=true
 ```
+
+If a production build does not have a live `VITE_API_BASE_URL`, Online is treated as unavailable so the deployed frontend does not show a broken room flow.
 
 ## CORS
 

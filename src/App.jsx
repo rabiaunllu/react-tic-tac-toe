@@ -33,7 +33,12 @@ import {
   writeLocalSession,
   writeOnlineSession,
 } from './sessionStorage'
-import { isConnectionError, isRoomNotFoundError, requestRoomJson } from './api/roomsApi'
+import {
+  IS_ONLINE_ENABLED,
+  isConnectionError,
+  isRoomNotFoundError,
+  requestRoomJson,
+} from './api/roomsApi'
 
 const defaultBoardSize = 3
 
@@ -490,7 +495,7 @@ const hasTrapTarget = squares.some(
       const hadOnlineSession = hasStoredOnlineSession()
       const onlineSession = readOnlineSession()
 
-      if (hadOnlineSession) {
+      if (hadOnlineSession && IS_ONLINE_ENABLED) {
         if (!onlineSession) {
           if (isMounted) {
             setSetupRestoreMessage('Online oda bulunamadı, tekrar oda oluşturabilir veya koda katılabilirsin.')
