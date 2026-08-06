@@ -8,11 +8,21 @@ public sealed class InMemoryRoomStore : IRoomStore
 {
     private const int RoomCodeLength = 6;
     private const string RoomCodeAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    private static readonly IReadOnlyDictionary<string, TimeSpan> RoomExpirationTimes =
+        new Dictionary<string, TimeSpan>(StringComparer.OrdinalIgnoreCase)
+        {
+            [RoomStatuses.Waiting] = TimeSpan.FromMinutes(30),
+            [RoomStatuses.Ready] = TimeSpan.FromMinutes(45),
+            [RoomStatuses.Playing] = TimeSpan.FromHours(2),
+            [RoomStatuses.Completed] = TimeSpan.FromMinutes(15)
+        };
 
     private readonly ConcurrentDictionary<string, Room> rooms = new(StringComparer.OrdinalIgnoreCase);
 
     public Room Create(CreateRoomOptions options)
     {
+        CleanupExpiredRooms();
+
         while (true)
         {
             var roomCode = GenerateRoomCode();
@@ -43,6 +53,8 @@ public sealed class InMemoryRoomStore : IRoomStore
 
     public Room? GetByCode(string roomCode)
     {
+        CleanupExpiredRooms();
+
         var normalizedRoomCode = NormalizeRoomCode(roomCode);
 
         if (normalizedRoomCode is null)
@@ -57,6 +69,8 @@ public sealed class InMemoryRoomStore : IRoomStore
 
     public JoinRoomResult Join(string roomCode, string playerName)
     {
+        CleanupExpiredRooms();
+
         var normalizedRoomCode = NormalizeRoomCode(roomCode);
         var normalizedPlayerName = playerName.Trim();
 
@@ -80,7 +94,17 @@ public sealed class InMemoryRoomStore : IRoomStore
 
             if (existingPlayer is not null)
             {
-                return JoinRoomResult.Joined(room);
+                var reconnectedRoom = room with
+                {
+                    UpdatedAt = DateTimeOffset.UtcNow
+                };
+
+                if (rooms.TryUpdate(normalizedRoomCode, reconnectedRoom, room))
+                {
+                    return JoinRoomResult.Joined(reconnectedRoom);
+                }
+
+                continue;
             }
 
             if (room.Players.Count >= 2)
@@ -116,6 +140,8 @@ public sealed class InMemoryRoomStore : IRoomStore
 
     public StartRoomResult Start(string roomCode, Guid playerId)
     {
+        CleanupExpiredRooms();
+
         var normalizedRoomCode = NormalizeRoomCode(roomCode);
 
         if (normalizedRoomCode is null)
@@ -169,6 +195,8 @@ public sealed class InMemoryRoomStore : IRoomStore
 
     public MoveRoomResult Move(string roomCode, Guid playerId, int index)
     {
+        CleanupExpiredRooms();
+
         var normalizedRoomCode = NormalizeRoomCode(roomCode);
 
         if (normalizedRoomCode is null)
@@ -227,9 +255,12 @@ public sealed class InMemoryRoomStore : IRoomStore
             var scores = winner is null
                 ? room.Game.Scores
                 : AddPlayerScore(room.Game.Scores, playerIndex);
+            var isMatchCompleted = winner is not null
+                && Math.Max(scores.X, scores.O) >= room.TargetValue;
 
             var updatedRoom = room with
             {
+                Status = isMatchCompleted ? RoomStatuses.Completed : room.Status,
                 UpdatedAt = DateTimeOffset.UtcNow,
                 Game = room.Game with
                 {
@@ -251,6 +282,8 @@ public sealed class InMemoryRoomStore : IRoomStore
 
     public NextRoundResult NextRound(string roomCode, Guid playerId)
     {
+        CleanupExpiredRooms();
+
         var normalizedRoomCode = NormalizeRoomCode(roomCode);
 
         if (normalizedRoomCode is null)
@@ -458,4 +491,23 @@ public sealed class InMemoryRoomStore : IRoomStore
         => string.IsNullOrWhiteSpace(roomCode)
             ? null
             : roomCode.Trim().ToUpperInvariant();
+
+    private void CleanupExpiredRooms()
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        foreach (var (roomCode, room) in rooms)
+        {
+            if (!RoomExpirationTimes.TryGetValue(room.Status, out var expirationTime))
+            {
+                continue;
+            }
+
+            if (now - room.UpdatedAt >= expirationTime)
+            {
+                ((ICollection<KeyValuePair<string, Room>>)rooms).Remove(
+                    new KeyValuePair<string, Room>(roomCode, room));
+            }
+        }
+    }
 }

@@ -1,5 +1,12 @@
 import { useEffect, useState } from 'react'
-import { getRoomStatusText, requestRoomJson, startRoom } from '../api/roomsApi'
+import {
+  getRoomStatusText,
+  isConnectionError,
+  isRoomNotFoundError,
+  requestRoomJson,
+  startRoom,
+} from '../api/roomsApi'
+import { clearOnlineSession } from '../sessionStorage'
 import HowToPlay from './HowToPlay'
 
 const boardOptions = [
@@ -39,7 +46,7 @@ function getLobbyMessage(onlineLobby) {
 
   if (onlineLobby.room.status === 'ready') {
     return onlineLobby.symbol === 'X'
-      ? 'Oyuncu katıldı. Oyunu başlatabilirsin.'
+      ? 'Oyunu başlatabilirsin.'
       : 'Oda sahibi oyunu başlatacak.'
   }
 
@@ -65,6 +72,7 @@ export default function GameSetup({
   const [onlineLobby, setOnlineLobby] = useState(null)
   const [onlineMessage, setOnlineMessage] = useState('')
   const [onlineError, setOnlineError] = useState('')
+  const [onlineConnectionMessage, setOnlineConnectionMessage] = useState('')
   const [onlineLoadingAction, setOnlineLoadingAction] = useState(null)
 
   const selectedBoard = boardOptions.find((board) => board.size === boardSize)
@@ -87,6 +95,7 @@ export default function GameSetup({
     setOnlineLobby(null)
     setOnlineMessage('')
     setOnlineError('')
+    setOnlineConnectionMessage('')
   }
 
   function handleModeChange(nextMode) {
@@ -126,6 +135,7 @@ export default function GameSetup({
     }
 
     setOnlineLobby(nextLobby)
+    setOnlineConnectionMessage('')
     onSaveOnlineSession({
       roomCode: room.roomCode,
       playerId: player.id,
@@ -144,6 +154,7 @@ export default function GameSetup({
 
     setOnlineError('')
     setOnlineMessage('')
+    setOnlineConnectionMessage('')
     setOnlineLoadingAction('create')
 
     try {
@@ -185,6 +196,7 @@ export default function GameSetup({
 
     setOnlineError('')
     setOnlineMessage('')
+    setOnlineConnectionMessage('')
     setOnlineLoadingAction('join')
 
     try {
@@ -232,6 +244,7 @@ export default function GameSetup({
     }
 
     setOnlineError('')
+    setOnlineConnectionMessage('')
     setOnlineLoadingAction('start')
 
     try {
@@ -242,11 +255,12 @@ export default function GameSetup({
           return currentLobby
         }
 
-        return {
-          ...currentLobby,
-          room,
-        }
-      })
+          return {
+            ...currentLobby,
+            room,
+          }
+        })
+      setOnlineConnectionMessage('')
     } catch (error) {
       setOnlineError(error.message)
     } finally {
@@ -280,8 +294,24 @@ export default function GameSetup({
             room,
           }
         })
+        setOnlineConnectionMessage('')
+        setOnlineError('')
       } catch (error) {
         if (isPollingActive) {
+          if (isRoomNotFoundError(error)) {
+            clearOnlineSession()
+            setOnlineLobby(null)
+            setOnlineMessage('')
+            setOnlineConnectionMessage('')
+            setOnlineError('Oda artık aktif değil. Menüye dönüp yeni oda oluşturabilirsin.')
+            return
+          }
+
+          if (isConnectionError(error)) {
+            setOnlineConnectionMessage(error.message)
+            return
+          }
+
           setOnlineError(error.message)
         }
       }
@@ -475,6 +505,7 @@ export default function GameSetup({
                     className="online-primary-action"
                     onClick={handleCreateOnlineRoom}
                     disabled={isOnlineLoading}
+                    title={isOnlineLoading ? 'Oda hazırlanıyor.' : undefined}
                   >
                     {onlineLoadingAction === 'create' ? 'Oluşturuluyor...' : 'Oda Oluştur'}
                   </button>
@@ -519,6 +550,7 @@ export default function GameSetup({
                     className="online-secondary-action"
                     onClick={handleJoinOnlineRoom}
                     disabled={isOnlineLoading}
+                    title={isOnlineLoading ? 'Odaya katılma işlemi sürüyor.' : undefined}
                   >
                     {onlineLoadingAction === 'join' ? 'Katılıyor...' : 'Odaya Katıl'}
                   </button>
@@ -534,6 +566,7 @@ export default function GameSetup({
                   setOnlineFlow(null)
                   setOnlineError('')
                   setOnlineMessage('')
+                  setOnlineConnectionMessage('')
                 }}
               >
                 Online seçeneklere dön
@@ -543,6 +576,12 @@ export default function GameSetup({
             {onlineError && (
               <div className="online-message online-message--error" role="alert">
                 {onlineError}
+              </div>
+            )}
+
+            {onlineConnectionMessage && !onlineError && (
+              <div className="online-message" role="status">
+                {onlineConnectionMessage}
               </div>
             )}
 
@@ -594,6 +633,7 @@ export default function GameSetup({
                     className="online-play-action"
                     onClick={handleStartOnlineRoom}
                     disabled={isOnlineLoading}
+                    title={isOnlineLoading ? 'İşlem tamamlanınca başlayabilirsin.' : undefined}
                   >
                     <span>{onlineLoadingAction === 'start' ? 'Başlatılıyor...' : 'Oyunu Başlat'}</span>
                   </button>
