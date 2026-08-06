@@ -10,6 +10,48 @@ dotnet build server/XoArena.Api
 dotnet run --project server/XoArena.Api
 ```
 
+The local HTTP URL from `Properties/launchSettings.json` is:
+
+```text
+http://localhost:5243
+```
+
+## Frontend API URL
+
+The Vite frontend reads the backend URL from `VITE_API_BASE_URL`.
+
+For local development, create a local `.env` file in the repository root:
+
+```env
+VITE_API_BASE_URL=http://localhost:5243
+```
+
+The committed `.env.example` documents the same value. Do not commit `.env` or other secret-bearing environment files. If `.env` is absent, the frontend falls back to `http://localhost:5243`.
+
+When the GitHub Pages frontend should call a live backend, set `VITE_API_BASE_URL` during the frontend build to the deployed backend origin, for example:
+
+```env
+VITE_API_BASE_URL=https://api.example.com
+```
+
+## CORS
+
+Allowed frontend origins are configured in `Cors:AllowedOrigins`.
+
+Local Vite uses:
+
+```text
+http://localhost:5173
+```
+
+GitHub Pages uses the origin only:
+
+```text
+https://rabiaunllu.github.io
+```
+
+CORS origins do not include URL paths, so `https://rabiaunllu.github.io/react-tic-tac-toe` must not be listed as a separate origin. `Program.cs` reads the allowed origins from configuration and keeps `http://localhost:5173` as the development fallback.
+
 Health check:
 
 ```text
@@ -93,5 +135,3 @@ POST /api/rooms/{roomCode}/next-round
   "playerId": "46ece7a1f7714a0fbe114bec814b18b9"
 }
 ```
-
-Local Vite is allowed by CORS via `http://localhost:5173`. Add the future GitHub Pages origin to `Cors:AllowedOrigins` in `appsettings.json` when the frontend starts calling the API from Pages.
