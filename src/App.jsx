@@ -70,7 +70,6 @@ export default function App() {
   const [scores, setScores] = useState(initialScores)
   const [arenaSettings, setArenaSettings] = useState(initialArenaSettings)
   const [pendingArenaSettings, setPendingArenaSettings] = useState(null)
-  const [isArenaSettingsOpen, setIsArenaSettingsOpen] = useState(false)
   const [multipliers, setMultipliers] = useState({})
   const [playerPowers, setPlayerPowers] = useState(createInitialPlayerPowers)
   const [activePower, setActivePower] = useState(null)
@@ -581,7 +580,6 @@ const hasGameStarted =
     setScores(session.scores)
     setArenaSettings(session.arenaSettings)
     setPendingArenaSettings(null)
-    setIsArenaSettingsOpen(false)
     setMultipliers(session.multipliers ?? {})
     setPlayerPowers(session.playerPowers)
     setActivePower(session.activePower ?? null)
@@ -1149,7 +1147,17 @@ const hasGameStarted =
           <button className="score-reset-button" onClick={handleRequestScoreReset}>
             Puan sıfırla
           </button>
-          <SoundToggle />
+          <SoundToggle>
+            {gameMode === 'arena' && (
+              <ArenaSettings
+                settings={arenaSettings}
+                pendingSettings={pendingArenaSettings}
+                onSettingsChange={handleArenaSettingsChange}
+                onConfirmSettingsChange={handleConfirmArenaSettingsChange}
+                onCancelSettingsChange={handleCancelArenaSettingsChange}
+              />
+            )}
+          </SoundToggle>
         </div>
 
         {showSetupReturnConfirm && (
@@ -1181,31 +1189,6 @@ const hasGameStarted =
                 Ayarlara dön
               </button>
             </div>
-          </div>
-        )}
-
-        {gameMode === 'arena' && (
-          <div className="arena-settings-wrapper">
-            <button
-              className="settings-button"
-              onClick={() => {
-                registerUserGesture()
-                playSound('click')
-                setIsArenaSettingsOpen(!isArenaSettingsOpen)
-              }}
-            >
-              {isArenaSettingsOpen ? 'Ayarları gizle' : 'Arena ayarları'}
-            </button>
-
-            {isArenaSettingsOpen && (
-              <ArenaSettings
-                settings={arenaSettings}
-                pendingSettings={pendingArenaSettings}
-                onSettingsChange={handleArenaSettingsChange}
-                onConfirmSettingsChange={handleConfirmArenaSettingsChange}
-                onCancelSettingsChange={handleCancelArenaSettingsChange}
-              />
-            )}
           </div>
         )}
 

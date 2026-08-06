@@ -9,6 +9,7 @@ import {
   startRoom,
 } from '../api/roomsApi'
 import { clearOnlineSession } from '../sessionStorage'
+import { BoostModeSetting } from './ArenaSettings'
 import HowToPlay from './HowToPlay'
 import SoundToggle from './SoundToggle'
 import { playSound, registerUserGesture } from '../game/soundManager'
@@ -79,6 +80,7 @@ export default function GameSetup({
   const [onlineConnectionMessage, setOnlineConnectionMessage] = useState('')
   const [onlineLoadingAction, setOnlineLoadingAction] = useState(null)
   const [isRoomCodeCopied, setIsRoomCodeCopied] = useState(false)
+  const [onlineBoostMode, setOnlineBoostMode] = useState('random')
 
   const selectedBoard = boardOptions.find((board) => board.size === boardSize)
   const targetOptions = gameMode === 'classic' ? classicTargets : arenaTargets
@@ -189,6 +191,7 @@ export default function GameSetup({
           boardSize,
           winLength: selectedBoard.winLength,
           targetValue,
+          boostMode: gameMode === 'arena' ? onlineBoostMode : null,
         }),
       })
       const player = getCurrentOnlinePlayer(room, playerName, 'X')
@@ -528,10 +531,13 @@ export default function GameSetup({
             {!onlineLobby && onlineFlow === 'create' && (
               <div className="online-mode-grid online-mode-grid--single">
                 <div className="online-flow-card">
-                  <div>
-                    <span className="setup-control-label"></span>
-                    
-                  </div>
+                  <header className="online-flow-header">
+                    <span className="setup-control-label">
+                      {gameMode === 'arena' ? 'ONLINE ARENA' : 'ONLINE KLASİK'}
+                    </span>
+                    <h2>Odanı kur</h2>
+                    <p>Oyuncu adını yaz ve maç kurallarını tamamla.</p>
+                  </header>
 
                   <div className="online-field">
                     <label htmlFor="create-player-name">Oyuncu Adı</label>
@@ -544,6 +550,16 @@ export default function GameSetup({
                       disabled={isOnlineLoading}
                     />
                   </div>
+
+                  {gameMode === 'arena' && (
+                    <div className="online-arena-create-settings">
+                      <BoostModeSetting
+                        boostMode={onlineBoostMode}
+                        onChange={setOnlineBoostMode}
+                        explained
+                      />
+                    </div>
+                  )}
 
                   <button
                     type="button"
@@ -729,7 +745,7 @@ export default function GameSetup({
           arenaSettings={{
             powersEnabled: true,
             multipliersEnabled: true,
-            boostMode: 'random',
+            boostMode: isOnlineMode ? onlineBoostMode : 'random',
           }}
           onClose={() => setIsHowToPlayOpen(false)}
         />

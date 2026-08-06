@@ -52,7 +52,10 @@ app.MapPost("/api/rooms", (CreateRoomRequest request, IRoomStore roomStore) =>
         request.BoardSize,
         request.WinLength,
         request.GameMode.Trim().ToLowerInvariant(),
-        request.TargetValue));
+        request.TargetValue,
+        request.GameMode.Trim().Equals(GameModes.Arena, StringComparison.OrdinalIgnoreCase)
+            ? request.BoostMode?.Trim().ToLowerInvariant() ?? "manual"
+            : null));
 
     return Results.Ok(RoomResponse.FromRoom(room));
 });
@@ -268,6 +271,14 @@ static Dictionary<string, string[]> ValidateCreateRoomRequest(CreateRoomRequest 
     if (request.TargetValue <= 0)
     {
         errors["targetValue"] = ["Target value must be positive."];
+    }
+
+    if (!string.IsNullOrWhiteSpace(request.GameMode)
+        && request.GameMode.Trim().Equals(GameModes.Arena, StringComparison.OrdinalIgnoreCase)
+        && request.BoostMode is not null
+        && request.BoostMode.Trim().ToLowerInvariant() is not ("random" or "manual"))
+    {
+        errors["boostMode"] = ["Boost mode must be random or manual."];
     }
 
     return errors;

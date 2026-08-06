@@ -142,7 +142,7 @@ POST /api/rooms/{roomCode}/powers
 }
 ```
 
-Online Arena supports `bomb`, `shield`, `boost`, and `trap`. Each successful power action consumes the turn, including Boost. This deliberately simple MVP rule makes every server action atomic and unambiguous.
+Online Arena supports `bomb`, `shield`, `boost`, and `trap`. Bomb, Shield, and Trap consume the turn. Boost prepares an empty square without consuming the turn, so the same player can place a stone afterward.
 
 Start the next round after a win or draw:
 

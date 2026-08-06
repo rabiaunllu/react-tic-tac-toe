@@ -5,4 +5,5 @@ public sealed record CreateRoomOptions(
     int BoardSize,
     int WinLength,
     string GameMode,
-    int TargetValue);
+    int TargetValue,
+    string? BoostMode);

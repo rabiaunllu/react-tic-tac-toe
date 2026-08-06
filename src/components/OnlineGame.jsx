@@ -7,12 +7,34 @@ import {
   startRoom,
 } from '../api/roomsApi'
 import { clearOnlineSession } from '../sessionStorage'
-import { getAvailablePowerDefinitions } from '../game/powers'
 import Board from './Board'
+import PowerPanel from './PowerPanel'
+import RoundResultModal from './RoundResultModal'
 import SoundToggle from './SoundToggle'
 import { playSound, registerUserGesture } from '../game/soundManager'
 
 const ROOM_INACTIVE_MESSAGE = 'Oda artık aktif değil. Menüye dönüp yeni oda oluşturabilirsin.'
+const ONLINE_ARENA_POWER_OPTIONS = {
+  gameMode: 'arena',
+  opponentType: 'human',
+  playContext: 'online',
+}
+const EMPTY_ARENA_POWER_COUNTS = {
+  bomb: 0,
+  shield: 0,
+  boost: 0,
+  trap: 0,
+}
+const ARENA_POWER_NAMES = {
+  bomb: 'Bomba',
+  shield: 'Kalkan',
+  boost: 'Boost',
+  trap: 'Kara Delik',
+}
+
+function pickRandomTarget(indexes) {
+  return indexes[Math.floor(Math.random() * indexes.length)]
+}
 
 const onlineWinnerMessages = [
   ['Tempo sende.', 'Baskı hissedildi.'],
@@ -75,16 +97,22 @@ function getStatusMessage({ room, mySymbol }) {
   }
 
   if (room.game.winner) {
+    if (room.gameMode === 'arena') {
+      return room.game.winner === mySymbol
+        ? 'Raunt senin · Puanlar işlendi'
+        : 'Rakip raundu aldı'
+    }
+
     return room.game.winner === mySymbol ? 'Turu kazandın' : 'Rakip turu kazandı'
   }
 
   if (room.game.isDraw) {
-    return 'Tur berabere bitti'
+    return room.gameMode === 'arena' ? 'Arena raundu berabere' : 'Tur berabere bitti'
   }
 
   const currentSymbol = room.game.xIsNext ? 'X' : 'O'
 
-  return currentSymbol === mySymbol ? 'Sıra sende' : 'Rakip hamle yapıyor'
+  return currentSymbol === mySymbol ? 'Sıra sende' : 'Sıranı bekle'
 }
 
 function OnlinePlayerPanel({ player, isActive, position }) {
@@ -126,46 +154,6 @@ function OnlinePlayerPanel({ player, isActive, position }) {
   )
 }
 
-function OnlineArenaPowerBar({ powerCounts, activePower, isActive, onSelectPower }) {
-  const powers = getAvailablePowerDefinitions({
-    gameMode: 'arena',
-    opponentType: 'human',
-    playContext: 'online',
-  })
-
-  return (
-    <section className="power-panel online-arena-power-bar" aria-label="Online Arena güçleri">
-      <div className="power-panel-header">
-        <span>Güçlerin</span>
-        <small>{isActive ? 'Güç seç veya taş koy.' : 'Güç kullanmak için sıranı bekle.'}</small>
-      </div>
-      <div className="power-list">
-        {powers.map((power) => {
-          const count = powerCounts[power.id] ?? 0
-          const isSelected = activePower === power.id
-
-          return (
-            <button
-              key={power.id}
-              type="button"
-              className={`power-button ${isSelected ? 'active' : ''}`}
-              disabled={!isActive || count === 0}
-              aria-pressed={isSelected}
-              aria-label={`${power.name}: ${power.description}`}
-              data-hint={power.description}
-              onClick={() => onSelectPower(isSelected ? null : power.id)}
-            >
-              <span className="power-icon">{power.icon}</span>
-              <span className="power-name">{power.name}</span>
-              <span className="power-count">{count}</span>
-            </button>
-          )
-        })}
-      </div>
-    </section>
-  )
-}
-
 export default function OnlineGame({ initialOnlineGame, onMenu }) {
   const [room, setRoom] = useState(initialOnlineGame.room)
   const [actionError, setActionError] = useState('')
@@ -174,6 +162,8 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
   const [isMovePending, setIsMovePending] = useState(false)
   const [isPowerPending, setIsPowerPending] = useState(false)
   const [activePower, setActivePower] = useState(null)
+  const [bombEvent, setBombEvent] = useState(null)
+  const [blackHoleEvent, setBlackHoleEvent] = useState(null)
   const [isStartPending, setIsStartPending] = useState(false)
   const [isNextRoundPending, setIsNextRoundPending] = useState(false)
   const [isMenuConfirmOpen, setIsMenuConfirmOpen] = useState(false)
@@ -204,21 +194,55 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
     !isMovePending &&
     !isPowerPending &&
     !isRoomInactive
-  const myPowerCounts = room.game.playerPowers?.[playerId] ?? {
-    bomb: 0,
-    shield: 0,
-    boost: 0,
-    trap: 0,
+  const playerPowers = room.game.playerPowers ?? {}
+  const ownerPowerCounts = playerPowers[ownerPlayer?.id] ?? EMPTY_ARENA_POWER_COUNTS
+  const guestPowerCounts = playerPowers[guestPlayer?.id] ?? EMPTY_ARENA_POWER_COUNTS
+  const shieldedSquares = room.game.shieldedSquares ?? []
+  const boostedSquares = room.game.boostedSquares ?? []
+  const boostMode = room.boostMode ?? 'manual'
+  const visibleBoostedSquares = boostMode === 'random'
+    ? boostedSquares.filter((index) => Boolean(room.game.squares[index]))
+    : boostedSquares
+  const arenaPowerTargets = {
+    bomb: room.game.squares.flatMap((square, index) =>
+      square && !shieldedSquares.includes(index) ? [index] : []
+    ),
+    shield: room.game.squares.flatMap((square, index) =>
+      square === mySymbol && !shieldedSquares.includes(index) ? [index] : []
+    ),
+    boost: room.game.squares.flatMap((square, index) =>
+      !square && !boostedSquares.includes(index) ? [index] : []
+    ),
+    trap: room.game.squares.flatMap((square, index) => (!square ? [index] : [])),
   }
+  const activePowerTargets = isArena && activePower ? arenaPowerTargets[activePower] ?? [] : null
+  const arenaDisabledPowers = {
+    bomb: arenaPowerTargets.bomb.length === 0,
+    shield: arenaPowerTargets.shield.length === 0,
+    boost: arenaPowerTargets.boost.length === 0,
+    trap: arenaPowerTargets.trap.length === 0,
+  }
+  const ownerIsActive =
+    ownerPlayer?.symbol === currentSymbol && !isRoundFinished && room.status === 'playing'
+  const guestIsActive =
+    guestPlayer?.symbol === currentSymbol && !isRoundFinished && room.status === 'playing'
   const canRequestNextRound = isRoundFinished && room.status !== 'completed' && !isRoomInactive
   const winningLine = room.game.winningLine.length > 0 ? room.game.winningLine : null
-  const roundSymbol = room.game.isDraw ? '=' : room.game.winner
-  const roundSymbolModifier = room.game.isDraw ? 'draw' : room.game.winner?.toLowerCase()
-  const roundWinnerPlayer = room.players.find((player) => player.symbol === room.game.winner)
-  const roundResultLabel = room.game.isDraw
-    ? 'TUR BERABERE'
-    : `${roundWinnerPlayer?.name ?? room.game.winner} TURU KAZANDI`
   const roundResultMessage = onlineRoundMessage ?? ['Tahta ısındı.', 'Rövanş hazır.']
+  const nextRoundStatusMessage = hasRequestedNextRound
+    ? 'Rakip bekleniyor.'
+    : waitingNextRoundCount > 0
+      ? 'Rakip sonraki tura hazır.'
+      : roundResultMessage[1]
+  const nextRoundLabel = room.status === 'completed'
+    ? 'Maç tamamlandı'
+    : hasRequestedNextRound
+      ? 'Rakip bekleniyor'
+      : isNextRoundPending
+        ? 'Hazırlanıyor...'
+        : 'Sonraki tur'
+  const isNextRoundDisabled =
+    isNextRoundPending || hasRequestedNextRound || !canRequestNextRound
 
   const applyRoom = useCallback((nextRoom) => {
     const nextResultSignature = getResultSignature(nextRoom)
@@ -236,6 +260,51 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
     setRoom(nextRoom)
   }, [mySymbol])
 
+  async function submitPowerAction(powerId, targetIndex) {
+    setActionError('')
+    setIsPowerPending(true)
+
+    try {
+      const nextRoom = await requestRoomJson(`/api/rooms/${roomCode}/powers`, {
+        method: 'POST',
+        body: JSON.stringify({
+          playerId,
+          powerId,
+          targetIndex,
+        }),
+      })
+
+      if (powerId === 'bomb') {
+        setBombEvent({ index: targetIndex })
+      }
+
+      if (powerId === 'trap') {
+        setBlackHoleEvent({ index: targetIndex })
+      }
+
+      applyRoom(nextRoom)
+      setActivePower(null)
+      playSound(powerId === 'bomb' ? 'bomb' : powerId === 'trap' ? 'blackhole' : 'power')
+      setConnectionMessage('')
+    } catch (error) {
+      handleRoomError(error, setActionError)
+    } finally {
+      setIsPowerPending(false)
+    }
+  }
+
+  async function handleRandomBoostPower() {
+    registerUserGesture()
+
+    if (!canMove || arenaPowerTargets.boost.length === 0) {
+      setActionError('Bu hedef uygun değil.')
+      return
+    }
+
+    const targetIndex = pickRandomTarget(arenaPowerTargets.boost)
+    await submitPowerAction('boost', targetIndex)
+  }
+
   async function handleSquareClick(index) {
     registerUserGesture()
 
@@ -245,26 +314,23 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
 
     if (isArena && activePower) {
       setActionError('')
-      setIsPowerPending(true)
 
-      try {
-        const nextRoom = await requestRoomJson(`/api/rooms/${roomCode}/powers`, {
-          method: 'POST',
-          body: JSON.stringify({
-            playerId,
-            powerId: activePower,
-            targetIndex: index,
-          }),
-        })
-        applyRoom(nextRoom)
+      if ((playerPowers[playerId]?.[activePower] ?? 0) <= 0) {
         setActivePower(null)
-        playSound(activePower === 'bomb' ? 'bomb' : activePower === 'trap' ? 'blackhole' : 'power')
-        setConnectionMessage('')
-      } catch (error) {
-        handleRoomError(error, setActionError)
-      } finally {
-        setIsPowerPending(false)
+        setActionError('Bu güç bitti.')
+        return
       }
+
+      if (!activePowerTargets.includes(index)) {
+        setActionError(
+          activePower === 'bomb' || activePower === 'shield'
+            ? 'Önce uygun bir taş seç.'
+            : 'Bu hedef uygun değil.'
+        )
+        return
+      }
+
+      submitPowerAction(activePower, index)
       return
     }
 
@@ -283,9 +349,15 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
           index,
         }),
       })
+      const wasBlackHoleTriggered = nextRoom.game.squares[index] === null
+
+      if (wasBlackHoleTriggered) {
+        setBlackHoleEvent({ index })
+      }
+
       pendingLocalMoveSignatureRef.current = getBoardSignature(nextRoom)
       applyRoom(nextRoom)
-      playSound('move')
+      playSound(wasBlackHoleTriggered ? 'blackhole' : 'move')
       setConnectionMessage('')
     } catch (error) {
       handleRoomError(error, setActionError)
@@ -422,17 +494,22 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
   }, [applyRoom, roomCode])
 
   useEffect(() => {
-    if (!isRoundFinished) {
+    if (!bombEvent) {
       return undefined
     }
 
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const timerId = window.setTimeout(() => setBombEvent(null), 760)
+    return () => window.clearTimeout(timerId)
+  }, [bombEvent])
 
-    return () => {
-      document.body.style.overflow = previousOverflow
+  useEffect(() => {
+    if (!blackHoleEvent) {
+      return undefined
     }
-  }, [isRoundFinished])
+
+    const timerId = window.setTimeout(() => setBlackHoleEvent(null), 1150)
+    return () => window.clearTimeout(timerId)
+  }, [blackHoleEvent])
 
   return (
     <main className="app-shell">
@@ -442,9 +519,9 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
           <p>Taşını koy. Gücünü kullan. Rövanşı al.</p>
           <div className="match-chip-row" aria-label="Online maç bilgileri">
             <span className={`match-chip ${room.gameMode}`}>{room.gameMode === 'arena' ? 'ARENA' : 'KLASİK'}</span>
+            <span className="match-chip">{room.targetValue} {isArena ? 'PUAN' : 'TUR'}</span>
             <span className="match-chip">{room.boardSize}x{room.boardSize}</span>
             <span className="match-chip">{room.winLength} TAŞ</span>
-            <span className="match-chip">{getRoomStatusText(room.status)}</span>
           </div>
         </header>
 
@@ -492,14 +569,11 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
           </div>
         )}
 
-        <div className="online-compact-meta">
-          <span>Oda kodu {roomCode}</span>
-          <strong>Tur {room.game.roundNumber}</strong>
-        </div>
-
-        <div className="online-turn-line" role="status" aria-live="polite">
-          {isRoomInactive ? 'Oda aktif değil' : getStatusMessage({ room, mySymbol })}
-        </div>
+        {!isArena && (
+          <div className="online-turn-line" role="status" aria-live="polite">
+            {isRoomInactive ? 'Oda aktif değil' : getStatusMessage({ room, mySymbol })}
+          </div>
+        )}
 
         {connectionMessage && !isRoomInactive && (
           <div className="online-message" role="status">
@@ -525,157 +599,125 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
           </button>
         )}
 
-        <div className="arena-board-stack online-classic-stack">
-          <OnlinePlayerPanel
-            player={ownerPlayer}
-            position="Üst"
-            isActive={ownerPlayer?.symbol === currentSymbol && !isRoundFinished && room.status === 'playing'}
-          />
+        {blackHoleEvent && (
+          <div className="black-hole-message" role="status" aria-live="assertive">
+            KARA DELİK! Alan büküldü.
+          </div>
+        )}
 
-          <Board
-            boardSize={room.boardSize}
-            squares={room.game.squares}
-            multipliers={room.game.multipliers ?? {}}
-            winningLine={winningLine}
-            shieldedSquares={room.game.shieldedSquares ?? []}
-            lockedSquares={[]}
-            visibleBoostedSquares={room.game.boostedSquares ?? []}
-            onSquareClick={handleSquareClick}
-            currentPlayer={mySymbol}
-          />
+        <div className={`arena-board-stack ${isArena ? 'online-arena-stack' : 'online-classic-stack'}`}>
+          {isArena ? (
+            <>
+              <PowerPanel
+                currentPlayer={ownerPlayer.symbol}
+                playerName={ownerPlayer.name}
+                score={ownerPlayer.score ?? 0}
+                scoreLabel="Puan"
+                powerOptions={ONLINE_ARENA_POWER_OPTIONS}
+                isActivePlayer={ownerIsActive}
+                canInteract={ownerPlayer.id === playerId && canMove}
+                isPowersEnabled
+                powerCounts={ownerPowerCounts}
+                activePower={ownerPlayer.id === playerId ? activePower : null}
+                boostMode={boostMode}
+                disabledPowers={arenaDisabledPowers}
+                statusText={
+                  ownerIsActive
+                    ? ownerPlayer.id === playerId
+                      ? activePower
+                        ? 'Güç hazır. Parlayan hedeflerden birini seç.'
+                        : 'Hamle sende. Güç seç veya taş koy.'
+                      : 'Rakibin hamlesi bekleniyor.'
+                    : 'Sıranı bekle, tahtayı oku.'
+                }
+                onSelectPower={setActivePower}
+                onUseRandomBoost={handleRandomBoostPower}
+              />
 
-          {isArena && myPlayer && (
-            <OnlineArenaPowerBar
-              powerCounts={myPowerCounts}
-              activePower={activePower}
-              isActive={canMove}
-              onSelectPower={setActivePower}
-            />
+              <Board
+                boardSize={room.boardSize}
+                squares={room.game.squares}
+                multipliers={room.game.multipliers ?? {}}
+                winningLine={winningLine}
+                shieldedSquares={shieldedSquares}
+                lockedSquares={bombEvent ? [bombEvent.index] : []}
+                visibleBoostedSquares={visibleBoostedSquares}
+                powerTargetIndexes={activePowerTargets}
+                powerTargetLabel={ARENA_POWER_NAMES[activePower]}
+                onSquareClick={handleSquareClick}
+                currentPlayer={mySymbol}
+                blackHoleEventIndex={blackHoleEvent?.index}
+              />
+
+              <PowerPanel
+                currentPlayer={guestPlayer.symbol}
+                playerName={guestPlayer.name}
+                score={guestPlayer.score ?? 0}
+                scoreLabel="Puan"
+                powerOptions={ONLINE_ARENA_POWER_OPTIONS}
+                isActivePlayer={guestIsActive}
+                canInteract={guestPlayer.id === playerId && canMove}
+                isPowersEnabled
+                powerCounts={guestPowerCounts}
+                activePower={guestPlayer.id === playerId ? activePower : null}
+                boostMode={boostMode}
+                disabledPowers={arenaDisabledPowers}
+                statusText={
+                  guestIsActive
+                    ? guestPlayer.id === playerId
+                      ? activePower
+                        ? 'Güç hazır. Parlayan hedeflerden birini seç.'
+                        : 'Hamle sende. Güç seç veya taş koy.'
+                      : 'Rakibin hamlesi bekleniyor.'
+                    : 'Sıranı bekle, tahtayı oku.'
+                }
+                onSelectPower={setActivePower}
+                onUseRandomBoost={handleRandomBoostPower}
+              />
+            </>
+          ) : (
+            <>
+              <OnlinePlayerPanel player={ownerPlayer} position="Üst" isActive={ownerIsActive} />
+              <Board
+                boardSize={room.boardSize}
+                squares={room.game.squares}
+                multipliers={{}}
+                winningLine={winningLine}
+                shieldedSquares={[]}
+                lockedSquares={[]}
+                visibleBoostedSquares={[]}
+                onSquareClick={handleSquareClick}
+                currentPlayer={mySymbol}
+              />
+              <OnlinePlayerPanel player={guestPlayer} position="Alt" isActive={guestIsActive} />
+            </>
           )}
-
-          <OnlinePlayerPanel
-            player={guestPlayer}
-            position="Alt"
-            isActive={guestPlayer?.symbol === currentSymbol && !isRoundFinished && room.status === 'playing'}
-          />
         </div>
       </section>
 
       {isRoundFinished && (
-        <div className="round-result-overlay" role="presentation">
-          <section
-            className={`round-result-card round-result-card--${roundSymbolModifier}`}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="online-round-result-title"
-            aria-describedby={isMenuConfirmOpen ? undefined : 'online-round-result-message'}
-          >
-            {isMenuConfirmOpen ? (
-              <div className="round-result-confirm">
-                <strong id="online-round-result-title">Menüye dönülsün mü?</strong>
-
-                <div className="round-result-actions round-result-confirm-actions">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      registerUserGesture()
-                      playSound('click')
-                      setIsMenuConfirmOpen(false)
-                    }}
-                    autoFocus
-                  >
-                    Vazgeç
-                  </button>
-                  <button
-                    type="button"
-                    className="danger-action"
-                    onClick={() => {
-                      registerUserGesture()
-                      playSound('click')
-                      onMenu()
-                    }}
-                  >
-                    Menüye dön
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <span className="round-result-eyebrow">
-                  TUR {room.game.roundNumber} SONUCU
-                </span>
-
-                <span className="round-result-symbol" aria-hidden="true">
-                  {roundSymbol}
-                </span>
-
-                <h2 id="online-round-result-title">{roundResultLabel}</h2>
-
-                <div
-                  className="round-result-score"
-                  aria-label={`Skor ${ownerPlayer?.score ?? 0} - ${guestPlayer?.score ?? 0}`}
-                >
-                  <div>
-                    <strong>{ownerPlayer?.score ?? 0}</strong>
-                    <span>{ownerPlayer?.name ?? 'Oyuncu'}</span>
-                  </div>
-
-                  <span aria-hidden="true">VS</span>
-
-                  <div>
-                    <strong>{guestPlayer?.score ?? 0}</strong>
-                    <span>{guestPlayer?.name ?? 'Rakip'}</span>
-                  </div>
-                </div>
-
-                <div className="round-result-message" id="online-round-result-message">
-                  <strong>{roundResultMessage[0]}</strong>
-                  <small>{roundResultMessage[1]}</small>
-                  {hasRequestedNextRound && <small>Rakip bekleniyor.</small>}
-                  {!hasRequestedNextRound && waitingNextRoundCount > 0 && (
-                    <small>Rakip sonraki tura hazır.</small>
-                  )}
-                </div>
-
-                <div className="round-result-actions">
-                  <button
-                    type="button"
-                    onClick={handleNextRound}
-                    disabled={isNextRoundPending || hasRequestedNextRound || !canRequestNextRound}
-                    title={
-                      room.status === 'completed'
-                        ? 'Maç tamamlandı.'
-                        : isRoomInactive
-                          ? 'Oda artık aktif değil.'
-                          : undefined
-                    }
-                    autoFocus
-                  >
-                    {room.status === 'completed'
-                      ? 'Maç tamamlandı'
-                      : hasRequestedNextRound
-                      ? 'Rakip bekleniyor'
-                      : isNextRoundPending
-                        ? 'Hazırlanıyor...'
-                        : 'Sonraki tur'}
-                  </button>
-
-                  <button
-                    type="button"
-                    className="secondary-action"
-                    onClick={() => {
-                      registerUserGesture()
-                      playSound('click')
-                      setIsMenuConfirmOpen(true)
-                    }}
-                  >
-                    Menü
-                  </button>
-                </div>
-              </>
-            )}
-          </section>
-        </div>
+        <RoundResultModal
+          roundNumber={room.game.roundNumber}
+          winner={room.game.winner}
+          isDraw={room.game.isDraw}
+          scores={{ X: ownerPlayer?.score ?? 0, O: guestPlayer?.score ?? 0 }}
+          scoreLabel={isArena ? 'Puan' : 'Skor'}
+          resultMessage={roundResultMessage[0]}
+          loserMessage={nextRoundStatusMessage}
+          onNextRound={handleNextRound}
+          onMenu={onMenu}
+          nextRoundLabel={nextRoundLabel}
+          isNextRoundDisabled={isNextRoundDisabled}
+          nextRoundTitle={
+            room.status === 'completed'
+              ? 'Maç tamamlandı.'
+              : isRoomInactive
+                ? 'Oda artık aktif değil.'
+                : undefined
+          }
+          menuConfirmTitle="Menüye dönülsün mü?"
+          menuConfirmActionLabel="Menüye dön"
+        />
       )}
     </main>
   )

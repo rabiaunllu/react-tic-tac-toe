@@ -1,3 +1,40 @@
+export function BoostModeSetting({ boostMode, onChange, explained = false }) {
+  return (
+    <div className={`arena-setting boost-mode-setting ${explained ? 'boost-mode-setting--explained' : ''}`}>
+      <div className="boost-mode-heading">
+        {explained && <span className="boost-mode-icon" aria-hidden="true">⚡</span>}
+        <span>
+          <strong>{explained ? 'Boost nasıl yerleşsin?' : 'Boost modu'}</strong>
+          <small>
+            {explained
+              ? 'Boost, seçilen boş karenin puanını kazanan çizgide 2 katına çıkarır. Kullanmak sıranı geçirmez.'
+              : 'Boost hedefi rastgele seçilsin veya oyuncu belirlesin.'}
+          </small>
+        </span>
+      </div>
+
+      <div className="boost-mode-options" aria-label="Boost modu">
+        <button
+          className={boostMode === 'random' ? 'active' : ''}
+          type="button"
+          onClick={() => onChange('random')}
+        >
+          <strong>Rastgele</strong>
+          {explained && <small>Sistem boş bir kareyi gizlice seçer.</small>}
+        </button>
+        <button
+          className={boostMode === 'manual' ? 'active' : ''}
+          type="button"
+          onClick={() => onChange('manual')}
+        >
+          <strong>Seçimli</strong>
+          {explained && <small>Boost karesini oyun sırasında sen seçersin.</small>}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function ArenaSettings({
   settings,
   pendingSettings,
@@ -54,29 +91,7 @@ export default function ArenaSettings({
         </label>
 
          {settings.powersEnabled && (
-          <div className="arena-setting boost-mode-setting">
-            <span>
-              <strong>Boost modu</strong>
-              <small>Boost hedefi rastgele seçilsin veya oyuncu belirlesin.</small>
-            </span>
-
-            <div className="boost-mode-options" aria-label="Boost modu">
-              <button
-                className={settings.boostMode === 'random' ? 'active' : ''}
-                type="button"
-                onClick={() => handleBoostModeChange('random')}
-              >
-                Rastgele
-              </button>
-              <button
-                className={settings.boostMode === 'manual' ? 'active' : ''}
-                type="button"
-                onClick={() => handleBoostModeChange('manual')}
-              >
-                Seçimli
-              </button>
-            </div>
-          </div>
+          <BoostModeSetting boostMode={settings.boostMode} onChange={handleBoostModeChange} />
         )}
         
         {pendingSettings && (
