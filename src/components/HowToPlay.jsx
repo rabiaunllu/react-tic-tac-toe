@@ -27,6 +27,19 @@ function RuleItem({ icon, title, children }) {
   )
 }
 
+function QuickReferencePower({ icon, title, description }) {
+  return (
+    <span
+      className="quick-reference-item"
+      tabIndex="0"
+      aria-label={`${title}: ${description}`}
+      data-description={description}
+    >
+      {icon} {title}
+    </span>
+  )
+}
+
 export default function HowToPlay({
   gameConfig = fallbackGameConfig,
   gameMode = gameConfig.gameMode ?? 'classic',
@@ -108,9 +121,8 @@ export default function HowToPlay({
             anında kaybolur ve sırası geçer. Kara Deliği sadece sen görürsün.
           </RuleItem>
           <div className="locked-power-note">
-            <strong>Ödüllü özel güçler:</strong> Joker normal Arena gücü değildir;
-            ileride PvC ödüllü özel güç olarak değerlendirilecek. Vampir: Rakibin
-            bir taşının çarpanını alıp kendi taşına ekler.
+            <strong>Sürpriz paket güçleri:</strong> Arena PvC’de Joker, Freeze veya
+            Vampir seçebilirsin.
           </div>
         </>
       ),
@@ -312,12 +324,14 @@ export default function HowToPlay({
           <section className="rule-section quick-reference">
             <h3>Hızlı Başvuru</h3>
             <div className="quick-reference-list">
-              <span>💣 Bomba</span>
-              <span>🛡️ Kalkan</span>
-              <span>⚡ Boost</span>
-              <span>🕳️ Kara Delik</span>
-              <span>🔒🃏 Joker</span>
-              <span>🔒🧛 Vampir</span>
+              <QuickReferencePower icon="💣" title="Bomba" description="Korumasız bir taşı kaldırır." />
+              <QuickReferencePower icon="🛡️" title="Kalkan" description="Kendi taşını saldırılardan korur." />
+              <QuickReferencePower icon="⚡" title="Boost" description="Hücre puanını iki katına çıkarır." />
+              <QuickReferencePower icon="🕳️" title="Kara Delik" description="Rakibin taşı koyunca kaybolur ve sırası geçer." />
+              <span className="quick-reference-break" aria-hidden="true" />
+              <QuickReferencePower icon="🃏" title="Joker" description="Rakibin taşını kendi taşına çevirir." />
+              <QuickReferencePower icon="❄️" title="Freeze" description="Boş kareyi bir hamle boyunca kilitler." />
+              <QuickReferencePower icon="🧛" title="Vampir" description="Rakibin çarpanını kendi taşına taşır." />
             </div>
           </section>
         </div>
