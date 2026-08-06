@@ -53,7 +53,7 @@ export default function RoundResultModal({
 }
         aria-describedby={
   isMenuConfirmOpen
-    ? 'round-result-confirm-description'
+    ? undefined
     : 'round-result-message'
 }
       >
@@ -92,10 +92,6 @@ export default function RoundResultModal({
     <strong id="round-result-confirm-title">
       Ayarlara dönülsün mü?
     </strong>
-
-    <p id="round-result-confirm-description">
-      Mevcut maç sona erecek; skor ve tahta sıfırlanacak.
-    </p>
 
     <div className="round-result-actions round-result-confirm-actions">
       <button

@@ -1,7 +1,6 @@
 export default function GameStatus({
   winner,
   isDraw,
-  xIsNext,
   roundScore,
   resultMessage,
   loserMessage,
@@ -44,10 +43,5 @@ export default function GameStatus({
     return <div className="status draw">Berabere.</div>
   }
 
-  return (
-    <div className={`status live-status ${xIsNext ? 'x-turn' : 'o-turn'}`}>
-      <span className="live-status-kicker">Arena sırası</span>
-      <strong>{xIsNext ? 'X hücumda' : 'O hücumda'}</strong>
-    </div>
-  )
+  return null
 }

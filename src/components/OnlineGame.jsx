@@ -38,7 +38,7 @@ function OnlinePlayerPanel({ player, isActive, position }) {
             <span className="player-name">Rakip bekleniyor</span>
           </div>
           <div className="player-score">
-            <small>Tur</small>
+            <small>Puan</small>
             <strong>0</strong>
           </div>
         </div>
@@ -59,7 +59,7 @@ function OnlinePlayerPanel({ player, isActive, position }) {
           <span className="player-name">{player.name}</span>
         </div>
         <div className="player-score">
-          <small>Tur</small>
+          <small>Puan</small>
           <strong>{player.score ?? 0}</strong>
         </div>
       </div>
@@ -228,7 +228,6 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
         {isMenuConfirmOpen && (
           <div className="setup-return-confirm">
             <strong>Menüye dönülsün mü?</strong>
-            <p>Mevcut online oyun ekranından çıkılacak.</p>
 
             <div className="setup-return-actions">
               <button type="button" onClick={() => setIsMenuConfirmOpen(false)}>
@@ -242,20 +241,12 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
         )}
 
         <div className="online-compact-meta">
-          <span>Oda {roomCode}</span>
+          <span>Oda kodu {roomCode}</span>
           <strong>Tur {room.game.roundNumber}</strong>
         </div>
 
-        <div className="score-board online-score-board">
-          <div className="score-card x-score">
-            <span className="score-label">{ownerPlayer?.name ?? 'Oyuncu'} Tur</span>
-            <strong>{ownerPlayer?.score ?? 0}</strong>
-          </div>
-          <div className="match-target-info">{getStatusMessage({ room, mySymbol })}</div>
-          <div className="score-card o-score">
-            <span className="score-label">{guestPlayer?.name ?? 'Rakip'} Tur</span>
-            <strong>{guestPlayer?.score ?? 0}</strong>
-          </div>
+        <div className="online-turn-line" role="status" aria-live="polite">
+          {getStatusMessage({ room, mySymbol })}
         </div>
 
         {actionError && (
@@ -309,12 +300,11 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
             role="dialog"
             aria-modal="true"
             aria-labelledby="online-round-result-title"
-            aria-describedby="online-round-result-message"
+            aria-describedby={isMenuConfirmOpen ? undefined : 'online-round-result-message'}
           >
             {isMenuConfirmOpen ? (
               <div className="round-result-confirm">
                 <strong id="online-round-result-title">Menüye dönülsün mü?</strong>
-                <p id="online-round-result-message">Mevcut online oyun ekranından çıkılacak.</p>
 
                 <div className="round-result-actions round-result-confirm-actions">
                   <button type="button" onClick={() => setIsMenuConfirmOpen(false)} autoFocus>

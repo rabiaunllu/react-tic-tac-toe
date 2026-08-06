@@ -1360,8 +1360,9 @@ button:focus-visible,
 
 .player-name {
   color: #f7fbff;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 900;
+  overflow-wrap: anywhere;
 }
 
 .player-score {
@@ -1372,7 +1373,7 @@ button:focus-visible,
 
 .player-score small {
   color: #9eabc6;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 900;
   text-transform: uppercase;
 }
@@ -2268,6 +2269,13 @@ button,
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 
+.setup-back-button,
+.score-reset-button {
+  min-height: 38px;
+  padding: 10px 14px;
+  font-size: 14px;
+}
+
 .restart-button {
   min-width: 142px;
   border-color: rgba(255, 209, 102, 0.34);
@@ -2770,8 +2778,8 @@ button,
 .online-lobby-panel {
   width: 100%;
   display: grid;
-  gap: 12px;
-  padding: 14px;
+  gap: 11px;
+  padding: 13px;
   border: 1px solid rgba(142, 216, 255, 0.2);
   border-radius: 16px;
   background:
@@ -2799,12 +2807,13 @@ button,
 
 .online-choice-grid {
   display: grid;
-  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
 }
 
 .online-choice-card {
   width: 100%;
-  min-height: 74px;
+  min-height: 58px;
   display: grid;
   gap: 5px;
   place-items: center;
@@ -2826,7 +2835,7 @@ button,
 }
 
 .online-choice-card span {
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 950;
 }
 
@@ -2859,7 +2868,7 @@ button,
   min-width: 0;
   display: grid;
   align-content: start;
-  gap: 12px;
+  gap: 11px;
   padding: 13px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 14px;
@@ -2869,7 +2878,7 @@ button,
 .online-flow-card h2 {
   margin: 5px 0 4px;
   color: #f5f7fb;
-  font-size: 18px;
+  font-size: 20px;
   line-height: 1.15;
 }
 
@@ -2883,7 +2892,7 @@ button,
 
 .online-field label {
   color: #8ed8ff;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 900;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -2900,7 +2909,7 @@ button,
   background: rgba(8, 12, 22, 0.72);
   color: #f5f7fb;
   font: inherit;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 800;
   outline: none;
 }
@@ -2929,13 +2938,13 @@ button,
 
 .online-primary-action,
 .online-secondary-action {
-  min-height: 44px;
+  min-height: 46px;
   border: 1px solid rgba(142, 216, 255, 0.36);
   border-radius: 12px;
   padding: 10px 13px;
   background: rgba(142, 216, 255, 0.12);
   color: #e9f8ff;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 900;
   cursor: pointer;
 }
@@ -3020,7 +3029,7 @@ button,
 
 .online-room-details {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -3036,7 +3045,7 @@ button,
 .online-room-details strong {
   min-width: 0;
   color: #f5f7fb;
-  font-size: 12px;
+  font-size: 13px;
   overflow-wrap: anywhere;
 }
 
@@ -3070,7 +3079,7 @@ button,
 .online-player-row span {
   min-width: 0;
   color: #e4eaf6;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 800;
   overflow-wrap: anywhere;
 }
@@ -3080,7 +3089,7 @@ button,
   border-radius: 11px;
   background: rgba(142, 216, 255, 0.1);
   color: #dff4ff;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 900;
   text-align: center;
 }
@@ -3093,7 +3102,7 @@ button,
 
 .online-play-action {
   width: 100%;
-  min-height: 58px;
+  min-height: 48px;
   display: grid;
   gap: 4px;
   place-items: center;
@@ -3111,7 +3120,7 @@ button,
 }
 
 .online-play-action span {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 950;
 }
 
@@ -3169,21 +3178,25 @@ button,
   border-radius: 13px;
   background: rgba(255, 255, 255, 0.055);
   color: #cfd7e8;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 900;
 }
 
 .online-compact-meta strong {
   color: #8ed8ff;
-  font-size: 12px;
+  font-size: 13px;
 }
 
-.online-score-board {
-  max-width: 100%;
-}
-
-.online-score-board .match-target-info {
-  border-radius: 14px;
+.online-turn-line {
+  width: min(100%, 462px);
+  min-height: 30px;
+  display: grid;
+  place-items: center;
+  padding: 6px 10px;
+  color: #cfd7e8;
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 1.25;
 }
 
 .online-game-players {
@@ -3224,6 +3237,10 @@ button,
 
   .online-room-code strong {
     font-size: 30px;
+  }
+
+  .online-choice-grid {
+    grid-template-columns: 1fr;
   }
 
 }

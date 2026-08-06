@@ -161,7 +161,7 @@ export default function GameSetup({
 
       saveOnlineLobby(room, player, playerName)
       setJoinRoomCode(room.roomCode)
-      setOnlineMessage('Oda oluşturuldu. Kodunu arkadaşınla paylaş.')
+      setOnlineMessage('')
     } catch (error) {
       setOnlineError(error.message)
     } finally {
@@ -406,7 +406,7 @@ export default function GameSetup({
                   resetOnlineLobby()
                 }}
               >
-                {gameMode === 'classic' ? `${target} Tur` : `${target} Pts`}
+                {gameMode === 'classic' ? `${target} Tur` : `${target} Puan`}
               </button>
             ))}
             <button
@@ -438,7 +438,6 @@ export default function GameSetup({
                   onClick={() => setOnlineFlow('create')}
                 >
                   <span>Oda Kur</span>
-                  <small>Kod oluştur ve arkadaşını davet et</small>
                 </button>
 
                 <button
@@ -447,7 +446,6 @@ export default function GameSetup({
                   onClick={() => setOnlineFlow('join')}
                 >
                   <span>Odaya Katıl</span>
-                  <small>Arkadaşından gelen kodla gir</small>
                 </button>
               </div>
             )}
@@ -456,9 +454,8 @@ export default function GameSetup({
               <div className="online-mode-grid online-mode-grid--single">
                 <div className="online-flow-card">
                   <div>
-                    <span className="setup-control-label">ODA OLUŞTUR</span>
-                    <h2>Arkadaşını davet et</h2>
-                    <p>Oda kodunu oluştur, rakibin katılınca oyunu sen başlat.</p>
+                    <span className="setup-control-label"></span>
+                    
                   </div>
 
                   <div className="online-field">
@@ -489,9 +486,8 @@ export default function GameSetup({
               <div className="online-mode-grid online-mode-grid--single">
                 <div className="online-flow-card">
                   <div>
-                    <span className="setup-control-label">ODAYA KATIL</span>
-                    <h2>Kodla oyuna gir</h2>
-                    <p>Arkadaşından gelen oda kodu ve kendi adınla lobby'ye katıl.</p>
+                    <span className="setup-control-label"></span>
+                    
                   </div>
 
                   <div className="online-field">
@@ -600,7 +596,6 @@ export default function GameSetup({
                     disabled={isOnlineLoading}
                   >
                     <span>{onlineLoadingAction === 'start' ? 'Başlatılıyor...' : 'Oyunu Başlat'}</span>
-                    <small>Oda sahibi olarak online maçı başlat</small>
                   </button>
                 )}
 

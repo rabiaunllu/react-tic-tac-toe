@@ -3,7 +3,6 @@ import { getAdaptiveAiMove, getArenaAiPowerAction } from './game/aiPlayer'
 import './App.css'
 import Board from './components/Board'
 import GameStatus from './components/GameStatus'
-import ScoreBoard from './components/ScoreBoard'
 import ArenaSettings from './components/ArenaSettings'
 import PowerPanel from './components/PowerPanel'
 import { createInitialPowerCounts } from './game/powers'
@@ -140,7 +139,7 @@ const hasTrapTarget = squares.some(
     !lockedSquares.includes(index) &&
     !traps.some((trap) => trap.index === index && trap.owner === currentPlayer)
 )
-  const scoreLabel = gameMode === 'classic' ? 'Tur' : 'Puan'
+  const scoreLabel = 'Puan'
   const modeChip = gameMode === 'arena' ? 'ARENA' : 'KLASİK'
   const targetChip = gameConfig
     ? gameConfig.isInfinite
@@ -970,12 +969,14 @@ const hasTrapTarget = squares.some(
           >
             Ayarlara dön
           </button>
+          <button className="score-reset-button" onClick={handleRequestScoreReset}>
+            Puan sıfırla
+          </button>
         </div>
 
         {showSetupReturnConfirm && (
           <div className="setup-return-confirm">
             <strong>Ayarlara dönülsün mü?</strong>
-            <p>Mevcut maç sıfırlanacak, skor ve tahta temizlenecek.</p>
 
             <div className="setup-return-actions">
               <button
@@ -1020,16 +1021,9 @@ const hasTrapTarget = squares.some(
           </div>
         )}
 
-        <ScoreBoard
-          scores={scores}
-          scoreLabel={scoreLabel}
-          onResetScores={handleRequestScoreReset}
-        />
-
         {showScoreResetConfirm && (
           <div className="setup-return-confirm">
-            <strong>Tur skorları sıfırlansın mı?</strong>
-            <p>X ve O tur skorları sıfırlanacak. Devam etmek istiyor musun?</p>
+            <strong>Puanlar sıfırlansın mı?</strong>
 
             <div className="setup-return-actions">
               <button type="button" onClick={handleCancelScoreReset}>
