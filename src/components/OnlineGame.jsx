@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   getRoomStatusText,
   isConnectionError,
@@ -8,8 +8,57 @@ import {
 } from '../api/roomsApi'
 import { clearOnlineSession } from '../sessionStorage'
 import Board from './Board'
+import SoundToggle from './SoundToggle'
+import { playSound, registerUserGesture } from '../game/soundManager'
 
 const ROOM_INACTIVE_MESSAGE = 'Oda artık aktif değil. Menüye dönüp yeni oda oluşturabilirsin.'
+
+const onlineWinnerMessages = [
+  ['Tempo sende.', 'Baskı hissedildi.'],
+  ['Tahta ısındı.', 'Rakip bunu unutmaz.'],
+  ['Sıra sende, baskı onda.', 'Bir hamlelik fark, büyük gürültü.'],
+  ['Temiz baskı.', 'Ritim sende kaldı.'],
+]
+
+const onlineLoserMessages = [
+  ['Plan biraz kaydı.', 'Rövanş kokusu geldi.'],
+  ['Rakip öne geçti.', 'Bir sonraki tur cevap zamanı.'],
+  ['Baskı hissedildi.', 'Tahta daha bitmedi.'],
+  ['Bu tur kaçtı.', 'Rövanş için güzel sebep.'],
+]
+
+const onlineDrawMessages = [
+  ['Tahta kilitlendi.', 'Kimse düşmedi.'],
+  ['Denge bozulmadı.', 'Rövanş kokusu geldi.'],
+  ['Planlar çarpıştı.', 'Ses var, kazanan yok.'],
+  ['Beraberlik çıktı.', 'Tahta ısındı.'],
+]
+
+function getBoardSignature(room) {
+  return `${room.game.roundNumber}:${room.game.squares.join('|')}`
+}
+
+function getResultSignature(room) {
+  return `${room.game.roundNumber}:${room.game.winner ?? ''}:${room.game.isDraw}`
+}
+
+function pickRandomMessage(messages) {
+  return messages[Math.floor(Math.random() * messages.length)]
+}
+
+function createOnlineRoundMessage(room, mySymbol) {
+  if (!room.game.winner && !room.game.isDraw) {
+    return null
+  }
+
+  if (room.game.isDraw) {
+    return pickRandomMessage(onlineDrawMessages)
+  }
+
+  return pickRandomMessage(
+    room.game.winner === mySymbol ? onlineWinnerMessages : onlineLoserMessages
+  )
+}
 
 function getStatusMessage({ room, mySymbol }) {
   if (room.status === 'waiting') {
@@ -85,6 +134,13 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
   const [isStartPending, setIsStartPending] = useState(false)
   const [isNextRoundPending, setIsNextRoundPending] = useState(false)
   const [isMenuConfirmOpen, setIsMenuConfirmOpen] = useState(false)
+  const [onlineRoundMessage, setOnlineRoundMessage] = useState(() =>
+    createOnlineRoundMessage(initialOnlineGame.room, initialOnlineGame.symbol)
+  )
+  const onlineRoundMessageSignatureRef = useRef(getResultSignature(initialOnlineGame.room))
+  const previousRoomRef = useRef(initialOnlineGame.room)
+  const pendingLocalMoveSignatureRef = useRef(null)
+  const resultSoundSignatureRef = useRef(getResultSignature(initialOnlineGame.room))
 
   const { roomCode, playerId } = initialOnlineGame
   const ownerPlayer = room.players[0]
@@ -111,13 +167,22 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
   const roundResultLabel = room.game.isDraw
     ? 'TUR BERABERE'
     : `${roundWinnerPlayer?.name ?? room.game.winner} TURU KAZANDI`
-  const roundResultMessage = room.game.isDraw
-    ? 'Beraberlik bozulmadı.'
-    : roundWinnerPlayer?.id === playerId
-      ? 'Turu kazandın.'
-      : 'Rakip turu kazandı.'
+  const roundResultMessage = onlineRoundMessage ?? ['Tahta ısındı.', 'Rövanş hazır.']
+
+  const applyRoom = useCallback((nextRoom) => {
+    const nextResultSignature = getResultSignature(nextRoom)
+
+    if (nextResultSignature !== onlineRoundMessageSignatureRef.current) {
+      onlineRoundMessageSignatureRef.current = nextResultSignature
+      setOnlineRoundMessage(createOnlineRoundMessage(nextRoom, mySymbol))
+    }
+
+    setRoom(nextRoom)
+  }, [mySymbol])
 
   async function handleSquareClick(index) {
+    registerUserGesture()
+
     if (!canMove || room.game.squares[index]) {
       return
     }
@@ -133,7 +198,9 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
           index,
         }),
       })
-      setRoom(nextRoom)
+      pendingLocalMoveSignatureRef.current = getBoardSignature(nextRoom)
+      applyRoom(nextRoom)
+      playSound('move')
       setConnectionMessage('')
     } catch (error) {
       handleRoomError(error, setActionError)
@@ -143,6 +210,9 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
   }
 
   async function handleNextRound() {
+    registerUserGesture()
+    playSound('click')
+
     if (!canRequestNextRound || hasRequestedNextRound) {
       return
     }
@@ -155,7 +225,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
         method: 'POST',
         body: JSON.stringify({ playerId }),
       })
-      setRoom(nextRoom)
+      applyRoom(nextRoom)
       setConnectionMessage('')
     } catch (error) {
       handleRoomError(error, setActionError)
@@ -165,6 +235,9 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
   }
 
   async function handleStartRoom() {
+    registerUserGesture()
+    playSound('click')
+
     if (room.status !== 'ready' || ownerPlayer?.id !== playerId) {
       return
     }
@@ -174,7 +247,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
 
     try {
       const nextRoom = await startRoom(roomCode, playerId)
-      setRoom(nextRoom)
+      applyRoom(nextRoom)
       setConnectionMessage('')
     } catch (error) {
       handleRoomError(error, setActionError)
@@ -196,6 +269,34 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
   }
 
   useEffect(() => {
+    const previousRoom = previousRoomRef.current
+    const nextBoardSignature = getBoardSignature(room)
+    const previousBoardSignature = getBoardSignature(previousRoom)
+    const previousMoveCount = previousRoom.game.squares.filter(Boolean).length
+    const nextMoveCount = room.game.squares.filter(Boolean).length
+
+    if (nextBoardSignature !== previousBoardSignature) {
+      if (pendingLocalMoveSignatureRef.current === nextBoardSignature) {
+        pendingLocalMoveSignatureRef.current = null
+      } else if (nextMoveCount > previousMoveCount && room.status === 'playing') {
+        playSound('move')
+      }
+    }
+
+    const resultSignature = getResultSignature(room)
+
+    if (
+      resultSignature !== resultSoundSignatureRef.current &&
+      (room.game.winner || room.game.isDraw)
+    ) {
+      playSound(room.game.isDraw ? 'draw' : 'win')
+    }
+
+    resultSoundSignatureRef.current = resultSignature
+    previousRoomRef.current = room
+  }, [room])
+
+  useEffect(() => {
     let isPollingActive = true
 
     async function pollRoom() {
@@ -203,7 +304,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
         const nextRoom = await requestRoomJson(`/api/rooms/${roomCode}`)
 
         if (isPollingActive) {
-          setRoom(nextRoom)
+          applyRoom(nextRoom)
           setConnectionMessage('')
           setIsRoomInactive(false)
         }
@@ -233,7 +334,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
       isPollingActive = false
       window.clearInterval(pollingId)
     }
-  }, [roomCode])
+  }, [applyRoom, roomCode])
 
   useEffect(() => {
     if (!isRoundFinished) {
@@ -263,9 +364,17 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
         </header>
 
         <div className="game-actions">
-          <button className="setup-back-button" onClick={() => setIsMenuConfirmOpen(true)}>
+          <button
+            className="setup-back-button"
+            onClick={() => {
+              registerUserGesture()
+              playSound('click')
+              setIsMenuConfirmOpen(true)
+            }}
+          >
             Menüye dön
           </button>
+          <SoundToggle />
         </div>
 
         {isMenuConfirmOpen && (
@@ -273,10 +382,25 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
             <strong>Menüye dönülsün mü?</strong>
 
             <div className="setup-return-actions">
-              <button type="button" onClick={() => setIsMenuConfirmOpen(false)}>
+              <button
+                type="button"
+                onClick={() => {
+                  registerUserGesture()
+                  playSound('click')
+                  setIsMenuConfirmOpen(false)
+                }}
+              >
                 Vazgeç
               </button>
-              <button type="button" className="danger-action" onClick={onMenu}>
+              <button
+                type="button"
+                className="danger-action"
+                onClick={() => {
+                  registerUserGesture()
+                  playSound('click')
+                  onMenu()
+                }}
+              >
                 Menüye dön
               </button>
             </div>
@@ -357,10 +481,26 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
                 <strong id="online-round-result-title">Menüye dönülsün mü?</strong>
 
                 <div className="round-result-actions round-result-confirm-actions">
-                  <button type="button" onClick={() => setIsMenuConfirmOpen(false)} autoFocus>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      registerUserGesture()
+                      playSound('click')
+                      setIsMenuConfirmOpen(false)
+                    }}
+                    autoFocus
+                  >
                     Vazgeç
                   </button>
-                  <button type="button" className="danger-action" onClick={onMenu}>
+                  <button
+                    type="button"
+                    className="danger-action"
+                    onClick={() => {
+                      registerUserGesture()
+                      playSound('click')
+                      onMenu()
+                    }}
+                  >
                     Menüye dön
                   </button>
                 </div>
@@ -395,7 +535,8 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
                 </div>
 
                 <div className="round-result-message" id="online-round-result-message">
-                  <strong>{roundResultMessage}</strong>
+                  <strong>{roundResultMessage[0]}</strong>
+                  <small>{roundResultMessage[1]}</small>
                   {hasRequestedNextRound && <small>Rakip bekleniyor.</small>}
                   {!hasRequestedNextRound && waitingNextRoundCount > 0 && (
                     <small>Rakip sonraki tura hazır.</small>
@@ -428,7 +569,11 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
                   <button
                     type="button"
                     className="secondary-action"
-                    onClick={() => setIsMenuConfirmOpen(true)}
+                    onClick={() => {
+                      registerUserGesture()
+                      playSound('click')
+                      setIsMenuConfirmOpen(true)
+                    }}
                   >
                     Menü
                   </button>

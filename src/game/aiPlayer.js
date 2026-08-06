@@ -129,13 +129,21 @@ function getNearLines({
     .sort((firstLine, secondLine) => secondLine.playerIndexes.length - firstLine.playerIndexes.length)
 }
 
-function getAdaptivePowerChance(humanWinStreak) {
+function getAdaptivePowerChance(humanWinStreak, roundNumber = 1) {
   if (humanWinStreak >= 2) {
     return 0.72
   }
 
   if (humanWinStreak <= -2) {
     return 0.22
+  }
+
+  if (roundNumber <= 2) {
+    return 0.56
+  }
+
+  if (roundNumber <= 4) {
+    return 0.5
   }
 
   return 0.45
@@ -316,7 +324,7 @@ function getTacticalMove({
   )
 }
 
-function getAdaptiveRandomChance(humanWinStreak) {
+function getAdaptiveRandomChance(humanWinStreak, roundNumber = 1) {
   if (humanWinStreak >= 3) {
     return 0.08
   }
@@ -333,6 +341,14 @@ function getAdaptiveRandomChance(humanWinStreak) {
     return 0.45
   }
 
+  if (roundNumber <= 2) {
+    return 0.14
+  }
+
+  if (roundNumber <= 4) {
+    return 0.22
+  }
+
   return 0.3
 }
 export function getAdaptiveAiMove({
@@ -340,11 +356,12 @@ export function getAdaptiveAiMove({
   boardSize,
   winLength,
   humanWinStreak,
+  roundNumber = 1,
   blockedIndexes = [],
   aiPlayer = 'O',
   humanPlayer = 'X',
 }) {
-  const randomChance = getAdaptiveRandomChance(humanWinStreak)
+  const randomChance = getAdaptiveRandomChance(humanWinStreak, roundNumber)
 
   if (Math.random() < randomChance) {
     return getRandomMove(squares, blockedIndexes)
@@ -365,6 +382,7 @@ export function getArenaAiPowerAction({
   boardSize,
   winLength,
   humanWinStreak,
+  roundNumber = 1,
   playerPowers,
   shieldedSquares = [],
   boostedSquares = [],
@@ -373,7 +391,7 @@ export function getArenaAiPowerAction({
   aiPlayer = aiPlayerDefault,
   humanPlayer = humanPlayerDefault,
 }) {
-  if (Math.random() > getAdaptivePowerChance(humanWinStreak)) {
+  if (Math.random() > getAdaptivePowerChance(humanWinStreak, roundNumber)) {
     return null
   }
 

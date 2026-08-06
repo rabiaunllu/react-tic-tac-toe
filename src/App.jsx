@@ -9,6 +9,7 @@ import { createInitialPowerCounts } from './game/powers'
 import GameSetup from './components/GameSetup'
 import OnlineGame from './components/OnlineGame'
 import RoundResultModal from './components/RoundResultModal'
+import SoundToggle from './components/SoundToggle'
 import {
   calculateRoundScore,
   calculateWinner,
@@ -39,6 +40,7 @@ import {
   isRoomNotFoundError,
   requestRoomJson,
 } from './api/roomsApi'
+import { playSound, registerUserGesture } from './game/soundManager'
 
 const defaultBoardSize = 3
 
@@ -188,12 +190,14 @@ const hasTrapTarget = squares.some(
 }
         setResultMessage(getRandomMessage(winnerMessages))
         setLoserMessage(getRandomMessage(loserMessages))
+        playSound('win')
         return
       }
 
       if (isBoardFull(nextSquares)) {
         setResultMessage(getRandomMessage(drawMessages))
         setLoserMessage(null)
+        playSound('draw')
       }
     },
     [boardSize, winLength, multipliers, multipliersEnabled, boostedSquares,opponentType, gameMode,]
@@ -294,6 +298,7 @@ const hasTrapTarget = squares.some(
     )
     setLockedSquares([index])
     spendPlayerPower(currentPlayer, 'bomb')
+    playSound('bomb')
     setActivePower(null)
     setXIsNext(!xIsNext)
   }
@@ -315,6 +320,7 @@ const hasTrapTarget = squares.some(
     ])
 
     spendPlayerPower(currentPlayer, 'shield')
+    playSound('power')
     setLockedSquares([])
     setActivePower(null)
     setXIsNext(!xIsNext)
@@ -337,6 +343,7 @@ const hasTrapTarget = squares.some(
     ])
 
     spendPlayerPower(currentPlayer, 'trap')
+    playSound('blackhole')
     setLockedSquares([])
     setActivePower(null)
     setXIsNext(!xIsNext)
@@ -358,6 +365,7 @@ const hasTrapTarget = squares.some(
 
     setSquares(nextSquares)
     revealBoostedSquare(index)
+    playSound('power')
     finishRound(nextSquares)
     spendPlayerPower(currentPlayer, 'joker')
     setLockedSquares([])
@@ -381,6 +389,7 @@ const hasTrapTarget = squares.some(
       ])
     }
     spendPlayerPower(currentPlayer, 'boost')
+    playSound('power')
     setLockedSquares([])
     setActivePower(null)
   }
@@ -395,6 +404,7 @@ const hasTrapTarget = squares.some(
   }
 
   function handleSquareClick(index) {
+  registerUserGesture()
   if (winner || matchWinner) {
     return
   }
@@ -448,6 +458,7 @@ const hasTrapTarget = squares.some(
     setLockedSquares([])
     setActivePower(null)
     setXIsNext(!xIsNext)
+    playSound('blackhole')
     return
   }
 
@@ -456,6 +467,7 @@ const hasTrapTarget = squares.some(
 
   setSquares(nextSquares)
   revealBoostedSquare(index)
+  playSound('move')
   finishRound(nextSquares)
   setLockedSquares([])
   setXIsNext(!xIsNext)
@@ -615,6 +627,7 @@ const hasTrapTarget = squares.some(
           setLockedSquares([])
           setActivePower(null)
           setXIsNext(true)
+          playSound('blackhole')
           return
         }
 
@@ -631,6 +644,7 @@ const hasTrapTarget = squares.some(
             index,
           ])
         }
+        playSound('move')
         finishRound(nextSquares, nextBoostedSquares)
         setLockedSquares([])
         setXIsNext(true)
@@ -642,6 +656,7 @@ const hasTrapTarget = squares.some(
           boardSize,
           winLength,
           humanWinStreak,
+          roundNumber,
           playerPowers: playerPowers.O,
           shieldedSquares,
           boostedSquares,
@@ -667,6 +682,7 @@ const hasTrapTarget = squares.some(
           )
           setLockedSquares([aiPowerAction.index])
           spendAiPower('bomb')
+          playSound('bomb')
           setActivePower(null)
           setXIsNext(true)
           return
@@ -678,6 +694,7 @@ const hasTrapTarget = squares.some(
             aiPowerAction.index,
           ])
           spendAiPower('shield')
+          playSound('power')
           setLockedSquares([])
           setActivePower(null)
           setXIsNext(true)
@@ -693,6 +710,7 @@ const hasTrapTarget = squares.some(
             },
           ])
           spendAiPower('trap')
+          playSound('blackhole')
           setLockedSquares([])
           setActivePower(null)
           setXIsNext(true)
@@ -707,6 +725,7 @@ const hasTrapTarget = squares.some(
             aiPowerAction.index,
           ])
           spendAiPower('boost')
+          playSound('power')
           setLockedSquares([])
           setActivePower(null)
           placeAiStone(aiPowerAction.index, nextBoostedSquares)
@@ -719,6 +738,7 @@ const hasTrapTarget = squares.some(
         boardSize,
         winLength,
         humanWinStreak,
+        roundNumber,
         blockedIndexes: lockedSquares,
       })
 
@@ -750,6 +770,7 @@ const hasTrapTarget = squares.some(
     visibleBoostedSquares,
     traps,
     finishRound,
+    roundNumber,
   ])
   useEffect(() => {
     if (!blackHoleEvent) {
@@ -826,11 +847,15 @@ const hasTrapTarget = squares.some(
   }
 
   function handleNextRound() {
+    registerUserGesture()
+    playSound('click')
     resetGame()
     setRoundNumber((currentRound) => currentRound + 1)
   }
 
   function handleNewMatch() {
+    registerUserGesture()
+    playSound('click')
     setSquares(createEmptyBoard(boardSize))
     setXIsNext(true)
     setRoundNumber(1)
@@ -850,6 +875,8 @@ const hasTrapTarget = squares.some(
   }
 
   function handleResetScores() {
+    registerUserGesture()
+    playSound('click')
     setScores(initialScores)
   }
 
@@ -863,11 +890,15 @@ const hasTrapTarget = squares.some(
   }
 
   function handleRequestScoreReset() {
+    registerUserGesture()
+    playSound('click')
     setShowSetupReturnConfirm(false)
     setShowScoreResetConfirm(true)
   }
 
   function handleCancelScoreReset() {
+    registerUserGesture()
+    playSound('click')
     setShowScoreResetConfirm(false)
   }
 
@@ -974,6 +1005,8 @@ const hasTrapTarget = squares.some(
           <button
             className="setup-back-button"
             onClick={() => {
+              registerUserGesture()
+              playSound('click')
               setShowScoreResetConfirm(false)
               setShowSetupReturnConfirm(true)
             }}
@@ -983,6 +1016,7 @@ const hasTrapTarget = squares.some(
           <button className="score-reset-button" onClick={handleRequestScoreReset}>
             Puan sıfırla
           </button>
+          <SoundToggle />
         </div>
 
         {showSetupReturnConfirm && (
@@ -992,7 +1026,11 @@ const hasTrapTarget = squares.some(
             <div className="setup-return-actions">
               <button
                 type="button"
-                onClick={() => setShowSetupReturnConfirm(false)}
+                onClick={() => {
+                  registerUserGesture()
+                  playSound('click')
+                  setShowSetupReturnConfirm(false)
+                }}
               >
                 Vazgeç
               </button>
@@ -1000,6 +1038,8 @@ const hasTrapTarget = squares.some(
                 type="button"
                 className="danger-action"
                 onClick={() => {
+                  registerUserGesture()
+                  playSound('click')
                   setShowSetupReturnConfirm(false)
                   setGameConfig(null)
                   clearLocalSession()
@@ -1015,7 +1055,11 @@ const hasTrapTarget = squares.some(
           <div className="arena-settings-wrapper">
             <button
               className="settings-button"
-              onClick={() => setIsArenaSettingsOpen(!isArenaSettingsOpen)}
+              onClick={() => {
+                registerUserGesture()
+                playSound('click')
+                setIsArenaSettingsOpen(!isArenaSettingsOpen)
+              }}
             >
               {isArenaSettingsOpen ? 'Ayarları gizle' : 'Arena ayarları'}
             </button>
@@ -1098,6 +1142,7 @@ const hasTrapTarget = squares.some(
             onSquareClick={handleSquareClick}
             traps={traps}
             currentPlayer={currentPlayer}
+            visibleTrapOwner={opponentType === 'ai' ? 'X' : currentPlayer}
             blackHoleEventIndex={blackHoleEvent?.index}
           />
 

@@ -191,3 +191,40 @@ Rekabeti Kızıştır (Liderlik Tablosu ve Unvanlar)
 Anlık Liderlik Tablosu: Her gün, her hafta kimin birinci olduğu sitenin ana sayfasında devasa bir şekilde görünsün.
 
 Komik Unvanlar: 10 maç üst üste kazanana "Seri Katil", 10 maç kaybedene "Kum Torbası" gibi komik unvanlar ver ve bu unvanları oyuncu profillerinde göster. İnsanlar bu unvanları almak veya o unvana sahip birini yenmek için daha fazla oynayacaktır.
+
+## Deploy Öncesi Ticari Hazırlık
+
+- [ ] Online mod production gate ile kontrol edilecek.
+  - Backend canlı değilken Online mod bozuk görünmeyecek.
+  - Canlı backend URL gelince env ile açılacak.
+
+- [x] Ses efektleri temel sürüm tamamlandı.
+  - Taş koyma sesi
+  - Tur kazanma sesi
+  - Maç kazanma sesi
+  - Güç kullanma sesi
+  - Ses aç/kapat ayarı
+
+- [ ] Emote sistemi ileride daha kaliteli animasyonlu/temalı şekilde değerlendirilecek.
+  - Emote mesajları oyunu bölmeyecek.
+  - Online modda rakibe iletim sonraki adım olarak ayrıca tasarlanacak.
+
+- [ ] Reklamlı güçler ayrı branch/sürüm olarak kaldı.
+  - Joker
+  - Freeze
+  - Vampir
+  - Kullanıcı reklam izleyerek bu güçlerden birini alabilecek.
+  - Adaletsizlik hissi oluşturmaması için kullanım sayısı ve zamanlaması sınırlandırılacak.
+  - AI dengesi buna göre ayarlanacak.
+
+- [ ] AI başlangıç davranışı güncellenecek.
+  - AI ilk oyunda daha zor başlayacak.
+  - Kullanıcının oyun performansına göre sonra adaptif hale gelecek.
+  - Amaç kullanıcıyı sinirlendirip oyundan kaçırmak değil, “bir daha deneyeyim” hissi vermek olacak.
+
+- [ ] Deploy öncesi genel UX kontrolü yapılacak.
+  - Mobil görünüm
+  - Yazı boyutları
+  - Popup davranışları
+  - Menü/onay akışları
+  - Teknik hata mesajlarının gizlenmesi

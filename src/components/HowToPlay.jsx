@@ -66,23 +66,23 @@ export default function HowToPlay({
       icon: '🏅',
       title: 'Oyun Modları',
       content: (
-        <div className="how-to-play-card-grid">
-          <article className="how-to-play-info-card">
+        <div className="how-to-play-card-grid how-to-play-mode-grid">
+          <article className="how-to-play-info-card how-to-play-mode-card">
             <strong>Klasik Mod</strong>
             <ul>
-              <li>Belirlenen tur sayısı kadar oynanır (3, 5, 7, 9 veya özel).</li>
-              <li>Her turu kazanan 1 tur galibiyeti alır.</li>
-              <li>Turların yarısından fazlasını kazanan maçı alır.</li>
-              <li>∞ seçilirse maç hiç bitmez; süresiz oynayabilirsiniz.</li>
+              <li>Tur kazan, skoru artır.</li>
+              <li>Hedef tura ilk ulaşan maçı alır.</li>
+              <li>3x3, 4x4 ve 5x5 seçenekleriyle oynanır.</li>
+              <li>∞ seçilirse maç süresiz devam eder.</li>
             </ul>
           </article>
-          <article className="how-to-play-info-card arena">
+          <article className="how-to-play-info-card how-to-play-mode-card arena">
             <strong>Arena Modu</strong>
             <ul>
-              <li>Her turun kazanan çizgisindeki çarpanlar puana eklenir.</li>
-              <li>Puanlar turdan tura birikir.</li>
-              <li>Hedef puana (15, 30, 50, 100 veya özel) ilk ulaşan kazanır.</li>
-              <li>∞ modda puan hedefi yoktur, birikmeye devam eder.</li>
+              <li>Çizgideki çarpanlar puana eklenir.</li>
+              <li>Güçler oyunun temposunu değiştirir.</li>
+              <li>Hedef puana ilk ulaşan maçı alır.</li>
+              <li>∞ seçilirse puan birikmeye devam eder.</li>
             </ul>
           </article>
         </div>
