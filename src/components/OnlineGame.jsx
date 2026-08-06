@@ -2,13 +2,13 @@ import { useEffect, useState } from 'react'
 import { getRoomStatusText, requestRoomJson, startRoom } from '../api/roomsApi'
 import Board from './Board'
 
-function getOnlineStatusMessage(room, symbol) {
+function getStatusMessage({ room, mySymbol }) {
   if (room.status === 'waiting') {
     return 'Rakip bekleniyor'
   }
 
   if (room.status === 'ready') {
-    return symbol === 'X' ? 'Oyunu başlatabilirsin' : 'Oda sahibi oyunu başlatacak'
+    return mySymbol === 'X' ? 'Oyunu başlatabilirsin' : 'Oda sahibi oyunu başlatacak'
   }
 
   if (room.status !== 'playing') {
@@ -16,7 +16,7 @@ function getOnlineStatusMessage(room, symbol) {
   }
 
   if (room.game.winner) {
-    return room.game.winner === symbol ? 'Turu kazandın' : `${room.game.winner} turu kazandı`
+    return room.game.winner === mySymbol ? 'Turu kazandın' : 'Rakip turu kazandı'
   }
 
   if (room.game.isDraw) {
@@ -25,7 +25,46 @@ function getOnlineStatusMessage(room, symbol) {
 
   const currentSymbol = room.game.xIsNext ? 'X' : 'O'
 
-  return currentSymbol === symbol ? 'Sıra sende' : 'Rakip hamle yapıyor'
+  return currentSymbol === mySymbol ? 'Sıra sende' : 'Rakip hamle yapıyor'
+}
+
+function OnlinePlayerPanel({ player, isActive, position }) {
+  if (!player) {
+    return (
+      <section className="power-panel player-panel inactive-player online-seat-panel">
+        <div className="player-panel-topline">
+          <div className="player-identity">
+            <span className="player-symbol">?</span>
+            <span className="player-name">Rakip bekleniyor</span>
+          </div>
+          <div className="player-score">
+            <small>Tur</small>
+            <strong>0</strong>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  return (
+    <section
+      className={`power-panel player-panel player-${player.symbol.toLowerCase()} online-seat-panel ${
+        isActive ? 'active-player' : 'inactive-player'
+      }`}
+      aria-label={`${position} oyuncu paneli`}
+    >
+      <div className="player-panel-topline">
+        <div className="player-identity">
+          <span className="player-symbol">{player.symbol}</span>
+          <span className="player-name">{player.name}</span>
+        </div>
+        <div className="player-score">
+          <small>Tur</small>
+          <strong>{player.score ?? 0}</strong>
+        </div>
+      </div>
+    </section>
+  )
 }
 
 export default function OnlineGame({ initialOnlineGame, onMenu }) {
@@ -34,8 +73,13 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
   const [isMovePending, setIsMovePending] = useState(false)
   const [isStartPending, setIsStartPending] = useState(false)
   const [isNextRoundPending, setIsNextRoundPending] = useState(false)
+  const [isMenuConfirmOpen, setIsMenuConfirmOpen] = useState(false)
 
-  const { roomCode, playerId, symbol } = initialOnlineGame
+  const { roomCode, playerId } = initialOnlineGame
+  const ownerPlayer = room.players[0]
+  const guestPlayer = room.players[1]
+  const myPlayer = room.players.find((player) => player.id === playerId)
+  const mySymbol = myPlayer?.symbol ?? ''
   const currentSymbol = room.game.xIsNext ? 'X' : 'O'
   const isRoundFinished = Boolean(room.game.winner) || room.game.isDraw
   const nextRoundPlayerIds = room.game.nextRoundPlayerIds ?? []
@@ -45,27 +89,20 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
     room.status === 'playing' &&
     !room.game.winner &&
     !room.game.isDraw &&
-    symbol === currentSymbol &&
+    mySymbol === currentSymbol &&
     !isMovePending
   const winningLine = room.game.winningLine.length > 0 ? room.game.winningLine : null
   const roundSymbol = room.game.isDraw ? '=' : room.game.winner
   const roundSymbolModifier = room.game.isDraw ? 'draw' : room.game.winner?.toLowerCase()
-  const roundResultLabel = room.game.isDraw ? 'TUR BERABERE' : `${room.game.winner} TURU KAZANDI`
+  const roundWinnerPlayer = room.players.find((player) => player.symbol === room.game.winner)
+  const roundResultLabel = room.game.isDraw
+    ? 'TUR BERABERE'
+    : `${roundWinnerPlayer?.name ?? room.game.winner} TURU KAZANDI`
   const roundResultMessage = room.game.isDraw
     ? 'Beraberlik bozulmadı.'
-    : room.game.winner === symbol
+    : roundWinnerPlayer?.id === playerId
       ? 'Turu kazandın.'
       : 'Rakip turu kazandı.'
-
-  async function refreshRoom() {
-    try {
-      const nextRoom = await requestRoomJson(`/api/rooms/${roomCode}`)
-      setRoom(nextRoom)
-      setActionError('')
-    } catch (error) {
-      setActionError(error.message)
-    }
-  }
 
   async function handleSquareClick(index) {
     if (!canMove || room.game.squares[index]) {
@@ -113,7 +150,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
   }
 
   async function handleStartRoom() {
-    if (room.status !== 'ready' || symbol !== 'X') {
+    if (room.status !== 'ready' || ownerPlayer?.id !== playerId) {
       return
     }
 
@@ -183,51 +220,42 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
         </header>
 
         <div className="game-actions">
-          <button className="setup-back-button" onClick={onMenu}>
+          <button className="setup-back-button" onClick={() => setIsMenuConfirmOpen(true)}>
             Menüye dön
-          </button>
-          <button className="setup-back-button" onClick={refreshRoom}>
-            Yenile
           </button>
         </div>
 
-        <div className="online-game-meta">
-          <div>
-            <span>Oda Kodu</span>
-            <strong>{roomCode}</strong>
+        {isMenuConfirmOpen && (
+          <div className="setup-return-confirm">
+            <strong>Menüye dönülsün mü?</strong>
+            <p>Mevcut online oyun ekranından çıkılacak.</p>
+
+            <div className="setup-return-actions">
+              <button type="button" onClick={() => setIsMenuConfirmOpen(false)}>
+                Vazgeç
+              </button>
+              <button type="button" className="danger-action" onClick={onMenu}>
+                Menüye dön
+              </button>
+            </div>
           </div>
-          <div>
-            <span>Sen</span>
-            <strong>{symbol}</strong>
-          </div>
-          <div>
-            <span>Tur</span>
-            <strong>{room.game.roundNumber}</strong>
-          </div>
+        )}
+
+        <div className="online-compact-meta">
+          <span>Oda {roomCode}</span>
+          <strong>Tur {room.game.roundNumber}</strong>
         </div>
 
         <div className="score-board online-score-board">
           <div className="score-card x-score">
-            <span className="score-label">X</span>
-            <strong>{room.game.scores.x}</strong>
+            <span className="score-label">{ownerPlayer?.name ?? 'Oyuncu'} Tur</span>
+            <strong>{ownerPlayer?.score ?? 0}</strong>
           </div>
-          <div className="match-target-info">{getOnlineStatusMessage(room, symbol)}</div>
+          <div className="match-target-info">{getStatusMessage({ room, mySymbol })}</div>
           <div className="score-card o-score">
-            <span className="score-label">O</span>
-            <strong>{room.game.scores.o}</strong>
+            <span className="score-label">{guestPlayer?.name ?? 'Rakip'} Tur</span>
+            <strong>{guestPlayer?.score ?? 0}</strong>
           </div>
-        </div>
-
-        <div className="online-player-list online-game-players">
-          {room.players.map((player) => (
-            <div
-              key={player.id}
-              className={`online-player-row ${player.symbol === currentSymbol && !isRoundFinished ? 'is-current' : ''}`}
-            >
-              <strong>{player.symbol}</strong>
-              <span>{player.name}</span>
-            </div>
-          ))}
         </div>
 
         {actionError && (
@@ -236,28 +264,42 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
           </div>
         )}
 
-        {room.status === 'ready' && symbol === 'X' && (
+        {room.status === 'ready' && ownerPlayer?.id === playerId && (
           <button
             type="button"
             className="online-primary-action"
             onClick={handleStartRoom}
             disabled={isStartPending}
           >
-            {isStartPending ? 'Başlatılıyor...' : 'Oyuna Geç'}
+            {isStartPending ? 'Başlatılıyor...' : 'Oyunu başlat'}
           </button>
         )}
 
-        <Board
-          boardSize={room.boardSize}
-          squares={room.game.squares}
-          multipliers={{}}
-          winningLine={winningLine}
-          shieldedSquares={[]}
-          lockedSquares={[]}
-          visibleBoostedSquares={[]}
-          onSquareClick={handleSquareClick}
-          currentPlayer={symbol}
-        />
+        <div className="arena-board-stack online-classic-stack">
+          <OnlinePlayerPanel
+            player={ownerPlayer}
+            position="Üst"
+            isActive={ownerPlayer?.symbol === currentSymbol && !isRoundFinished && room.status === 'playing'}
+          />
+
+          <Board
+            boardSize={room.boardSize}
+            squares={room.game.squares}
+            multipliers={{}}
+            winningLine={winningLine}
+            shieldedSquares={[]}
+            lockedSquares={[]}
+            visibleBoostedSquares={[]}
+            onSquareClick={handleSquareClick}
+            currentPlayer={mySymbol}
+          />
+
+          <OnlinePlayerPanel
+            player={guestPlayer}
+            position="Alt"
+            isActive={guestPlayer?.symbol === currentSymbol && !isRoundFinished && room.status === 'playing'}
+          />
+        </div>
       </section>
 
       {isRoundFinished && (
@@ -269,59 +311,81 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
             aria-labelledby="online-round-result-title"
             aria-describedby="online-round-result-message"
           >
-            <span className="round-result-eyebrow">
-              TUR {room.game.roundNumber} SONUCU
-            </span>
+            {isMenuConfirmOpen ? (
+              <div className="round-result-confirm">
+                <strong id="online-round-result-title">Menüye dönülsün mü?</strong>
+                <p id="online-round-result-message">Mevcut online oyun ekranından çıkılacak.</p>
 
-            <span className="round-result-symbol" aria-hidden="true">
-              {roundSymbol}
-            </span>
-
-            <h2 id="online-round-result-title">{roundResultLabel}</h2>
-
-            <div
-              className="round-result-score"
-              aria-label={`Skor ${room.game.scores.x} - ${room.game.scores.o}`}
-            >
-              <div>
-                <strong>{room.game.scores.x}</strong>
-                <span>X Tur</span>
+                <div className="round-result-actions round-result-confirm-actions">
+                  <button type="button" onClick={() => setIsMenuConfirmOpen(false)} autoFocus>
+                    Vazgeç
+                  </button>
+                  <button type="button" className="danger-action" onClick={onMenu}>
+                    Menüye dön
+                  </button>
+                </div>
               </div>
+            ) : (
+              <>
+                <span className="round-result-eyebrow">
+                  TUR {room.game.roundNumber} SONUCU
+                </span>
 
-              <span aria-hidden="true">VS</span>
+                <span className="round-result-symbol" aria-hidden="true">
+                  {roundSymbol}
+                </span>
 
-              <div>
-                <strong>{room.game.scores.o}</strong>
-                <span>O Tur</span>
-              </div>
-            </div>
+                <h2 id="online-round-result-title">{roundResultLabel}</h2>
 
-            <div className="round-result-message" id="online-round-result-message">
-              <strong>{roundResultMessage}</strong>
-              {hasRequestedNextRound && <small>Rakip bekleniyor.</small>}
-              {!hasRequestedNextRound && waitingNextRoundCount > 0 && (
-                <small>Rakip sonraki tura hazır.</small>
-              )}
-            </div>
+                <div
+                  className="round-result-score"
+                  aria-label={`Skor ${ownerPlayer?.score ?? 0} - ${guestPlayer?.score ?? 0}`}
+                >
+                  <div>
+                    <strong>{ownerPlayer?.score ?? 0}</strong>
+                    <span>{ownerPlayer?.name ?? 'Oyuncu'}</span>
+                  </div>
 
-            <div className="round-result-actions">
-              <button
-                type="button"
-                onClick={handleNextRound}
-                disabled={isNextRoundPending || hasRequestedNextRound}
-                autoFocus
-              >
-                {hasRequestedNextRound
-                  ? 'Rakip bekleniyor'
-                  : isNextRoundPending
-                    ? 'Hazırlanıyor...'
-                    : 'Sonraki tur'}
-              </button>
+                  <span aria-hidden="true">VS</span>
 
-              <button type="button" className="secondary-action" onClick={onMenu}>
-                Menü
-              </button>
-            </div>
+                  <div>
+                    <strong>{guestPlayer?.score ?? 0}</strong>
+                    <span>{guestPlayer?.name ?? 'Rakip'}</span>
+                  </div>
+                </div>
+
+                <div className="round-result-message" id="online-round-result-message">
+                  <strong>{roundResultMessage}</strong>
+                  {hasRequestedNextRound && <small>Rakip bekleniyor.</small>}
+                  {!hasRequestedNextRound && waitingNextRoundCount > 0 && (
+                    <small>Rakip sonraki tura hazır.</small>
+                  )}
+                </div>
+
+                <div className="round-result-actions">
+                  <button
+                    type="button"
+                    onClick={handleNextRound}
+                    disabled={isNextRoundPending || hasRequestedNextRound}
+                    autoFocus
+                  >
+                    {hasRequestedNextRound
+                      ? 'Rakip bekleniyor'
+                      : isNextRoundPending
+                        ? 'Hazırlanıyor...'
+                        : 'Sonraki tur'}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="secondary-action"
+                    onClick={() => setIsMenuConfirmOpen(true)}
+                  >
+                    Menü
+                  </button>
+                </div>
+              </>
+            )}
           </section>
         </div>
       )}

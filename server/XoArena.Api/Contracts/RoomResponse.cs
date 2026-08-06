@@ -22,8 +22,17 @@ public sealed record RoomResponse(
             room.WinLength,
             room.GameMode,
             room.TargetValue,
-            room.Players.Select(PlayerResponse.FromPlayer).ToArray(),
+            room.Players.Select((player, index) => PlayerResponse.FromPlayer(
+                player,
+                GetPlayerSymbol(room.Game.RoundNumber, index),
+                GetPlayerScore(room.Game.Scores, index))).ToArray(),
             GameStateResponse.FromGameState(room.Game),
             room.CreatedAt,
             room.UpdatedAt);
+
+    private static string GetPlayerSymbol(int roundNumber, int playerIndex)
+        => (roundNumber + playerIndex) % 2 == 1 ? "X" : "O";
+
+    private static int GetPlayerScore(GameScore scores, int playerIndex)
+        => playerIndex == 0 ? scores.X : scores.O;
 }
