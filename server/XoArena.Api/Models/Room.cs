@@ -7,6 +7,7 @@ public sealed record Room(
     int WinLength,
     string GameMode,
     int TargetValue,
+    string? BoostMode,
     IReadOnlyList<Player> Players,
     GameState Game,
     DateTimeOffset CreatedAt,

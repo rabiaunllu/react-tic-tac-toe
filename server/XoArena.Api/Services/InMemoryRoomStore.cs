@@ -39,6 +39,7 @@ public sealed class InMemoryRoomStore : IRoomStore
                 options.WinLength,
                 options.GameMode,
                 options.TargetValue,
+                options.BoostMode,
                 [owner],
                 CreateInitialGameState(options.BoardSize, options.GameMode, [owner]),
                 now,
@@ -428,7 +429,9 @@ public sealed class InMemoryRoomStore : IRoomStore
                 Game = room.Game with
                 {
                     Squares = squares,
-                    XIsNext = !room.Game.XIsNext,
+                    XIsNext = normalizedPowerId == "boost"
+                        ? room.Game.XIsNext
+                        : !room.Game.XIsNext,
                     PlayerPowers = playerPowers,
                     ShieldedSquares = shields,
                     BoostedSquares = boosts,

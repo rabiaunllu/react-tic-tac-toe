@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { playSound, registerUserGesture, useSoundEnabled } from '../game/soundManager'
 
-export default function SoundToggle() {
+export default function SoundToggle({ children }) {
   const { enabled, toggleSound } = useSoundEnabled()
   const [isOpen, setIsOpen] = useState(false)
 
@@ -25,7 +25,7 @@ export default function SoundToggle() {
       </button>
 
       {isOpen && (
-        <div className="settings-popover">
+        <div className={`settings-popover ${children ? 'settings-popover--expanded' : ''}`}>
           <button
             type="button"
             className={`sound-toggle ${enabled ? 'is-on' : 'is-off'}`}
@@ -35,6 +35,7 @@ export default function SoundToggle() {
             <span aria-hidden="true">{enabled ? '♪' : '×'}</span>
             <strong>{enabled ? 'Ses açık' : 'Ses kapalı'}</strong>
           </button>
+          {children}
         </div>
       )}
     </div>

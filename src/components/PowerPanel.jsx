@@ -2,9 +2,11 @@ import { getAvailablePowerDefinitions, getPowerDefinitions } from '../game/power
 
 export default function PowerPanel({
   currentPlayer,
+  playerName,
   score = 0,
   scoreLabel = 'Skor',
   isActivePlayer = true,
+  canInteract = isActivePlayer,
   isPowersEnabled = true,
   powerCounts,
   activePower,
@@ -15,13 +17,14 @@ export default function PowerPanel({
   powerOptions,
   extraPowerIds = [],
   rewardedPack,
+  statusText,
 }) {
   const basePowers = getAvailablePowerDefinitions(powerOptions)
   const extraPowers = getPowerDefinitions(extraPowerIds)
   const availablePowers = [...basePowers, ...extraPowers]
   const selectedPower = availablePowers.find((power) => power.id === activePower)
   function handlePowerClick(powerId, isActive) {
-    if (!isActivePlayer || !isPowersEnabled) {
+    if (!canInteract || !isPowersEnabled) {
       return
     }
 
@@ -43,7 +46,7 @@ export default function PowerPanel({
       <div className="player-panel-topline">
         <div className="player-identity">
           <span className="player-symbol">{currentPlayer}</span>
-          <span className="player-name">Oyuncu {currentPlayer}</span>
+          <span className="player-name">{playerName ?? `Oyuncu ${currentPlayer}`}</span>
           {rewardedPack && (
             <button
               type="button"
@@ -66,7 +69,7 @@ export default function PowerPanel({
       <div className="power-panel-header">
         {!isPowersEnabled && <span>Klasik mod</span>}
         <small>
-          {isPowersEnabled
+          {statusText ?? (isPowersEnabled
             ? isActivePlayer
               ? activePower
                 ? 'Aktif güç seçildi. Hedef kareye tıkla.'
@@ -74,11 +77,11 @@ export default function PowerPanel({
               : 'Rakibin hamlesi bekleniyor.'
             : isActivePlayer
               ? 'Hamle sende. En iyi çizgiyi kur.'
-              : 'Sıranı bekle, tahtayı oku.'}
+              : 'Sıranı bekle, tahtayı oku.')}
         </small>
       </div>
 
-      {isPowersEnabled && isActivePlayer && selectedPower && (
+      {isPowersEnabled && canInteract && selectedPower && (
         <div className="active-power-hint">
           {selectedPower.icon} {selectedPower.name} hazır: {selectedPower.description}
         </div>
@@ -104,8 +107,8 @@ export default function PowerPanel({
         <div className="power-list">
           {basePowers.map((power) => {
             const count = powerCounts[power.id]
-            const isActive = isActivePlayer && activePower === power.id
-            const isDisabled = !isActivePlayer || count === 0 || disabledPowers[power.id]
+            const isActive = canInteract && activePower === power.id
+            const isDisabled = !canInteract || count === 0 || disabledPowers[power.id]
 
             return (
               <button
@@ -114,6 +117,13 @@ export default function PowerPanel({
                 disabled={isDisabled}
                 aria-label={`${power.name}: ${power.description}`}
                 data-hint={disabledPowers[power.id] ? 'Hedef yok' : power.description}
+                title={
+                  count === 0
+                    ? 'Bu güç bitti.'
+                    : disabledPowers[power.id]
+                      ? 'Bu hedef için uygun kare yok.'
+                      : power.description
+                }
                 onClick={() => handlePowerClick(power.id, isActive)}
               >
                 <span className="power-icon">{power.icon}</span>
@@ -129,8 +139,8 @@ export default function PowerPanel({
         <div className="power-list rewarded-power-list">
           {extraPowers.map((power) => {
             const count = powerCounts[power.id]
-            const isActive = isActivePlayer && activePower === power.id
-            const isDisabled = !isActivePlayer || count === 0 || disabledPowers[power.id]
+            const isActive = canInteract && activePower === power.id
+            const isDisabled = !canInteract || count === 0 || disabledPowers[power.id]
 
             return (
               <button
@@ -139,6 +149,7 @@ export default function PowerPanel({
                 disabled={isDisabled}
                 aria-label={`${power.name}: ${power.description}`}
                 data-hint={disabledPowers[power.id] ? 'Hedef yok' : power.description}
+                title={count === 0 ? 'Bu güç bitti.' : power.description}
                 onClick={() => handlePowerClick(power.id, isActive)}
               >
                 <span className="power-icon">{power.icon}</span>

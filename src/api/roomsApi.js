@@ -32,7 +32,7 @@ export function getRoomStatusText(status) {
   const statusMap = {
     waiting: 'Rakip bekleniyor',
     ready: 'Oyun hazır',
-    playing: 'Oyun başladı',
+    playing: 'Maç devam ediyor',
     completed: 'Tamamlandı',
   }
 
@@ -92,7 +92,7 @@ export async function requestRoomJson(path, options = {}) {
         ['boost needs', 'Boost için boş bir kare seç.'],
         ['already boosted', 'Bu kare zaten boostlu.'],
         ['black hole needs', 'Kara Delik için boş bir kare seç.'],
-        ['contains a black hole', 'Bu karede zaten Kara Delik var.'],
+        ['contains a black hole', 'Bu hedef uygun değil.'],
         ['already been used', 'Bu güç hakkın kalmadı.'],
         ["not this player's turn", 'Şu anda sıra sende değil.'],
       ]

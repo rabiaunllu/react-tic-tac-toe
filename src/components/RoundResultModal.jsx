@@ -13,6 +13,11 @@ export default function RoundResultModal({
   onNextRound,
   onNewMatch,
   onMenu,
+  nextRoundLabel = 'Sonraki tur',
+  isNextRoundDisabled = false,
+  nextRoundTitle,
+  menuConfirmTitle = 'Ayarlara dönülsün mü?',
+  menuConfirmActionLabel = 'Ayarlara dön',
 }) {
     const [isMenuConfirmOpen, setIsMenuConfirmOpen] = useState(false)
     useEffect(() => {
@@ -90,9 +95,7 @@ export default function RoundResultModal({
 
        {isMenuConfirmOpen ? (
   <div className="round-result-confirm">
-    <strong id="round-result-confirm-title">
-      Ayarlara dönülsün mü?
-    </strong>
+    <strong id="round-result-confirm-title">{menuConfirmTitle}</strong>
 
     <div className="round-result-actions round-result-confirm-actions">
       <button
@@ -116,7 +119,7 @@ export default function RoundResultModal({
           onMenu()
         }}
       >
-        Ayarlara dön
+        {menuConfirmActionLabel}
       </button>
     </div>
   </div>
@@ -127,8 +130,14 @@ export default function RoundResultModal({
         Yeni maç
       </button>
     ) : (
-      <button type="button" onClick={onNextRound} autoFocus>
-        Sonraki tur
+      <button
+        type="button"
+        onClick={onNextRound}
+        disabled={isNextRoundDisabled}
+        title={nextRoundTitle}
+        autoFocus={!isNextRoundDisabled}
+      >
+        {nextRoundLabel}
       </button>
     )}
 

@@ -8,6 +8,9 @@ export default function Square({
   isBoosted,
   isTrapped,
   isBlackHoleTriggered,
+  isPowerTargeting,
+  isPowerTarget,
+  powerTargetLabel,
   onSquareClick,
 }) {
   const className = [
@@ -22,6 +25,9 @@ export default function Square({
     isBoosted ? 'boosted-square' : '',
     isTrapped ? 'trapped-square' : '',
     isBlackHoleTriggered ? 'black-hole-triggered-square' : '',
+    isPowerTargeting ? 'power-targeting-square' : '',
+    isPowerTarget ? 'power-target-eligible' : '',
+    isPowerTargeting && !isPowerTarget ? 'power-target-ineligible' : '',
   ].join(' ')
 
   return (
@@ -29,7 +35,13 @@ export default function Square({
       className={className}
       onClick={onSquareClick}
       disabled={isLocked || isFrozen}
-      aria-label={isFrozen ? 'Donmuş kare' : undefined}
+      aria-label={
+        isFrozen
+          ? 'Donmuş kare'
+          : isPowerTarget
+            ? `${powerTargetLabel ?? 'Güç'} için uygun kare`
+            : undefined
+      }
     >
       {multiplier && <span className="multiplier-badge">{multiplier}x</span>}
       {isBoosted && <span className="boost-badge" aria-label="Boostlu kare">⚡</span>}
