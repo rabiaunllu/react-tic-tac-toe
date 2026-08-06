@@ -33,7 +33,7 @@ import {
   writeLocalSession,
   writeOnlineSession,
 } from './sessionStorage'
-import { requestRoomJson } from './api/roomsApi'
+import { isConnectionError, isRoomNotFoundError, requestRoomJson } from './api/roomsApi'
 
 const defaultBoardSize = 3
 
@@ -516,11 +516,17 @@ const hasTrapTarget = squares.some(
           })
           setSetupRestoreMessage('')
           setIsSessionRestoreChecked(true)
-        } catch {
-          clearOnlineSession()
+        } catch (error) {
+          if (isRoomNotFoundError(error)) {
+            clearOnlineSession()
+          }
 
           if (isMounted) {
-            setSetupRestoreMessage('Online oda bulunamadı, tekrar oda oluşturabilir veya koda katılabilirsin.')
+            setSetupRestoreMessage(
+              isConnectionError(error)
+                ? 'Bağlantı kurulamadı. Tekrar deneniyor...'
+                : 'Online oda bulunamadı. Kodu kontrol edip yeni oda oluşturabilir veya odaya katılabilirsin.'
+            )
             setIsSessionRestoreChecked(true)
           }
         }

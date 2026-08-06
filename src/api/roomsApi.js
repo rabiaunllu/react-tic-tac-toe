@@ -1,5 +1,21 @@
 export const API_BASE_URL = 'http://localhost:5243'
 
+export class RoomRequestError extends Error {
+  constructor(message, { status = 0 } = {}) {
+    super(message)
+    this.name = 'RoomRequestError'
+    this.status = status
+  }
+}
+
+export function isRoomNotFoundError(error) {
+  return error instanceof RoomRequestError && error.status === 404
+}
+
+export function isConnectionError(error) {
+  return error instanceof RoomRequestError && error.status === 0
+}
+
 export function getRoomStatusText(status) {
   const statusMap = {
     waiting: 'Rakip bekleniyor',
@@ -23,7 +39,7 @@ export async function requestRoomJson(path, options = {}) {
       ...options,
     })
   } catch {
-    throw new Error('Online bağlantı kurulamadı. Biraz sonra tekrar deneyin.')
+    throw new RoomRequestError('Bağlantı kurulamadı. Tekrar deneniyor...')
   }
 
   if (!response.ok) {
@@ -37,26 +53,30 @@ export async function requestRoomJson(path, options = {}) {
     }
 
     if (response.status === 403) {
-      throw new Error('Bu oda işlemi için yetkiniz yok.')
+      throw new RoomRequestError('Bu oda işlemi için yetkiniz yok.', { status: response.status })
     }
 
     if (response.status === 404) {
-      throw new Error('Oda bulunamadı. Kodu kontrol edip tekrar deneyin.')
+      throw new RoomRequestError('Oda bulunamadı. Kodu kontrol et.', { status: response.status })
     }
 
     if (response.status === 400) {
-      throw new Error('Eksik veya hatalı bilgi var. Oyuncu adı ve oda ayarlarını kontrol edin.')
+      throw new RoomRequestError('Eksik veya hatalı bilgi var. Oyuncu adını ve oda ayarlarını kontrol et.', {
+        status: response.status,
+      })
     }
 
     if (response.status === 409) {
       if (errorCode.toLowerCase().includes('full')) {
-        throw new Error('Bu oda dolu.')
+        throw new RoomRequestError('Bu oda dolu.', { status: response.status })
       }
 
-      throw new Error('Oda şu anda bu işleme uygun değil.')
+      throw new RoomRequestError('Oda şu anda bu işleme uygun değil.', { status: response.status })
     }
 
-    throw new Error('Beklenmeyen bir hata oluştu. Biraz sonra tekrar deneyin.')
+    throw new RoomRequestError('Beklenmeyen bir hata oluştu. Biraz sonra tekrar deneyin.', {
+      status: response.status,
+    })
   }
 
   return response.json()

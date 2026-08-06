@@ -1,6 +1,15 @@
 import { useEffect, useState } from 'react'
-import { getRoomStatusText, requestRoomJson, startRoom } from '../api/roomsApi'
+import {
+  getRoomStatusText,
+  isConnectionError,
+  isRoomNotFoundError,
+  requestRoomJson,
+  startRoom,
+} from '../api/roomsApi'
+import { clearOnlineSession } from '../sessionStorage'
 import Board from './Board'
+
+const ROOM_INACTIVE_MESSAGE = 'Oda artık aktif değil. Menüye dönüp yeni oda oluşturabilirsin.'
 
 function getStatusMessage({ room, mySymbol }) {
   if (room.status === 'waiting') {
@@ -70,6 +79,8 @@ function OnlinePlayerPanel({ player, isActive, position }) {
 export default function OnlineGame({ initialOnlineGame, onMenu }) {
   const [room, setRoom] = useState(initialOnlineGame.room)
   const [actionError, setActionError] = useState('')
+  const [connectionMessage, setConnectionMessage] = useState('')
+  const [isRoomInactive, setIsRoomInactive] = useState(false)
   const [isMovePending, setIsMovePending] = useState(false)
   const [isStartPending, setIsStartPending] = useState(false)
   const [isNextRoundPending, setIsNextRoundPending] = useState(false)
@@ -90,7 +101,9 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
     !room.game.winner &&
     !room.game.isDraw &&
     mySymbol === currentSymbol &&
-    !isMovePending
+    !isMovePending &&
+    !isRoomInactive
+  const canRequestNextRound = isRoundFinished && room.status !== 'completed' && !isRoomInactive
   const winningLine = room.game.winningLine.length > 0 ? room.game.winningLine : null
   const roundSymbol = room.game.isDraw ? '=' : room.game.winner
   const roundSymbolModifier = room.game.isDraw ? 'draw' : room.game.winner?.toLowerCase()
@@ -121,15 +134,16 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
         }),
       })
       setRoom(nextRoom)
+      setConnectionMessage('')
     } catch (error) {
-      setActionError(error.message)
+      handleRoomError(error, setActionError)
     } finally {
       setIsMovePending(false)
     }
   }
 
   async function handleNextRound() {
-    if (hasRequestedNextRound) {
+    if (!canRequestNextRound || hasRequestedNextRound) {
       return
     }
 
@@ -142,8 +156,9 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
         body: JSON.stringify({ playerId }),
       })
       setRoom(nextRoom)
+      setConnectionMessage('')
     } catch (error) {
-      setActionError(error.message)
+      handleRoomError(error, setActionError)
     } finally {
       setIsNextRoundPending(false)
     }
@@ -160,11 +175,24 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
     try {
       const nextRoom = await startRoom(roomCode, playerId)
       setRoom(nextRoom)
+      setConnectionMessage('')
     } catch (error) {
-      setActionError(error.message)
+      handleRoomError(error, setActionError)
     } finally {
       setIsStartPending(false)
     }
+  }
+
+  function handleRoomError(error, setMessage) {
+    if (isRoomNotFoundError(error)) {
+      clearOnlineSession()
+      setIsRoomInactive(true)
+      setConnectionMessage('')
+      setMessage(ROOM_INACTIVE_MESSAGE)
+      return
+    }
+
+    setMessage(error.message)
   }
 
   useEffect(() => {
@@ -176,9 +204,24 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
 
         if (isPollingActive) {
           setRoom(nextRoom)
+          setConnectionMessage('')
+          setIsRoomInactive(false)
         }
       } catch (error) {
         if (isPollingActive) {
+          if (isRoomNotFoundError(error)) {
+            clearOnlineSession()
+            setIsRoomInactive(true)
+            setConnectionMessage('')
+            setActionError(ROOM_INACTIVE_MESSAGE)
+            return
+          }
+
+          if (isConnectionError(error)) {
+            setConnectionMessage(error.message)
+            return
+          }
+
           setActionError(error.message)
         }
       }
@@ -246,8 +289,14 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
         </div>
 
         <div className="online-turn-line" role="status" aria-live="polite">
-          {getStatusMessage({ room, mySymbol })}
+          {isRoomInactive ? 'Oda aktif değil' : getStatusMessage({ room, mySymbol })}
         </div>
+
+        {connectionMessage && !isRoomInactive && (
+          <div className="online-message" role="status">
+            {connectionMessage}
+          </div>
+        )}
 
         {actionError && (
           <div className="online-message online-message--error" role="alert">
@@ -260,7 +309,8 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
             type="button"
             className="online-primary-action"
             onClick={handleStartRoom}
-            disabled={isStartPending}
+            disabled={isStartPending || isRoomInactive}
+            title={isRoomInactive ? 'Oda artık aktif değil.' : undefined}
           >
             {isStartPending ? 'Başlatılıyor...' : 'Oyunu başlat'}
           </button>
@@ -356,10 +406,19 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
                   <button
                     type="button"
                     onClick={handleNextRound}
-                    disabled={isNextRoundPending || hasRequestedNextRound}
+                    disabled={isNextRoundPending || hasRequestedNextRound || !canRequestNextRound}
+                    title={
+                      room.status === 'completed'
+                        ? 'Maç tamamlandı.'
+                        : isRoomInactive
+                          ? 'Oda artık aktif değil.'
+                          : undefined
+                    }
                     autoFocus
                   >
-                    {hasRequestedNextRound
+                    {room.status === 'completed'
+                      ? 'Maç tamamlandı'
+                      : hasRequestedNextRound
                       ? 'Rakip bekleniyor'
                       : isNextRoundPending
                         ? 'Hazırlanıyor...'
