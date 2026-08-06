@@ -4,6 +4,7 @@ export default function Square({
   isWinningSquare,
   isShielded,
   isLocked,
+  isFrozen,
   isBoosted,
   isTrapped,
   isBlackHoleTriggered,
@@ -17,13 +18,19 @@ export default function Square({
     isWinningSquare ? 'winning-square' : '',
     isShielded ? 'shielded-square' : '',
     isLocked ? 'locked-square' : '',
+    isFrozen ? 'frozen-square' : '',
     isBoosted ? 'boosted-square' : '',
     isTrapped ? 'trapped-square' : '',
     isBlackHoleTriggered ? 'black-hole-triggered-square' : '',
   ].join(' ')
 
   return (
-    <button className={className} onClick={onSquareClick} aria-disabled={isLocked}>
+    <button
+      className={className}
+      onClick={onSquareClick}
+      disabled={isLocked || isFrozen}
+      aria-label={isFrozen ? 'Donmuş kare' : undefined}
+    >
       {multiplier && <span className="multiplier-badge">{multiplier}x</span>}
       {isBoosted && <span className="boost-badge" aria-label="Boostlu kare">⚡</span>}
       {isShielded && <span className="shield-badge">SHIELD</span>}
@@ -38,6 +45,7 @@ export default function Square({
           <span aria-hidden="true">✦</span>
         </span>
       )}
+      {isFrozen && <span className="freeze-badge" aria-label="Donmuş kare">❄️</span>}
       <span className="square-value">{value}</span>
     </button>
   )

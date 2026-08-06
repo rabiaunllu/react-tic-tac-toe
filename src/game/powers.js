@@ -34,7 +34,23 @@ export const powerDefinitions = [
     description: 'Boş kareye gizli kara delik kurar. Rakip basarsa taşı kaybolur.',
     initialCount: 1,
   },
+  {
+    id: 'freeze',
+    name: 'Freeze',
+    icon: '❄️',
+    description: 'Boş bir kareyi rakibin bir sonraki hamlesi boyunca kilitler.',
+    initialCount: 0,
+  },
+  {
+    id: 'vampire',
+    name: 'Vampir',
+    icon: '🧛',
+    description: 'Rakibin çarpanını uygun kendi taşına aktarır.',
+    initialCount: 0,
+  },
 ]
+
+export const rewardedPowerIds = ['joker', 'freeze', 'vampire']
 
 const localHumanPowerIds = ['bomb', 'shield', 'boost', 'joker']
 const localAiPowerIds = ['bomb', 'shield', 'boost', 'trap']
@@ -71,4 +87,8 @@ export function createInitialPowerCounts(options = { gameMode: 'arena' }) {
     counts[power.id] = power.initialCount
     return counts
   }, {})
+}
+
+export function getPowerDefinitions(powerIds) {
+  return powerDefinitions.filter((power) => powerIds.includes(power.id))
 }

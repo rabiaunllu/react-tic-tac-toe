@@ -7,6 +7,7 @@ export default function Board({
   winningLine,
   shieldedSquares,
   lockedSquares,
+  frozenSquares = [],
   visibleBoostedSquares,
   traps = [],
   currentPlayer,
@@ -33,6 +34,7 @@ export default function Board({
             isWinningSquare={winningLine?.includes(index)}
             isShielded={shieldedSquares.includes(index)}
             isLocked={lockedSquares.includes(index)}
+            isFrozen={frozenSquares.includes(index)}
             isBoosted={visibleBoostedSquares.includes(index)}
             isTrapped={Boolean(visibleTrap)}
             isBlackHoleTriggered={isBlackHoleTriggered}

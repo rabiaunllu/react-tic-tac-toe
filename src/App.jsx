@@ -5,7 +5,7 @@ import Board from './components/Board'
 import GameStatus from './components/GameStatus'
 import ArenaSettings from './components/ArenaSettings'
 import PowerPanel from './components/PowerPanel'
-import { createInitialPowerCounts } from './game/powers'
+import { createInitialPowerCounts, rewardedPowerIds } from './game/powers'
 import GameSetup from './components/GameSetup'
 import OnlineGame from './components/OnlineGame'
 import RoundResultModal from './components/RoundResultModal'
@@ -76,6 +76,7 @@ export default function App() {
   const [activePower, setActivePower] = useState(null)
   const [shieldedSquares, setShieldedSquares] = useState([])
   const [lockedSquares, setLockedSquares] = useState([])
+  const [frozenSquares, setFrozenSquares] = useState([])
   const [boostedSquares, setBoostedSquares] = useState([])
   const [visibleBoostedSquares, setVisibleBoostedSquares] = useState([])
   const [traps, setTraps] = useState([])
@@ -91,7 +92,11 @@ export default function App() {
   const [showSetupReturnConfirm, setShowSetupReturnConfirm] = useState(false)
   const [showScoreResetConfirm, setShowScoreResetConfirm] = useState(false)
   const [roundNumber, setRoundNumber] = useState(1)
- const [humanWinStreak, setHumanWinStreak] = useState(0)
+  const [humanWinStreak, setHumanWinStreak] = useState(0)
+  const [rewardedPowerClaimed, setRewardedPowerClaimed] = useState(false)
+  const [isRewarding, setIsRewarding] = useState(false)
+  const [rewardedPowerMessage, setRewardedPowerMessage] = useState('')
+  const [isRewardedPowerPickerOpen, setIsRewardedPowerPickerOpen] = useState(false)
  
  
 
@@ -140,12 +145,20 @@ const hasGameStarted =
     )
     .filter((index) => index !== null)
   const hasBoostTarget = boostTargets.length > 0
-const hasTrapTarget = squares.some(
+  const hasTrapTarget = squares.some(
   (square, index) =>
     !square &&
     !lockedSquares.includes(index) &&
     !traps.some((trap) => trap.index === index && trap.owner === currentPlayer)
 )
+  const vampireSources = squares
+    .map((square, index) => square === 'O' && multipliers[index] ? index : null)
+    .filter((index) => index !== null)
+  const vampireTargets = squares
+    .map((square, index) => square === 'X' && !multipliers[index] ? index : null)
+    .filter((index) => index !== null)
+  const isRewardedPowerAvailable =
+    gameMode === 'arena' && opponentType === 'ai' && powersEnabled
   const scoreLabel = 'Puan'
   const modeChip = gameMode === 'arena' ? 'ARENA' : 'KLASİK'
   const targetChip = gameConfig
@@ -222,14 +235,57 @@ const hasTrapTarget = squares.some(
     setActivePower(null)
     setShieldedSquares([])
     setLockedSquares([])
+    setFrozenSquares([])
     setBoostedSquares([])
     setVisibleBoostedSquares([])
     setTraps([])
     setBlackHoleEvent(null)
-    setPlayerPowers(createInitialPlayerPowers({ gameMode: nextGameMode, opponentType }))
+    setPlayerPowers((currentPowers) => {
+      const nextPowers = createInitialPlayerPowers({ gameMode: nextGameMode, opponentType })
+      rewardedPowerIds.forEach((powerId) => {
+        const retainedRewardCount = currentPowers.X[powerId] ?? 0
+        if (retainedRewardCount > 0) {
+          nextPowers.X[powerId] = retainedRewardCount
+        }
+      })
+
+      return nextPowers
+    })
     setResultMessage(null)
     setLoserMessage(null)
     
+  }
+
+  function handleRewardedPowerClaim(powerId) {
+    if (!isRewardedPowerAvailable || rewardedPowerClaimed || isRewarding) {
+      return
+    }
+
+    setIsRewarding(true)
+    setIsRewardedPowerPickerOpen(false)
+    setRewardedPowerMessage('Reklam izleniyor...')
+    window.setTimeout(() => {
+      setPlayerPowers((currentPowers) => ({
+        ...currentPowers,
+        X: {
+          ...currentPowers.X,
+          [powerId]: (currentPowers.X[powerId] ?? 0) + 1,
+        },
+      }))
+      setRewardedPowerClaimed(true)
+      setIsRewarding(false)
+      setRewardedPowerMessage(`${powerId === 'joker' ? 'Joker' : powerId === 'freeze' ? 'Freeze' : 'Vampir'} gücü eklendi.`)
+      playSound('power')
+    }, 2000)
+  }
+
+  function handleSelectHumanPower(powerId) {
+    if (powerId === 'vampire') {
+      handleVampirePower()
+      return
+    }
+
+    setActivePower(powerId)
   }
 
   function revealBoostedSquare(index) {
@@ -373,6 +429,41 @@ const hasTrapTarget = squares.some(
     setXIsNext(!xIsNext)
   }
 
+  function handleFreezePower(index) {
+    if (squares[index] || lockedSquares.includes(index) || frozenSquares.includes(index)) {
+      return
+    }
+
+    setFrozenSquares([index])
+    spendPlayerPower(currentPlayer, 'freeze')
+    playSound('power')
+    setActivePower(null)
+    setXIsNext(!xIsNext)
+  }
+
+  function handleVampirePower() {
+    const sourceIndex = vampireSources[0]
+    const targetIndex = vampireTargets[0]
+
+    if (sourceIndex === undefined || targetIndex === undefined) {
+      setRewardedPowerMessage('Vampir için uygun çarpanlı rakip taşı ve çarpansız kendi taşın gerekli.')
+      setActivePower(null)
+      return
+    }
+
+    const transferredMultiplier = multipliers[sourceIndex]
+    setMultipliers((currentMultipliers) => {
+      const nextMultipliers = { ...currentMultipliers, [targetIndex]: transferredMultiplier }
+      delete nextMultipliers[sourceIndex]
+      return nextMultipliers
+    })
+    spendPlayerPower(currentPlayer, 'vampire')
+    playSound('power')
+    setRewardedPowerMessage(`Vampir ${transferredMultiplier}x çarpanı kendi taşına aktardı.`)
+    setActivePower(null)
+    setXIsNext(!xIsNext)
+  }
+
   function handleBoostPower(index, isVisible = true) {
     if (squares[index] || boostedSquares.includes(index) || lockedSquares.includes(index)) {
       return
@@ -433,12 +524,22 @@ const hasTrapTarget = squares.some(
     return
   }
 
+  if (powersEnabled && activePower === 'freeze') {
+    handleFreezePower(index)
+    return
+  }
+
   if (powersEnabled && activePower === 'boost') {
     handleBoostPower(index)
     return
   }
 
-  if (squares[index] || lockedSquares.includes(index)) {
+  if (powersEnabled && activePower === 'vampire') {
+    handleVampirePower()
+    return
+  }
+
+  if (squares[index] || lockedSquares.includes(index) || frozenSquares.includes(index)) {
     return
   }
 
@@ -486,6 +587,7 @@ const hasTrapTarget = squares.some(
     setActivePower(session.activePower ?? null)
     setShieldedSquares(session.shieldedSquares)
     setLockedSquares(session.lockedSquares)
+    setFrozenSquares(session.frozenSquares ?? [])
     setBoostedSquares(session.boostedSquares)
     setVisibleBoostedSquares(session.visibleBoostedSquares)
     setTraps(session.traps)
@@ -496,6 +598,10 @@ const hasTrapTarget = squares.some(
     setXIsNext(session.xIsNext)
     setRoundNumber(session.roundNumber)
     setHumanWinStreak(session.humanWinStreak ?? 0)
+    setRewardedPowerClaimed(session.rewardedPowerClaimed ?? false)
+    setIsRewarding(false)
+    setRewardedPowerMessage(session.rewardedPowerMessage ?? '')
+    setIsRewardedPowerPickerOpen(false)
     setShowSetupReturnConfirm(false)
     setShowScoreResetConfirm(false)
   }, [])
@@ -607,7 +713,7 @@ const hasTrapTarget = squares.some(
       }
 
       const placeAiStone = (index, nextBoostedSquares = boostedSquares) => {
-        if (squares[index] || lockedSquares.includes(index)) {
+        if (squares[index] || lockedSquares.includes(index) || frozenSquares.includes(index)) {
           return
         }
 
@@ -625,6 +731,7 @@ const hasTrapTarget = squares.some(
             currentTraps.filter((trap) => trap.index !== index)
           )
           setLockedSquares([])
+          setFrozenSquares([])
           setActivePower(null)
           setXIsNext(true)
           playSound('blackhole')
@@ -647,6 +754,7 @@ const hasTrapTarget = squares.some(
         playSound('move')
         finishRound(nextSquares, nextBoostedSquares)
         setLockedSquares([])
+        setFrozenSquares([])
         setXIsNext(true)
       }
 
@@ -660,7 +768,7 @@ const hasTrapTarget = squares.some(
           playerPowers: playerPowers.O,
           shieldedSquares,
           boostedSquares,
-          blockedIndexes: lockedSquares,
+          blockedIndexes: [...lockedSquares, ...frozenSquares],
           aiTrapIndexes: traps
             .filter((trap) => trap.owner === 'O')
             .map((trap) => trap.index),
@@ -681,6 +789,7 @@ const hasTrapTarget = squares.some(
             currentVisibleBoostedSquares.filter((squareIndex) => squareIndex !== aiPowerAction.index)
           )
           setLockedSquares([aiPowerAction.index])
+          setFrozenSquares([])
           spendAiPower('bomb')
           playSound('bomb')
           setActivePower(null)
@@ -696,6 +805,7 @@ const hasTrapTarget = squares.some(
           spendAiPower('shield')
           playSound('power')
           setLockedSquares([])
+          setFrozenSquares([])
           setActivePower(null)
           setXIsNext(true)
           return
@@ -712,6 +822,7 @@ const hasTrapTarget = squares.some(
           spendAiPower('trap')
           playSound('blackhole')
           setLockedSquares([])
+          setFrozenSquares([])
           setActivePower(null)
           setXIsNext(true)
           return
@@ -727,6 +838,7 @@ const hasTrapTarget = squares.some(
           spendAiPower('boost')
           playSound('power')
           setLockedSquares([])
+          setFrozenSquares([])
           setActivePower(null)
           placeAiStone(aiPowerAction.index, nextBoostedSquares)
           return
@@ -739,7 +851,7 @@ const hasTrapTarget = squares.some(
         winLength,
         humanWinStreak,
         roundNumber,
-        blockedIndexes: lockedSquares,
+        blockedIndexes: [...lockedSquares, ...frozenSquares],
       })
 
       if (aiMove === null) {
@@ -763,6 +875,7 @@ const hasTrapTarget = squares.some(
     winLength,
     humanWinStreak,
     lockedSquares,
+    frozenSquares,
     powersEnabled,
     playerPowers,
     shieldedSquares,
@@ -812,6 +925,9 @@ const hasTrapTarget = squares.some(
       roundNumber,
       isRoundResultOpen: Boolean((winner || isDraw) && !showSetupReturnConfirm),
       humanWinStreak,
+      ...(gameMode === 'arena' && opponentType === 'ai'
+        ? { frozenSquares, rewardedPowerClaimed, rewardedPowerMessage }
+        : {}),
     }
 
     writeLocalSession(localSession)
@@ -829,6 +945,7 @@ const hasTrapTarget = squares.some(
     activePower,
     shieldedSquares,
     lockedSquares,
+    frozenSquares,
     boostedSquares,
     visibleBoostedSquares,
     traps,
@@ -840,6 +957,8 @@ const hasTrapTarget = squares.some(
     isDraw,
     showSetupReturnConfirm,
     humanWinStreak,
+    rewardedPowerClaimed,
+    rewardedPowerMessage,
   ])
 
   function handleSaveOnlineSession(session) {
@@ -850,6 +969,10 @@ const hasTrapTarget = squares.some(
     registerUserGesture()
     playSound('click')
     resetGame()
+    setRewardedPowerClaimed(false)
+    setIsRewarding(false)
+    setRewardedPowerMessage('')
+    setIsRewardedPowerPickerOpen(false)
     setRoundNumber((currentRound) => currentRound + 1)
   }
 
@@ -867,11 +990,16 @@ const hasTrapTarget = squares.some(
     setActivePower(null)
     setShieldedSquares([])
     setLockedSquares([])
+    setFrozenSquares([])
     setBoostedSquares([])
     setVisibleBoostedSquares([])
     setResultMessage(null)
     setLoserMessage(null)
     setHumanWinStreak(0)
+    setRewardedPowerClaimed(false)
+    setIsRewarding(false)
+    setRewardedPowerMessage('')
+    setIsRewardedPowerPickerOpen(false)
   }
 
   function handleResetScores() {
@@ -931,6 +1059,7 @@ const hasTrapTarget = squares.some(
     setActivePower(null)
     setShieldedSquares([])
     setLockedSquares([])
+    setFrozenSquares([])
     setBoostedSquares([])
     setVisibleBoostedSquares([])
     setTraps([])
@@ -940,6 +1069,10 @@ const hasTrapTarget = squares.some(
     setShowSetupReturnConfirm(false)
     setShowScoreResetConfirm(false)
     setHumanWinStreak(0)
+    setRewardedPowerClaimed(false)
+    setIsRewarding(false)
+    setRewardedPowerMessage('')
+    setIsRewardedPowerPickerOpen(false)
   }
 
   function handleStartOnlineGame(nextOnlineGame) {
@@ -1117,6 +1250,25 @@ const hasTrapTarget = squares.some(
             score={scores.X}
             scoreLabel={scoreLabel}
             powerOptions={powerOptions}
+            extraPowerIds={
+              isRewardedPowerAvailable
+                ? rewardedPowerIds.filter((powerId) => (playerPowers.X[powerId] ?? 0) > 0)
+                : []
+            }
+            rewardedPack={
+              isRewardedPowerAvailable
+                ? {
+                    claimed: rewardedPowerClaimed,
+                    disabled: rewardedPowerClaimed || Boolean(winner) || Boolean(matchWinner),
+                    isRewarding,
+                    isPickerOpen: isRewardedPowerPickerOpen,
+                    message: isRewarding ? rewardedPowerMessage : '',
+                    powerIds: rewardedPowerIds,
+                    onToggle: () => setIsRewardedPowerPickerOpen((current) => !current),
+                    onClaim: handleRewardedPowerClaim,
+                  }
+                : null
+            }
             isActivePlayer={currentPlayer === 'X' && !winner && !matchWinner && !isDraw}
             isPowersEnabled={powersEnabled && !matchWinner}
             powerCounts={playerPowers.X}
@@ -1126,8 +1278,16 @@ const hasTrapTarget = squares.some(
               bomb: !hasBombTarget,
               boost: !hasBoostTarget || Boolean(winner),
               trap: !hasTrapTarget || Boolean(winner),
+              joker: !squares.some(
+                (square, index) =>
+                  square === 'O' &&
+                  !shieldedSquares.includes(index) &&
+                  !lockedSquares.includes(index)
+              ) || Boolean(winner),
+              freeze: !squares.some((square, index) => !square && !lockedSquares.includes(index) && !frozenSquares.includes(index)) || Boolean(winner),
+              vampire: vampireSources.length === 0 || vampireTargets.length === 0 || Boolean(winner),
             }}
-            onSelectPower={setActivePower}
+            onSelectPower={handleSelectHumanPower}
             onUseRandomBoost={handleRandomBoostPower}
           />
 
@@ -1138,6 +1298,7 @@ const hasTrapTarget = squares.some(
             winningLine={winningLine}
             shieldedSquares={shieldedSquares}
             lockedSquares={lockedSquares}
+            frozenSquares={frozenSquares}
             visibleBoostedSquares={visibleBoostedSquares}
             onSquareClick={handleSquareClick}
             traps={traps}
@@ -1165,6 +1326,7 @@ const hasTrapTarget = squares.some(
             onUseRandomBoost={handleRandomBoostPower}
           />
         </div>
+
 
       </section>
 

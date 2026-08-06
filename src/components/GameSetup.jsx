@@ -702,7 +702,8 @@ export default function GameSetup({
             aria-disabled="true"
           >
             <span>Turnuva</span>
-            <small>Yakinda</small>
+            <small>Turnuva modu yakında.
+             Arkadaşlarınla takım kurup rekabet etmeye hazırlan.</small>
           </button>
           <button
             type="button"
