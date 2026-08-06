@@ -7,6 +7,7 @@ import {
   startRoom,
 } from '../api/roomsApi'
 import { clearOnlineSession } from '../sessionStorage'
+import { getAvailablePowerDefinitions } from '../game/powers'
 import Board from './Board'
 import SoundToggle from './SoundToggle'
 import { playSound, registerUserGesture } from '../game/soundManager'
@@ -125,12 +126,54 @@ function OnlinePlayerPanel({ player, isActive, position }) {
   )
 }
 
+function OnlineArenaPowerBar({ powerCounts, activePower, isActive, onSelectPower }) {
+  const powers = getAvailablePowerDefinitions({
+    gameMode: 'arena',
+    opponentType: 'human',
+    playContext: 'online',
+  })
+
+  return (
+    <section className="power-panel online-arena-power-bar" aria-label="Online Arena güçleri">
+      <div className="power-panel-header">
+        <span>Güçlerin</span>
+        <small>{isActive ? 'Güç seç veya taş koy.' : 'Güç kullanmak için sıranı bekle.'}</small>
+      </div>
+      <div className="power-list">
+        {powers.map((power) => {
+          const count = powerCounts[power.id] ?? 0
+          const isSelected = activePower === power.id
+
+          return (
+            <button
+              key={power.id}
+              type="button"
+              className={`power-button ${isSelected ? 'active' : ''}`}
+              disabled={!isActive || count === 0}
+              aria-pressed={isSelected}
+              aria-label={`${power.name}: ${power.description}`}
+              data-hint={power.description}
+              onClick={() => onSelectPower(isSelected ? null : power.id)}
+            >
+              <span className="power-icon">{power.icon}</span>
+              <span className="power-name">{power.name}</span>
+              <span className="power-count">{count}</span>
+            </button>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
 export default function OnlineGame({ initialOnlineGame, onMenu }) {
   const [room, setRoom] = useState(initialOnlineGame.room)
   const [actionError, setActionError] = useState('')
   const [connectionMessage, setConnectionMessage] = useState('')
   const [isRoomInactive, setIsRoomInactive] = useState(false)
   const [isMovePending, setIsMovePending] = useState(false)
+  const [isPowerPending, setIsPowerPending] = useState(false)
+  const [activePower, setActivePower] = useState(null)
   const [isStartPending, setIsStartPending] = useState(false)
   const [isNextRoundPending, setIsNextRoundPending] = useState(false)
   const [isMenuConfirmOpen, setIsMenuConfirmOpen] = useState(false)
@@ -148,6 +191,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
   const myPlayer = room.players.find((player) => player.id === playerId)
   const mySymbol = myPlayer?.symbol ?? ''
   const currentSymbol = room.game.xIsNext ? 'X' : 'O'
+  const isArena = room.gameMode === 'arena'
   const isRoundFinished = Boolean(room.game.winner) || room.game.isDraw
   const nextRoundPlayerIds = room.game.nextRoundPlayerIds ?? []
   const hasRequestedNextRound = nextRoundPlayerIds.includes(playerId)
@@ -158,7 +202,14 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
     !room.game.isDraw &&
     mySymbol === currentSymbol &&
     !isMovePending &&
+    !isPowerPending &&
     !isRoomInactive
+  const myPowerCounts = room.game.playerPowers?.[playerId] ?? {
+    bomb: 0,
+    shield: 0,
+    boost: 0,
+    trap: 0,
+  }
   const canRequestNextRound = isRoundFinished && room.status !== 'completed' && !isRoomInactive
   const winningLine = room.game.winningLine.length > 0 ? room.game.winningLine : null
   const roundSymbol = room.game.isDraw ? '=' : room.game.winner
@@ -171,10 +222,15 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
 
   const applyRoom = useCallback((nextRoom) => {
     const nextResultSignature = getResultSignature(nextRoom)
+    const nextCurrentSymbol = nextRoom.game.xIsNext ? 'X' : 'O'
 
     if (nextResultSignature !== onlineRoundMessageSignatureRef.current) {
       onlineRoundMessageSignatureRef.current = nextResultSignature
       setOnlineRoundMessage(createOnlineRoundMessage(nextRoom, mySymbol))
+    }
+
+    if (nextCurrentSymbol !== mySymbol || nextRoom.game.winner || nextRoom.game.isDraw) {
+      setActivePower(null)
     }
 
     setRoom(nextRoom)
@@ -183,7 +239,36 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
   async function handleSquareClick(index) {
     registerUserGesture()
 
-    if (!canMove || room.game.squares[index]) {
+    if (!canMove) {
+      return
+    }
+
+    if (isArena && activePower) {
+      setActionError('')
+      setIsPowerPending(true)
+
+      try {
+        const nextRoom = await requestRoomJson(`/api/rooms/${roomCode}/powers`, {
+          method: 'POST',
+          body: JSON.stringify({
+            playerId,
+            powerId: activePower,
+            targetIndex: index,
+          }),
+        })
+        applyRoom(nextRoom)
+        setActivePower(null)
+        playSound(activePower === 'bomb' ? 'bomb' : activePower === 'trap' ? 'blackhole' : 'power')
+        setConnectionMessage('')
+      } catch (error) {
+        handleRoomError(error, setActionError)
+      } finally {
+        setIsPowerPending(false)
+      }
+      return
+    }
+
+    if (room.game.squares[index]) {
       return
     }
 
@@ -450,14 +535,23 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
           <Board
             boardSize={room.boardSize}
             squares={room.game.squares}
-            multipliers={{}}
+            multipliers={room.game.multipliers ?? {}}
             winningLine={winningLine}
-            shieldedSquares={[]}
+            shieldedSquares={room.game.shieldedSquares ?? []}
             lockedSquares={[]}
-            visibleBoostedSquares={[]}
+            visibleBoostedSquares={room.game.boostedSquares ?? []}
             onSquareClick={handleSquareClick}
             currentPlayer={mySymbol}
           />
+
+          {isArena && myPlayer && (
+            <OnlineArenaPowerBar
+              powerCounts={myPowerCounts}
+              activePower={activePower}
+              isActive={canMove}
+              onSelectPower={setActivePower}
+            />
+          )}
 
           <OnlinePlayerPanel
             player={guestPlayer}

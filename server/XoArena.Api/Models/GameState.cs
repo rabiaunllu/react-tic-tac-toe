@@ -8,4 +8,9 @@ public sealed record GameState(
     string? Winner,
     bool IsDraw,
     IReadOnlyList<int> WinningLine,
-    IReadOnlyList<string> NextRoundPlayerIds);
+    IReadOnlyList<string> NextRoundPlayerIds,
+    IReadOnlyDictionary<int, int> Multipliers,
+    IReadOnlyDictionary<string, IReadOnlyDictionary<string, int>> PlayerPowers,
+    IReadOnlyList<int> ShieldedSquares,
+    IReadOnlyList<int> BoostedSquares,
+    IReadOnlyList<ArenaTrap> Traps);
