@@ -2740,6 +2740,26 @@ button,
   color: #eaf7ff;
 }
 
+.setup-segment.is-disabled,
+.setup-segment:disabled {
+  border-style: dashed;
+  border-color: rgba(255, 209, 102, 0.24);
+  background: rgba(255, 209, 102, 0.06);
+  color: rgba(245, 247, 251, 0.58);
+  cursor: not-allowed;
+}
+
+.setup-segment.is-disabled:hover,
+.setup-segment:disabled:hover {
+  transform: none;
+  color: rgba(245, 247, 251, 0.58);
+}
+
+.setup-segment.is-disabled small,
+.setup-segment:disabled small {
+  color: rgba(255, 240, 189, 0.62);
+}
+
 .setup-segment.is-selected {
   border-color: rgba(18, 245, 220, 0.85);
   background:

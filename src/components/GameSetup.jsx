@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import {
   getRoomStatusText,
+  IS_ONLINE_ENABLED,
   isConnectionError,
   isRoomNotFoundError,
+  ONLINE_UNAVAILABLE_MESSAGE,
   requestRoomJson,
   startRoom,
 } from '../api/roomsApi'
@@ -106,6 +108,13 @@ export default function GameSetup({
   }
 
   function handleOpponentTypeChange(nextOpponentType) {
+    if (nextOpponentType === 'online' && !IS_ONLINE_ENABLED) {
+      setOpponentType('human')
+      resetOnlineLobby()
+      setOnlineMessage(ONLINE_UNAVAILABLE_MESSAGE)
+      return
+    }
+
     setOpponentType(nextOpponentType)
     setOnlineError('')
 
@@ -377,14 +386,24 @@ export default function GameSetup({
 
             <button
               type="button"
-              className={`setup-segment ${opponentType === 'online' ? 'is-selected' : ''}`}
+              className={`setup-segment ${opponentType === 'online' ? 'is-selected' : ''} ${!IS_ONLINE_ENABLED ? 'is-disabled' : ''}`}
               onClick={() => handleOpponentTypeChange('online')}
               aria-pressed={opponentType === 'online'}
+              disabled={!IS_ONLINE_ENABLED}
+              aria-disabled={!IS_ONLINE_ENABLED}
+              title={!IS_ONLINE_ENABLED ? ONLINE_UNAVAILABLE_MESSAGE : undefined}
             >
               <span>Online</span>
+              {!IS_ONLINE_ENABLED && <small>Yakında</small>}
             </button>
           </div>
         </div>
+
+        {!IS_ONLINE_ENABLED && (
+          <div className="online-message" role="status">
+            {ONLINE_UNAVAILABLE_MESSAGE}
+          </div>
+        )}
 
         <div className="setup-group">
           <span className="setup-label">Izgara Boyutu</span>

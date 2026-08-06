@@ -1,7 +1,16 @@
 const DEFAULT_API_BASE_URL = 'http://localhost:5243'
 const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
+const onlineFlag = import.meta.env.VITE_ENABLE_ONLINE?.trim().toLowerCase()
+const isOnlineFlagEnabled = onlineFlag === 'true' || (!import.meta.env.PROD && !onlineFlag)
+const hasConfiguredApiBaseUrl = Boolean(configuredApiBaseUrl)
 
-export const API_BASE_URL = (configuredApiBaseUrl || DEFAULT_API_BASE_URL).replace(/\/+$/, '')
+export const API_BASE_URL = (
+  configuredApiBaseUrl ||
+  (import.meta.env.DEV ? DEFAULT_API_BASE_URL : '')
+).replace(/\/+$/, '')
+export const IS_ONLINE_ENABLED =
+  isOnlineFlagEnabled && (import.meta.env.DEV || hasConfiguredApiBaseUrl)
+export const ONLINE_UNAVAILABLE_MESSAGE = 'Online mod yakında açılacak.'
 
 export class RoomRequestError extends Error {
   constructor(message, { status = 0 } = {}) {
