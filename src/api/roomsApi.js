@@ -83,6 +83,25 @@ export async function requestRoomJson(path, options = {}) {
         throw new RoomRequestError('Bu oda dolu.', { status: response.status })
       }
 
+      const normalizedError = errorCode.toLowerCase()
+      const powerErrorMessages = [
+        ['occupied square', 'Bomba için dolu bir kare seç.'],
+        ['shielded stones', 'Kalkanlı taş bombalanamaz.'],
+        ['your own stone', 'Kalkanı kendi taşına koyabilirsin.'],
+        ['already shielded', 'Bu taş zaten kalkanlı.'],
+        ['boost needs', 'Boost için boş bir kare seç.'],
+        ['already boosted', 'Bu kare zaten boostlu.'],
+        ['black hole needs', 'Kara Delik için boş bir kare seç.'],
+        ['contains a black hole', 'Bu karede zaten Kara Delik var.'],
+        ['already been used', 'Bu güç hakkın kalmadı.'],
+        ["not this player's turn", 'Şu anda sıra sende değil.'],
+      ]
+      const powerError = powerErrorMessages.find(([key]) => normalizedError.includes(key))
+
+      if (powerError) {
+        throw new RoomRequestError(powerError[1], { status: response.status })
+      }
+
       throw new RoomRequestError('Oda şu anda bu işleme uygun değil.', { status: response.status })
     }
 

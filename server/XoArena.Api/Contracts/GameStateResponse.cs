@@ -10,7 +10,11 @@ public sealed record GameStateResponse(
     string? Winner,
     bool IsDraw,
     IReadOnlyList<int> WinningLine,
-    IReadOnlyList<string> NextRoundPlayerIds)
+    IReadOnlyList<string> NextRoundPlayerIds,
+    IReadOnlyDictionary<int, int> Multipliers,
+    IReadOnlyDictionary<string, IReadOnlyDictionary<string, int>> PlayerPowers,
+    IReadOnlyList<int> ShieldedSquares,
+    IReadOnlyList<int> BoostedSquares)
 {
     public static GameStateResponse FromGameState(GameState game)
         => new(
@@ -21,5 +25,9 @@ public sealed record GameStateResponse(
             game.Winner,
             game.IsDraw,
             game.WinningLine,
-            game.NextRoundPlayerIds);
+            game.NextRoundPlayerIds,
+            game.Multipliers,
+            game.PlayerPowers,
+            game.ShieldedSquares,
+            game.BoostedSquares);
 }

@@ -12,6 +12,8 @@ public interface IRoomStore
 
     MoveRoomResult Move(string roomCode, Guid playerId, int index);
 
+    PowerRoomResult UsePower(string roomCode, Guid playerId, string powerId, int targetIndex);
+
     StartRoomResult Start(string roomCode, Guid playerId);
 
     NextRoundResult NextRound(string roomCode, Guid playerId);

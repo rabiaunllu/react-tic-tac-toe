@@ -130,6 +130,42 @@ app.MapPost("/api/rooms/{roomCode}/moves", async (
     };
 });
 
+app.MapPost("/api/rooms/{roomCode}/powers", async (
+    string roomCode,
+    PowerRoomRequest request,
+    IRoomStore roomStore,
+    IHubContext<RoomsHub> roomsHub) =>
+{
+    if (!Guid.TryParse(request.PlayerId, out var playerId))
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["playerId"] = ["Player id must be a valid Guid."]
+        });
+    }
+
+    var result = roomStore.UsePower(roomCode, playerId, request.PowerId, request.TargetIndex);
+
+    if (result.Status is PowerRoomStatus.Used)
+    {
+        var roomResponse = RoomResponse.FromRoom(result.Room!);
+        await roomsHub.Clients.Group(result.Room!.Code).SendAsync("RoomUpdated", roomResponse);
+        return Results.Ok(roomResponse);
+    }
+
+    return result.Status switch
+    {
+        PowerRoomStatus.NotFound => Results.NotFound(),
+        PowerRoomStatus.Forbidden => Results.StatusCode(StatusCodes.Status403Forbidden),
+        PowerRoomStatus.BadRequest => Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            [result.ErrorField ?? "request"] = [result.ErrorMessage ?? "Invalid power request."]
+        }),
+        PowerRoomStatus.Conflict => Results.Conflict(new { error = result.ErrorMessage }),
+        _ => Results.Problem("Unexpected power room result.")
+    };
+});
+
 app.MapPost("/api/rooms/{roomCode}/start", async (
     string roomCode,
     StartRoomRequest request,

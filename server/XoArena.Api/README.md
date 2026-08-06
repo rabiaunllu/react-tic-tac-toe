@@ -126,7 +126,23 @@ POST /api/rooms/{roomCode}/moves
 }
 ```
 
-Move validation currently uses Classic board win rules even when the room `gameMode` is `arena`. Arena multipliers and powers are intentionally not part of the backend game state yet.
+Arena room responses also include public multipliers, shields, boosts, and per-player remaining power counts. Black Hole positions stay server-only and are never included in room responses.
+
+Use an Online Arena power:
+
+```text
+POST /api/rooms/{roomCode}/powers
+```
+
+```json
+{
+  "playerId": "46ece7a1f7714a0fbe114bec814b18b9",
+  "powerId": "boost",
+  "targetIndex": 4
+}
+```
+
+Online Arena supports `bomb`, `shield`, `boost`, and `trap`. Each successful power action consumes the turn, including Boost. This deliberately simple MVP rule makes every server action atomic and unambiguous.
 
 Start the next round after a win or draw:
 
