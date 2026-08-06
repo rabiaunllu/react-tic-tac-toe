@@ -9,7 +9,8 @@ public sealed record GameStateResponse(
     int RoundNumber,
     string? Winner,
     bool IsDraw,
-    IReadOnlyList<int> WinningLine)
+    IReadOnlyList<int> WinningLine,
+    IReadOnlyList<string> NextRoundPlayerIds)
 {
     public static GameStateResponse FromGameState(GameState game)
         => new(
@@ -19,5 +20,6 @@ public sealed record GameStateResponse(
             game.RoundNumber,
             game.Winner,
             game.IsDraw,
-            game.WinningLine);
+            game.WinningLine,
+            game.NextRoundPlayerIds);
 }

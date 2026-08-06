@@ -7,6 +7,9 @@ public sealed record NextRoundResult(
     Room? Room = null,
     string? ErrorMessage = null)
 {
+    public static NextRoundResult Pending(Room room)
+        => new(NextRoundStatus.Pending, room);
+
     public static NextRoundResult Started(Room room)
         => new(NextRoundStatus.Started, room);
 

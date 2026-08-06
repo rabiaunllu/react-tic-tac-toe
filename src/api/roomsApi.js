@@ -27,6 +27,15 @@ export async function requestRoomJson(path, options = {}) {
   }
 
   if (!response.ok) {
+    let errorCode
+
+    try {
+      const errorBody = await response.clone().json()
+      errorCode = String(errorBody.error ?? '')
+    } catch {
+      errorCode = ''
+    }
+
     if (response.status === 403) {
       throw new Error('Bu oda işlemi için yetkiniz yok.')
     }
@@ -40,6 +49,10 @@ export async function requestRoomJson(path, options = {}) {
     }
 
     if (response.status === 409) {
+      if (errorCode.toLowerCase().includes('full')) {
+        throw new Error('Bu oda dolu.')
+      }
+
       throw new Error('Oda şu anda bu işleme uygun değil.')
     }
 

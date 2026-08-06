@@ -58,6 +58,7 @@ public sealed class InMemoryRoomStore : IRoomStore
     public JoinRoomResult Join(string roomCode, string playerName)
     {
         var normalizedRoomCode = NormalizeRoomCode(roomCode);
+        var normalizedPlayerName = playerName.Trim();
 
         if (normalizedRoomCode is null)
         {
@@ -71,14 +72,25 @@ public sealed class InMemoryRoomStore : IRoomStore
                 return JoinRoomResult.NotFound();
             }
 
-            if (room.Status is RoomStatuses.Ready or RoomStatuses.Playing or RoomStatuses.Completed)
+            var existingPlayer = room.Players.FirstOrDefault(player =>
+                string.Equals(
+                    player.Name.Trim(),
+                    normalizedPlayerName,
+                    StringComparison.OrdinalIgnoreCase));
+
+            if (existingPlayer is not null)
             {
-                return JoinRoomResult.Conflict("Room is not accepting new players.");
+                return JoinRoomResult.Joined(room);
             }
 
             if (room.Players.Count >= 2)
             {
                 return JoinRoomResult.Conflict("Room is full.");
+            }
+
+            if (room.Status is not RoomStatuses.Waiting)
+            {
+                return JoinRoomResult.Conflict("Room is not accepting new players.");
             }
 
             var joinedRoom = room with
@@ -90,7 +102,7 @@ public sealed class InMemoryRoomStore : IRoomStore
                     .. room.Players,
                     new Player(
                         Guid.NewGuid().ToString("N"),
-                        playerName,
+                        normalizedPlayerName,
                         "O")
                 ]
             };
@@ -257,11 +269,11 @@ public sealed class InMemoryRoomStore : IRoomStore
                 return NextRoundResult.NotFound();
             }
 
-            var playerIsInRoom = room.Players.Any(currentPlayer =>
+            var player = room.Players.FirstOrDefault(currentPlayer =>
                 Guid.TryParse(currentPlayer.Id, out var currentPlayerId)
                 && currentPlayerId == playerId);
 
-            if (!playerIsInRoom)
+            if (player is null)
             {
                 return NextRoundResult.Forbidden();
             }
@@ -276,6 +288,30 @@ public sealed class InMemoryRoomStore : IRoomStore
                 return NextRoundResult.Conflict("Game is not finished yet.");
             }
 
+            var requestedPlayerIds = room.Game.NextRoundPlayerIds
+                .Append(player.Id)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            if (requestedPlayerIds.Length < room.Players.Count)
+            {
+                var pendingRoom = room with
+                {
+                    UpdatedAt = DateTimeOffset.UtcNow,
+                    Game = room.Game with
+                    {
+                        NextRoundPlayerIds = requestedPlayerIds
+                    }
+                };
+
+                if (rooms.TryUpdate(normalizedRoomCode, pendingRoom, room))
+                {
+                    return NextRoundResult.Pending(pendingRoom);
+                }
+
+                continue;
+            }
+
             var updatedRoom = room with
             {
                 UpdatedAt = DateTimeOffset.UtcNow,
@@ -286,7 +322,8 @@ public sealed class InMemoryRoomStore : IRoomStore
                     RoundNumber = room.Game.RoundNumber + 1,
                     Winner = null,
                     IsDraw = false,
-                    WinningLine = []
+                    WinningLine = [],
+                    NextRoundPlayerIds = []
                 }
             };
 
@@ -317,6 +354,7 @@ public sealed class InMemoryRoomStore : IRoomStore
             1,
             null,
             false,
+            [],
             []);
 
     private static IReadOnlyList<string?> CreateEmptySquares(int boardSize)

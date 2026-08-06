@@ -2786,6 +2786,101 @@ button,
   gap: 9px;
 }
 
+.online-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.online-mode-grid--single,
+.online-choice-grid {
+  grid-template-columns: 1fr;
+}
+
+.online-choice-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.online-choice-card {
+  width: 100%;
+  min-height: 74px;
+  display: grid;
+  gap: 5px;
+  place-items: center;
+  border: 1px solid rgba(142, 216, 255, 0.25);
+  border-radius: 14px;
+  padding: 13px;
+  background:
+    linear-gradient(135deg, rgba(142, 216, 255, 0.13), rgba(18, 245, 220, 0.07)),
+    rgba(255, 255, 255, 0.045);
+  color: #eaf9ff;
+  cursor: pointer;
+}
+
+.online-choice-card:hover {
+  border-color: rgba(18, 245, 220, 0.58);
+  background:
+    linear-gradient(135deg, rgba(142, 216, 255, 0.18), rgba(18, 245, 220, 0.11)),
+    rgba(255, 255, 255, 0.06);
+}
+
+.online-choice-card span {
+  font-size: 17px;
+  font-weight: 950;
+}
+
+.online-choice-card small {
+  max-width: 100%;
+  color: #aebbd0;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.online-flow-back {
+  min-height: 38px;
+  border: 0;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #cfd7e8;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.online-flow-back:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.online-flow-card {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 13px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.online-flow-card h2 {
+  margin: 5px 0 4px;
+  color: #f5f7fb;
+  font-size: 18px;
+  line-height: 1.15;
+}
+
+.online-flow-card p {
+  margin: 0;
+  color: #aebbd0;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
 .online-field label {
   color: #8ed8ff;
   font-size: 10px;
@@ -2880,6 +2975,15 @@ button,
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+.online-room-code--large {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.online-room-code--large span {
+  grid-column: 1 / -1;
+}
+
 .online-room-code span,
 .online-room-details span {
   color: #9aa8c2;
@@ -2891,8 +2995,27 @@ button,
 
 .online-room-code strong {
   color: #20f3df;
-  font-size: 22px;
+  font-size: 42px;
   letter-spacing: 0.1em;
+  overflow-wrap: anywhere;
+}
+
+.online-copy-action {
+  min-height: 38px;
+  align-self: center;
+  border: 1px solid rgba(18, 245, 220, 0.28);
+  border-radius: 11px;
+  padding: 8px 11px;
+  background: rgba(18, 245, 220, 0.09);
+  color: #ddfffb;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.online-copy-action:hover {
+  border-color: rgba(18, 245, 220, 0.62);
+  background: rgba(18, 245, 220, 0.16);
 }
 
 .online-room-details {
@@ -3054,24 +3177,9 @@ button,
   background: rgba(18, 245, 220, 0.1);
 }
 
-.online-round-panel {
-  width: 100%;
-  display: grid;
-  gap: 10px;
-  padding: 13px;
-  border: 1px solid rgba(255, 209, 102, 0.24);
-  border-radius: 14px;
-  background: rgba(255, 209, 102, 0.08);
-  text-align: center;
-}
-
-.online-round-panel strong {
-  color: #fff0bd;
-  font-size: 14px;
-}
-
 @media (max-width: 420px) {
   .setup-segment-grid--three,
+  .online-mode-grid,
   .online-room-details,
   .online-game-meta,
   .online-game-players {
@@ -3080,6 +3188,10 @@ button,
 
   .online-join-row {
     grid-template-columns: 1fr;
+  }
+
+  .online-room-code strong {
+    font-size: 30px;
   }
 
 }
