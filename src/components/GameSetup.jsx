@@ -10,6 +10,8 @@ import {
 } from '../api/roomsApi'
 import { clearOnlineSession } from '../sessionStorage'
 import HowToPlay from './HowToPlay'
+import SoundToggle from './SoundToggle'
+import { playSound, registerUserGesture } from '../game/soundManager'
 
 const boardOptions = [
   { size: 3, label: '3x3', description: 'Klasik hızlı oyun', winLength: 3 },
@@ -76,6 +78,7 @@ export default function GameSetup({
   const [onlineError, setOnlineError] = useState('')
   const [onlineConnectionMessage, setOnlineConnectionMessage] = useState('')
   const [onlineLoadingAction, setOnlineLoadingAction] = useState(null)
+  const [isRoomCodeCopied, setIsRoomCodeCopied] = useState(false)
 
   const selectedBoard = boardOptions.find((board) => board.size === boardSize)
   const targetOptions = gameMode === 'classic' ? classicTargets : arenaTargets
@@ -98,9 +101,12 @@ export default function GameSetup({
     setOnlineMessage('')
     setOnlineError('')
     setOnlineConnectionMessage('')
+    setIsRoomCodeCopied(false)
   }
 
   function handleModeChange(nextMode) {
+    registerUserGesture()
+    playSound('click')
     setGameMode(nextMode)
     setTargetValue(nextMode === 'classic' ? 5 : 30)
     setIsInfinite(false)
@@ -108,6 +114,9 @@ export default function GameSetup({
   }
 
   function handleOpponentTypeChange(nextOpponentType) {
+    registerUserGesture()
+    playSound('click')
+
     if (nextOpponentType === 'online' && !IS_ONLINE_ENABLED) {
       setOpponentType('human')
       resetOnlineLobby()
@@ -124,6 +133,8 @@ export default function GameSetup({
   }
 
   function handleStartGame() {
+    registerUserGesture()
+    playSound('click')
     onStartGame({
       boardSize,
       winLength: selectedBoard.winLength,
@@ -145,6 +156,7 @@ export default function GameSetup({
 
     setOnlineLobby(nextLobby)
     setOnlineConnectionMessage('')
+    setIsRoomCodeCopied(false)
     onSaveOnlineSession({
       roomCode: room.roomCode,
       playerId: player.id,
@@ -154,6 +166,8 @@ export default function GameSetup({
   }
 
   async function handleCreateOnlineRoom() {
+    registerUserGesture()
+    playSound('click')
     const playerName = createPlayerName.trim()
 
     if (!playerName) {
@@ -190,6 +204,8 @@ export default function GameSetup({
   }
 
   async function handleJoinOnlineRoom() {
+    registerUserGesture()
+    playSound('click')
     const playerName = joinPlayerName.trim()
     const roomCode = joinRoomCode.trim().toUpperCase()
 
@@ -239,15 +255,21 @@ export default function GameSetup({
   }
 
   async function handleCopyRoomCode() {
+    registerUserGesture()
+    playSound('click')
+
     if (!onlineLobby?.room.roomCode || !navigator.clipboard) {
       return
     }
 
     await navigator.clipboard.writeText(onlineLobby.room.roomCode)
-    setOnlineMessage('Oda kodu kopyalandı.')
+    setIsRoomCodeCopied(true)
   }
 
   async function handleStartOnlineRoom() {
+    registerUserGesture()
+    playSound('click')
+
     if (!onlineLobby || onlineLobby.symbol !== 'X' || onlineLobby.room.status !== 'ready') {
       return
     }
@@ -355,6 +377,10 @@ export default function GameSetup({
           <h1>XO ARENA</h1>
           <p>Tahtanı seç. Modu kur. Rövanşa hazır ol.</p>
         </header>
+
+        <div className="setup-quick-actions">
+          <SoundToggle />
+        </div>
 
         {restoreMessage && (
           <div className="online-message" role="status">
@@ -609,8 +635,13 @@ export default function GameSetup({
                 <div className="online-room-code online-room-code--large">
                   <span>Oda Kodu</span>
                   <strong>{onlineLobby.room.roomCode}</strong>
-                  <button type="button" className="online-copy-action" onClick={handleCopyRoomCode}>
-                    Kopyala
+                  <button
+                    type="button"
+                    className="online-copy-action"
+                    onClick={handleCopyRoomCode}
+                    disabled={isRoomCodeCopied}
+                  >
+                    {isRoomCodeCopied ? 'Kopyalandı' : 'Kopyala'}
                   </button>
                 </div>
 

@@ -34,9 +34,8 @@ export default function Square({
         </span>
       )}
       {isLocked && (
-        <span className="lock-badge">
-          <span aria-hidden="true">!</span>
-          <span>💥</span>
+        <span className="lock-badge" aria-label="Bomba etkisi">
+          <span aria-hidden="true">✦</span>
         </span>
       )}
       <span className="square-value">{value}</span>

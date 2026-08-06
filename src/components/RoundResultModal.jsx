@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { playSound, registerUserGesture } from '../game/soundManager'
 
 export default function RoundResultModal({
   roundNumber,
@@ -96,7 +97,11 @@ export default function RoundResultModal({
     <div className="round-result-actions round-result-confirm-actions">
       <button
         type="button"
-        onClick={() => setIsMenuConfirmOpen(false)}
+        onClick={() => {
+          registerUserGesture()
+          playSound('click')
+          setIsMenuConfirmOpen(false)
+        }}
         autoFocus
       >
         Vazgeç
@@ -105,7 +110,11 @@ export default function RoundResultModal({
       <button
         type="button"
         className="danger-action"
-        onClick={onMenu}
+        onClick={() => {
+          registerUserGesture()
+          playSound('click')
+          onMenu()
+        }}
       >
         Ayarlara dön
       </button>
@@ -127,6 +136,9 @@ export default function RoundResultModal({
       type="button"
       className="secondary-action"
       onClick={() => {
+        registerUserGesture()
+        playSound('click')
+
         if (isMatchOver) {
           onMenu()
           return
