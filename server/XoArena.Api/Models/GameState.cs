@@ -7,4 +7,5 @@ public sealed record GameState(
     int RoundNumber,
     string? Winner,
     bool IsDraw,
-    IReadOnlyList<int> WinningLine);
+    IReadOnlyList<int> WinningLine,
+    IReadOnlyList<string> NextRoundPlayerIds);

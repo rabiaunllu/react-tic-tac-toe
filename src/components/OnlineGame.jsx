@@ -37,15 +37,25 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
 
   const { roomCode, playerId, symbol } = initialOnlineGame
   const currentSymbol = room.game.xIsNext ? 'X' : 'O'
-  const mySymbol = symbol
   const isRoundFinished = Boolean(room.game.winner) || room.game.isDraw
+  const nextRoundPlayerIds = room.game.nextRoundPlayerIds ?? []
+  const hasRequestedNextRound = nextRoundPlayerIds.includes(playerId)
+  const waitingNextRoundCount = nextRoundPlayerIds.length
   const canMove =
     room.status === 'playing' &&
     !room.game.winner &&
     !room.game.isDraw &&
-    mySymbol === currentSymbol &&
+    symbol === currentSymbol &&
     !isMovePending
   const winningLine = room.game.winningLine.length > 0 ? room.game.winningLine : null
+  const roundSymbol = room.game.isDraw ? '=' : room.game.winner
+  const roundSymbolModifier = room.game.isDraw ? 'draw' : room.game.winner?.toLowerCase()
+  const roundResultLabel = room.game.isDraw ? 'TUR BERABERE' : `${room.game.winner} TURU KAZANDI`
+  const roundResultMessage = room.game.isDraw
+    ? 'Beraberlik bozulmadı.'
+    : room.game.winner === symbol
+      ? 'Turu kazandın.'
+      : 'Rakip turu kazandı.'
 
   async function refreshRoom() {
     try {
@@ -82,6 +92,10 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
   }
 
   async function handleNextRound() {
+    if (hasRequestedNextRound) {
+      return
+    }
+
     setActionError('')
     setIsNextRoundPending(true)
 
@@ -140,6 +154,19 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
       window.clearInterval(pollingId)
     }
   }, [roomCode])
+
+  useEffect(() => {
+    if (!isRoundFinished) {
+      return undefined
+    }
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [isRoundFinished])
 
   return (
     <main className="app-shell">
@@ -231,21 +258,73 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
           onSquareClick={handleSquareClick}
           currentPlayer={symbol}
         />
-
-        {isRoundFinished && (
-          <div className="online-round-panel">
-            <strong>{room.game.winner ? `${room.game.winner} kazandı` : 'Berabere'}</strong>
-            <button
-              type="button"
-              className="online-primary-action"
-              onClick={handleNextRound}
-              disabled={isNextRoundPending}
-            >
-              {isNextRoundPending ? 'Yeni tur açılıyor...' : 'Yeni Tur'}
-            </button>
-          </div>
-        )}
       </section>
+
+      {isRoundFinished && (
+        <div className="round-result-overlay" role="presentation">
+          <section
+            className={`round-result-card round-result-card--${roundSymbolModifier}`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="online-round-result-title"
+            aria-describedby="online-round-result-message"
+          >
+            <span className="round-result-eyebrow">
+              TUR {room.game.roundNumber} SONUCU
+            </span>
+
+            <span className="round-result-symbol" aria-hidden="true">
+              {roundSymbol}
+            </span>
+
+            <h2 id="online-round-result-title">{roundResultLabel}</h2>
+
+            <div
+              className="round-result-score"
+              aria-label={`Skor ${room.game.scores.x} - ${room.game.scores.o}`}
+            >
+              <div>
+                <strong>{room.game.scores.x}</strong>
+                <span>X Tur</span>
+              </div>
+
+              <span aria-hidden="true">VS</span>
+
+              <div>
+                <strong>{room.game.scores.o}</strong>
+                <span>O Tur</span>
+              </div>
+            </div>
+
+            <div className="round-result-message" id="online-round-result-message">
+              <strong>{roundResultMessage}</strong>
+              {hasRequestedNextRound && <small>Rakip bekleniyor.</small>}
+              {!hasRequestedNextRound && waitingNextRoundCount > 0 && (
+                <small>Rakip sonraki tura hazır.</small>
+              )}
+            </div>
+
+            <div className="round-result-actions">
+              <button
+                type="button"
+                onClick={handleNextRound}
+                disabled={isNextRoundPending || hasRequestedNextRound}
+                autoFocus
+              >
+                {hasRequestedNextRound
+                  ? 'Rakip bekleniyor'
+                  : isNextRoundPending
+                    ? 'Hazırlanıyor...'
+                    : 'Sonraki tur'}
+              </button>
+
+              <button type="button" className="secondary-action" onClick={onMenu}>
+                Menü
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </main>
   )
 }

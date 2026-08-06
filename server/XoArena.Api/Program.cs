@@ -182,7 +182,7 @@ app.MapPost("/api/rooms/{roomCode}/next-round", async (
 
     var result = roomStore.NextRound(roomCode, playerId);
 
-    if (result.Status is NextRoundStatus.Started)
+    if (result.Status is NextRoundStatus.Pending or NextRoundStatus.Started)
     {
         var roomResponse = RoomResponse.FromRoom(result.Room!);
         await roomsHub.Clients.Group(result.Room!.Code).SendAsync("RoomUpdated", roomResponse);

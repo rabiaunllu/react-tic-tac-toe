@@ -11,6 +11,41 @@ const boardOptions = [
 const classicTargets = [3, 5, 7, 9]
 const arenaTargets = [15, 30, 50, 100]
 
+function normalizeName(name) {
+  return name.trim().toLowerCase()
+}
+
+function getCurrentOnlinePlayer(room, playerName, preferredSymbol) {
+  const normalizedPlayerName = normalizeName(playerName)
+  const matchingPlayers = room.players.filter(
+    (player) => normalizeName(player.name) === normalizedPlayerName
+  )
+
+  return (
+    matchingPlayers.find((player) => player.symbol === preferredSymbol) ??
+    matchingPlayers.at(-1) ??
+    room.players.at(-1)
+  )
+}
+
+function getLobbyMessage(onlineLobby) {
+  if (!onlineLobby) {
+    return ''
+  }
+
+  if (onlineLobby.room.status === 'waiting') {
+    return 'Rakip bekleniyor.'
+  }
+
+  if (onlineLobby.room.status === 'ready') {
+    return onlineLobby.symbol === 'X'
+      ? 'Oyuncu katıldı. Oyunu başlatabilirsin.'
+      : 'Oda sahibi oyunu başlatacak.'
+  }
+
+  return getRoomStatusText(onlineLobby.room.status)
+}
+
 export default function GameSetup({
   onStartGame,
   onStartOnlineGame,
@@ -23,9 +58,12 @@ export default function GameSetup({
   const [targetValue, setTargetValue] = useState(5)
   const [isInfinite, setIsInfinite] = useState(false)
   const [isHowToPlayOpen, setIsHowToPlayOpen] = useState(false)
-  const [onlinePlayerName, setOnlinePlayerName] = useState('')
-  const [onlineRoomCode, setOnlineRoomCode] = useState('')
+  const [createPlayerName, setCreatePlayerName] = useState('')
+  const [joinPlayerName, setJoinPlayerName] = useState('')
+  const [joinRoomCode, setJoinRoomCode] = useState('')
+  const [onlineFlow, setOnlineFlow] = useState(null)
   const [onlineLobby, setOnlineLobby] = useState(null)
+  const [onlineMessage, setOnlineMessage] = useState('')
   const [onlineError, setOnlineError] = useState('')
   const [onlineLoadingAction, setOnlineLoadingAction] = useState(null)
 
@@ -34,6 +72,7 @@ export default function GameSetup({
   const targetLabel = gameMode === 'classic' ? 'Tur Sayısı' : 'Hedef Puan'
   const isOnlineMode = opponentType === 'online'
   const isOnlineLoading = onlineLoadingAction !== null
+  const lobbyMessage = getLobbyMessage(onlineLobby)
   const previewGameConfig = {
     boardSize,
     winLength: selectedBoard.winLength,
@@ -43,12 +82,18 @@ export default function GameSetup({
     opponentType,
   }
 
+  function resetOnlineLobby() {
+    setOnlineFlow(null)
+    setOnlineLobby(null)
+    setOnlineMessage('')
+    setOnlineError('')
+  }
+
   function handleModeChange(nextMode) {
     setGameMode(nextMode)
     setTargetValue(nextMode === 'classic' ? 5 : 30)
     setIsInfinite(false)
-    setOnlineLobby(null)
-    setOnlineError('')
+    resetOnlineLobby()
   }
 
   function handleOpponentTypeChange(nextOpponentType) {
@@ -56,7 +101,7 @@ export default function GameSetup({
     setOnlineError('')
 
     if (nextOpponentType !== 'online') {
-      setOnlineLobby(null)
+      resetOnlineLobby()
     }
   }
 
@@ -72,21 +117,25 @@ export default function GameSetup({
     })
   }
 
-  function getCurrentOnlinePlayer(room, playerName, preferredSymbol) {
-    const normalizedPlayerName = playerName.trim().toLowerCase()
-    const matchingPlayers = room.players.filter(
-      (player) => player.name.trim().toLowerCase() === normalizedPlayerName
-    )
+  function saveOnlineLobby(room, player, playerName) {
+    const nextLobby = {
+      room,
+      playerId: player.id,
+      symbol: player.symbol,
+      playerName,
+    }
 
-    return (
-      matchingPlayers.find((player) => player.symbol === preferredSymbol) ??
-      matchingPlayers.at(-1) ??
-      room.players.at(-1)
-    )
+    setOnlineLobby(nextLobby)
+    onSaveOnlineSession({
+      roomCode: room.roomCode,
+      playerId: player.id,
+      symbol: player.symbol,
+      playerName,
+    })
   }
 
   async function handleCreateOnlineRoom() {
-    const playerName = onlinePlayerName.trim()
+    const playerName = createPlayerName.trim()
 
     if (!playerName) {
       setOnlineError('Oyuncu adı boş olamaz.')
@@ -94,6 +143,7 @@ export default function GameSetup({
     }
 
     setOnlineError('')
+    setOnlineMessage('')
     setOnlineLoadingAction('create')
 
     try {
@@ -109,19 +159,9 @@ export default function GameSetup({
       })
       const player = getCurrentOnlinePlayer(room, playerName, 'X')
 
-      setOnlineRoomCode(room.roomCode)
-      setOnlineLobby({
-        room,
-        playerId: player.id,
-        symbol: player.symbol,
-        playerName,
-      })
-      onSaveOnlineSession({
-        roomCode: room.roomCode,
-        playerId: player.id,
-        symbol: player.symbol,
-        playerName,
-      })
+      saveOnlineLobby(room, player, playerName)
+      setJoinRoomCode(room.roomCode)
+      setOnlineMessage('Oda oluşturuldu. Kodunu arkadaşınla paylaş.')
     } catch (error) {
       setOnlineError(error.message)
     } finally {
@@ -130,8 +170,8 @@ export default function GameSetup({
   }
 
   async function handleJoinOnlineRoom() {
-    const playerName = onlinePlayerName.trim()
-    const roomCode = onlineRoomCode.trim().toUpperCase()
+    const playerName = joinPlayerName.trim()
+    const roomCode = joinRoomCode.trim().toUpperCase()
 
     if (!playerName) {
       setOnlineError('Oyuncu adı boş olamaz.')
@@ -144,33 +184,46 @@ export default function GameSetup({
     }
 
     setOnlineError('')
+    setOnlineMessage('')
     setOnlineLoadingAction('join')
 
     try {
+      let isReconnect = false
+
+      try {
+        const currentRoom = await requestRoomJson(`/api/rooms/${roomCode}`)
+        isReconnect = currentRoom.players.some(
+          (player) => normalizeName(player.name) === normalizeName(playerName)
+        )
+      } catch {
+        isReconnect = false
+      }
+
       const room = await requestRoomJson(`/api/rooms/${roomCode}/join`, {
         method: 'POST',
         body: JSON.stringify({ playerName }),
       })
       const player = getCurrentOnlinePlayer(room, playerName, 'O')
 
-      setOnlineRoomCode(room.roomCode)
-      setOnlineLobby({
-        room,
-        playerId: player.id,
-        symbol: player.symbol,
-        playerName,
-      })
-      onSaveOnlineSession({
-        roomCode: room.roomCode,
-        playerId: player.id,
-        symbol: player.symbol,
-        playerName,
-      })
+      saveOnlineLobby(room, player, playerName)
+      setJoinRoomCode(room.roomCode)
+      setOnlineMessage(
+        isReconnect ? 'Bu odaya aynı isimle geri döndün.' : 'Oda sahibi oyunu başlatacak.'
+      )
     } catch (error) {
       setOnlineError(error.message)
     } finally {
       setOnlineLoadingAction(null)
     }
+  }
+
+  async function handleCopyRoomCode() {
+    if (!onlineLobby?.room.roomCode || !navigator.clipboard) {
+      return
+    }
+
+    await navigator.clipboard.writeText(onlineLobby.room.roomCode)
+    setOnlineMessage('Oda kodu kopyalandı.')
   }
 
   async function handleStartOnlineRoom() {
@@ -350,7 +403,7 @@ export default function GameSetup({
                 onClick={() => {
                   setTargetValue(target)
                   setIsInfinite(false)
-                  setOnlineLobby(null)
+                  resetOnlineLobby()
                 }}
               >
                 {gameMode === 'classic' ? `${target} Tur` : `${target} Pts`}
@@ -361,7 +414,7 @@ export default function GameSetup({
               type="button"
               onClick={() => {
                 setIsInfinite(true)
-                setOnlineLobby(null)
+                resetOnlineLobby()
               }}
             >
               ∞
@@ -377,47 +430,119 @@ export default function GameSetup({
 
         {isOnlineMode && (
           <div className="online-lobby-panel">
-            <div className="online-field">
-              <label htmlFor="online-player-name">Oyuncu Adı</label>
-              <input
-                id="online-player-name"
-                type="text"
-                value={onlinePlayerName}
-                onChange={(event) => setOnlinePlayerName(event.target.value)}
-                placeholder="Adınızı yazın"
-                disabled={isOnlineLoading}
-              />
-            </div>
-
-            <div className="online-action-grid">
-              <button
-                type="button"
-                className="online-primary-action"
-                onClick={handleCreateOnlineRoom}
-                disabled={isOnlineLoading}
-              >
-                {onlineLoadingAction === 'create' ? 'Oluşturuluyor...' : 'Oda Oluştur'}
-              </button>
-
-              <div className="online-join-row">
-                <input
-                  type="text"
-                  value={onlineRoomCode}
-                  onChange={(event) => setOnlineRoomCode(event.target.value.toUpperCase())}
-                  placeholder="Oda kodu"
-                  disabled={isOnlineLoading}
-                  aria-label="Oda kodu"
-                />
+            {!onlineLobby && !onlineFlow && (
+              <div className="online-choice-grid">
                 <button
                   type="button"
-                  className="online-secondary-action"
-                  onClick={handleJoinOnlineRoom}
-                  disabled={isOnlineLoading}
+                  className="online-choice-card"
+                  onClick={() => setOnlineFlow('create')}
                 >
-                  {onlineLoadingAction === 'join' ? 'Katılıyor...' : 'Katıl'}
+                  <span>Oda Kur</span>
+                  <small>Kod oluştur ve arkadaşını davet et</small>
+                </button>
+
+                <button
+                  type="button"
+                  className="online-choice-card"
+                  onClick={() => setOnlineFlow('join')}
+                >
+                  <span>Odaya Katıl</span>
+                  <small>Arkadaşından gelen kodla gir</small>
                 </button>
               </div>
-            </div>
+            )}
+
+            {!onlineLobby && onlineFlow === 'create' && (
+              <div className="online-mode-grid online-mode-grid--single">
+                <div className="online-flow-card">
+                  <div>
+                    <span className="setup-control-label">ODA OLUŞTUR</span>
+                    <h2>Arkadaşını davet et</h2>
+                    <p>Oda kodunu oluştur, rakibin katılınca oyunu sen başlat.</p>
+                  </div>
+
+                  <div className="online-field">
+                    <label htmlFor="create-player-name">Oyuncu Adı</label>
+                    <input
+                      id="create-player-name"
+                      type="text"
+                      value={createPlayerName}
+                      onChange={(event) => setCreatePlayerName(event.target.value)}
+                      placeholder="Adını yaz"
+                      disabled={isOnlineLoading}
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    className="online-primary-action"
+                    onClick={handleCreateOnlineRoom}
+                    disabled={isOnlineLoading}
+                  >
+                    {onlineLoadingAction === 'create' ? 'Oluşturuluyor...' : 'Oda Oluştur'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {!onlineLobby && onlineFlow === 'join' && (
+              <div className="online-mode-grid online-mode-grid--single">
+                <div className="online-flow-card">
+                  <div>
+                    <span className="setup-control-label">ODAYA KATIL</span>
+                    <h2>Kodla oyuna gir</h2>
+                    <p>Arkadaşından gelen oda kodu ve kendi adınla lobby'ye katıl.</p>
+                  </div>
+
+                  <div className="online-field">
+                    <label htmlFor="join-player-name">Oyuncu Adı</label>
+                    <input
+                      id="join-player-name"
+                      type="text"
+                      value={joinPlayerName}
+                      onChange={(event) => setJoinPlayerName(event.target.value)}
+                      placeholder="Adını yaz"
+                      disabled={isOnlineLoading}
+                    />
+                  </div>
+
+                  <div className="online-field">
+                    <label htmlFor="join-room-code">Oda Kodu</label>
+                    <input
+                      id="join-room-code"
+                      type="text"
+                      value={joinRoomCode}
+                      onChange={(event) => setJoinRoomCode(event.target.value.toUpperCase())}
+                      placeholder="Kodu yaz"
+                      disabled={isOnlineLoading}
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    className="online-secondary-action"
+                    onClick={handleJoinOnlineRoom}
+                    disabled={isOnlineLoading}
+                  >
+                    {onlineLoadingAction === 'join' ? 'Katılıyor...' : 'Odaya Katıl'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {!onlineLobby && onlineFlow && (
+              <button
+                type="button"
+                className="online-flow-back"
+                onClick={() => {
+                  setOnlineFlow(null)
+                  setOnlineError('')
+                  setOnlineMessage('')
+                }}
+              >
+                Online seçeneklere dön
+              </button>
+            )}
 
             {onlineError && (
               <div className="online-message online-message--error" role="alert">
@@ -427,9 +552,12 @@ export default function GameSetup({
 
             {onlineLobby && (
               <div className="online-room-summary" aria-live="polite">
-                <div className="online-room-code">
+                <div className="online-room-code online-room-code--large">
                   <span>Oda Kodu</span>
                   <strong>{onlineLobby.room.roomCode}</strong>
+                  <button type="button" className="online-copy-action" onClick={handleCopyRoomCode}>
+                    Kopyala
+                  </button>
                 </div>
 
                 <div className="online-room-details">
@@ -452,9 +580,17 @@ export default function GameSetup({
                   ))}
                 </div>
 
-                <div className="online-message">
-                  {getRoomStatusText(onlineLobby.room.status)}
-                </div>
+                {onlineMessage && (
+                  <div className="online-message">
+                    {onlineMessage}
+                  </div>
+                )}
+
+                {lobbyMessage && lobbyMessage !== onlineMessage && (
+                  <div className="online-message">
+                    {lobbyMessage}
+                  </div>
+                )}
 
                 {onlineLobby.room.status === 'ready' && onlineLobby.symbol === 'X' && (
                   <button
@@ -463,23 +599,17 @@ export default function GameSetup({
                     onClick={handleStartOnlineRoom}
                     disabled={isOnlineLoading}
                   >
-                    <span>{onlineLoadingAction === 'start' ? 'Başlatılıyor...' : 'Oyuna Geç'}</span>
-                    <small>Odayı başlat ve online oyun ekranına geç</small>
+                    <span>{onlineLoadingAction === 'start' ? 'Başlatılıyor...' : 'Oyunu Başlat'}</span>
+                    <small>Oda sahibi olarak online maçı başlat</small>
                   </button>
                 )}
 
-                {onlineLobby.room.status === 'ready' && onlineLobby.symbol === 'O' && (
-                  <button type="button" className="online-play-action" disabled>
-                    <span>Oyuna Geç</span>
-                    <small>Oda sahibi oyunu başlatacak</small>
-                  </button>
-                )}
               </div>
             )}
           </div>
         )}
 
-        <div className="setup-action-row" aria-label="Setup ek aksiyonları">
+        <div className="setup-action-row" aria-label="Setup ek aksiyonlari">
           <button
             type="button"
             className="setup-secondary-action setup-secondary-action--disabled"
@@ -487,7 +617,7 @@ export default function GameSetup({
             aria-disabled="true"
           >
             <span>Turnuva</span>
-            <small>Yakında</small>
+            <small>Yakinda</small>
           </button>
           <button
             type="button"
