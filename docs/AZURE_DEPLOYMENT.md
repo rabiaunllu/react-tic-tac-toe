@@ -15,8 +15,20 @@ For an App Service hostname such as `https://xo-arena.azurewebsites.net`:
 | `https://xo-arena.azurewebsites.net/api/...` | Room and gameplay API |
 | `https://xo-arena.azurewebsites.net/hubs/rooms` | SignalR rooms hub |
 | `https://xo-arena.azurewebsites.net/<frontend-route>` | React SPA fallback to `index.html` |
+| `https://xo-arena.azurewebsites.net/robots.txt` | Search crawler rules and sitemap location |
+| `https://xo-arena.azurewebsites.net/sitemap.xml` | Production home page sitemap |
 
 Production serves static files and the SPA fallback from `wwwroot`. Development keeps the existing API-first local behavior: it does not serve `wwwroot` and does not register the SPA fallback.
+
+## Search indexing after deployment
+
+The repository's SEO files use `https://xo-arena.azurewebsites.net` as the production URL. If the actual App Service hostname differs, or when a custom domain is added, update all three values before rebuilding and deploying:
+
+- `public/robots.txt` — sitemap URL
+- `public/sitemap.xml` — home page URL
+- `index.html` — `og:url`
+
+In Google Search Console, add and verify the exact production site property, submit the deployed `/sitemap.xml` in **Sitemaps**, then inspect the home URL with **URL Inspection** and choose **Request indexing**. Indexing is not immediate or guaranteed; Google decides when to crawl and show the site.
 
 ## Exact local build and publish commands
 
