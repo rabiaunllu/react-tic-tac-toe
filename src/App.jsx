@@ -778,6 +778,7 @@ const hasGameStarted =
           aiTrapIndexes: traps
             .filter((trap) => trap.owner === 'O')
             .map((trap) => trap.index),
+          multipliers,
         })
 
         if (aiPowerAction?.type === 'bomb') {
@@ -858,6 +859,8 @@ const hasGameStarted =
         humanWinStreak,
         roundNumber,
         blockedIndexes: [...lockedSquares, ...frozenSquares],
+        multipliers:
+          gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
       })
 
       if (aiMove === null) {
@@ -886,6 +889,8 @@ const hasGameStarted =
     playerPowers,
     shieldedSquares,
     boostedSquares,
+    multipliers,
+    multipliersEnabled,
     visibleBoostedSquares,
     traps,
     finishRound,
