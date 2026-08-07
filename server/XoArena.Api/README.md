@@ -1,5 +1,7 @@
 # XO Arena API
 
+For commercial production, this API also serves the React build from `wwwroot` on the same Azure App Service. See the repository [Azure deployment guide](../../docs/AZURE_DEPLOYMENT.md).
+
 Initial ASP.NET Core backend for XO Arena. It runs separately from the Vite frontend and does not include database, authentication, or full room management yet.
 
 ## Run
@@ -42,10 +44,10 @@ The response is production-safe and returns service status, service name, enviro
 
 ### Frontend env
 
-The Azure Static Web Apps frontend must be built with the live backend URL:
+The single App Service frontend uses same-origin requests. Build it with an empty `VITE_API_BASE_URL` and Online enabled:
 
 ```env
-VITE_API_BASE_URL=https://YOUR_BACKEND_URL
+VITE_API_BASE_URL=
 VITE_ENABLE_ONLINE=true
 ```
 
@@ -62,10 +64,10 @@ Do not commit a real `.env` file.
 
 Allowed frontend origins are configured in `Cors:AllowedOrigins`.
 
-Production must include only the deployed Azure frontend origin, supplied through the App Service setting `Cors__AllowedOrigins__0`:
+Same-origin App Service hosting does not need CORS configuration. If a future separate frontend is used, configure only its origin through the App Service setting `Cors__AllowedOrigins__0`:
 
 ```text
-https://YOUR_STATIC_WEB_APP.azurestaticapps.net
+https://YOUR_SEPARATE_FRONTEND.example.com
 ```
 
 Origins do not include paths, so do not add `https://rabiaunllu.github.io/react-tic-tac-toe`. Do not use wildcard CORS for production.
@@ -110,7 +112,7 @@ No provider-specific config file is committed in this branch.
 - Set `ASPNETCORE_ENVIRONMENT=Production`.
 - Set `ASPNETCORE_URLS` or provider start command so the API binds to the provider port.
 - Restrict `AllowedHosts` to the deployed backend host when the host is known.
-- Set `Cors__AllowedOrigins__0` to the Azure Static Web Apps origin and verify no wildcard is used.
+- For same-origin hosting, leave `Cors__AllowedOrigins__0` unset; for a separate frontend, set it to that exact origin with no wildcard.
 - Verify `GET /health` returns 200 from the public backend URL.
 - Build the frontend with `VITE_API_BASE_URL=https://YOUR_BACKEND_URL` and `VITE_ENABLE_ONLINE=true`.
 - Confirm no `.env`, secrets, API keys, or connection strings are committed.
@@ -135,7 +137,7 @@ VITE_API_BASE_URL=https://api.example.com
 VITE_ENABLE_ONLINE=true
 ```
 
-If a production build does not have a live `VITE_API_BASE_URL`, Online is treated as unavailable so the deployed frontend does not show a broken room flow.
+For the single App Service production build, an empty `VITE_API_BASE_URL` means same-origin API calls and Online remains available when `VITE_ENABLE_ONLINE=true`.
 
 ## CORS
 
@@ -147,10 +149,10 @@ Local Vite uses:
 http://localhost:5173
 ```
 
-The Azure Static Web Apps production origin is configured through the App Service setting `Cors__AllowedOrigins__0`:
+A future separate frontend origin is configured through the App Service setting `Cors__AllowedOrigins__0`:
 
 ```text
-https://YOUR_STATIC_WEB_APP.azurestaticapps.net
+https://YOUR_SEPARATE_FRONTEND.example.com
 ```
 
 CORS origins do not include URL paths. `Program.cs` reads allowed origins from configuration; localhost values are defined only in `appsettings.Development.json`.

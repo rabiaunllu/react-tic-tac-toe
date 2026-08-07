@@ -10,6 +10,8 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+server/XoArena.Api/wwwroot/
+server/XoArena.Api/publish/
 .env
 .env.*
 !.env.example
