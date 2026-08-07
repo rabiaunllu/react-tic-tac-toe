@@ -10,6 +10,7 @@ import { clearOnlineSession } from '../sessionStorage'
 import Board from './Board'
 import PowerPanel from './PowerPanel'
 import RoundResultModal from './RoundResultModal'
+import RoundResultPreviewBar from './RoundResultPreviewBar'
 import SoundToggle from './SoundToggle'
 import { playSound, registerUserGesture } from '../game/soundManager'
 
@@ -167,6 +168,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
   const [isStartPending, setIsStartPending] = useState(false)
   const [isNextRoundPending, setIsNextRoundPending] = useState(false)
   const [isMenuConfirmOpen, setIsMenuConfirmOpen] = useState(false)
+  const [isRoundResultDismissed, setIsRoundResultDismissed] = useState(false)
   const [onlineRoundMessage, setOnlineRoundMessage] = useState(() =>
     createOnlineRoundMessage(initialOnlineGame.room, initialOnlineGame.symbol)
   )
@@ -257,6 +259,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
     if (nextResultSignature !== onlineRoundMessageSignatureRef.current) {
       onlineRoundMessageSignatureRef.current = nextResultSignature
       setOnlineRoundMessage(createOnlineRoundMessage(nextRoom, mySymbol))
+      setIsRoundResultDismissed(false)
     }
 
     if (nextCurrentSymbol !== mySymbol || nextRoom.game.winner || nextRoom.game.isDraw) {
@@ -699,9 +702,25 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
             </>
           )}
         </div>
+
+        {isRoundFinished && isRoundResultDismissed && (
+          <RoundResultPreviewBar
+            onNextRound={handleNextRound}
+            nextRoundLabel={nextRoundLabel}
+            isNextRoundDisabled={isNextRoundDisabled}
+            nextRoundTitle={
+              room.status === 'completed'
+                ? 'Maç tamamlandı.'
+                : isRoomInactive
+                  ? 'Oda artık aktif değil.'
+                  : undefined
+            }
+            statusMessage={nextRoundStatusMessage}
+          />
+        )}
       </section>
 
-      {isRoundFinished && (
+      {isRoundFinished && !isRoundResultDismissed && (
         <RoundResultModal
           roundNumber={room.game.roundNumber}
           winner={room.game.winner}
@@ -723,6 +742,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
           }
           menuConfirmTitle="Menüye dönülsün mü?"
           menuConfirmActionLabel="Menüye dön"
+          onClose={() => setIsRoundResultDismissed(true)}
         />
       )}
     </main>
