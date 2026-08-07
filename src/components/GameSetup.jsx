@@ -231,6 +231,14 @@ export default function GameSetup({
     setIsRoomCodeCopied(true)
   }
 
+  function handleOnlineFlowBack() {
+    registerUserGesture()
+    playSound('click')
+    setOnlineFlow(null)
+    setOnlineError('')
+    setOnlineConnectionMessage('')
+  }
+
   async function handleStartOnlineRoom() {
     registerUserGesture()
     playSound('click')
@@ -492,12 +500,22 @@ export default function GameSetup({
             {!onlineLobby && onlineFlow === 'create' && (
               <div className="online-mode-grid online-mode-grid--single">
                 <div className="online-flow-card">
-                  <header className="online-flow-header">
-                    <span className="setup-control-label">
-                      {gameMode === 'arena' ? 'ONLINE ARENA' : 'ONLINE KLASİK'}
-                    </span>
-                    <h2>Odanı kur</h2>
-                    <p>Oyuncu adını yaz ve maç kurallarını tamamla.</p>
+                  <header className="online-flow-header online-flow-card-header">
+                    <div>
+                      <span className="setup-control-label">
+                        {gameMode === 'arena' ? 'ONLINE ARENA' : 'ONLINE KLASİK'}
+                      </span>
+                      <h2>Odanı kur</h2>
+                      <p>Oyuncu adını yaz ve maç kurallarını tamamla.</p>
+                    </div>
+                    <button
+                      type="button"
+                      className="online-flow-close"
+                      onClick={handleOnlineFlowBack}
+                      aria-label="Online seçeneklere dön"
+                    >
+                      ×
+                    </button>
                   </header>
 
                   <div className="online-field">
@@ -538,10 +556,21 @@ export default function GameSetup({
             {!onlineLobby && onlineFlow === 'join' && (
               <div className="online-mode-grid online-mode-grid--single">
                 <div className="online-flow-card">
-                  <div>
-                    <span className="setup-control-label"></span>
-                    
-                  </div>
+                  <header className="online-flow-header online-flow-card-header">
+                    <div>
+                      <span className="setup-control-label">ONLINE</span>
+                      <h2>Odaya katıl</h2>
+                      <p>Oyuncu adını ve oda kodunu gir.</p>
+                    </div>
+                    <button
+                      type="button"
+                      className="online-flow-close"
+                      onClick={handleOnlineFlowBack}
+                      aria-label="Online seçeneklere dön"
+                    >
+                      ×
+                    </button>
+                  </header>
 
                   <div className="online-field">
                     <label htmlFor="join-player-name">Oyuncu Adı</label>
@@ -578,20 +607,6 @@ export default function GameSetup({
                   </button>
                 </div>
               </div>
-            )}
-
-            {!onlineLobby && onlineFlow && (
-              <button
-                type="button"
-                className="online-flow-back"
-                onClick={() => {
-                  setOnlineFlow(null)
-                  setOnlineError('')
-                  setOnlineConnectionMessage('')
-                }}
-              >
-                Online seçeneklere dön
-              </button>
             )}
 
             {onlineError && (

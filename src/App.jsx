@@ -613,8 +613,9 @@ const hasGameStarted =
 
       if (hadOnlineSession && IS_ONLINE_ENABLED) {
         if (!onlineSession) {
+          clearOnlineSession()
           if (isMounted) {
-            setSetupRestoreMessage('Online oda bulunamadı, tekrar oda oluşturabilir veya koda katılabilirsin.')
+            setSetupRestoreMessage('')
             setIsSessionRestoreChecked(true)
           }
           return
@@ -640,6 +641,13 @@ const hasGameStarted =
         } catch (error) {
           if (isRoomNotFoundError(error)) {
             clearOnlineSession()
+
+            if (isMounted) {
+              setSetupRestoreMessage('')
+              setIsSessionRestoreChecked(true)
+            }
+
+            return
           }
 
           if (isMounted) {
