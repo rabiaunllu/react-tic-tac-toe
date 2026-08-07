@@ -129,6 +129,60 @@ function getNearLines({
     .sort((firstLine, secondLine) => secondLine.playerIndexes.length - firstLine.playerIndexes.length)
 }
 
+function getCellMultiplier(multipliers, index) {
+  return multipliers?.[index] ?? 1
+}
+
+function getBestScoredIndex(candidates, getScore) {
+  return candidates.reduce(
+    (best, index) => {
+      const score = getScore(index)
+
+      if (score > best.score) {
+        return { index, score }
+      }
+
+      return best
+    },
+    { index: null, score: Number.NEGATIVE_INFINITY }
+  ).index
+}
+
+function getArenaStrategicMove({
+  squares,
+  boardSize,
+  winLength,
+  multipliers = {},
+  blockedIndexes = [],
+  aiPlayer = aiPlayerDefault,
+}) {
+  const emptyIndexes = getEmptyIndexes(squares, blockedIndexes)
+  const lines = getBoardLines(boardSize, winLength)
+
+  if (emptyIndexes.length === 0 || Object.keys(multipliers).length === 0) {
+    return null
+  }
+
+  return getBestScoredIndex(emptyIndexes, (index) => {
+    const multiplierValue = getCellMultiplier(multipliers, index)
+    const lineScore = lines.reduce((total, line) => {
+      if (!line.includes(index) || line.some((lineIndex) => squares[lineIndex] && squares[lineIndex] !== aiPlayer)) {
+        return total
+      }
+
+      const aiStoneCount = line.filter((lineIndex) => squares[lineIndex] === aiPlayer).length
+      const potentialRoundScore = line.reduce(
+        (score, lineIndex) => score + getCellMultiplier(multipliers, lineIndex),
+        0
+      )
+
+      return total + aiStoneCount * 12 + potentialRoundScore * 2
+    }, 0)
+
+    return lineScore + multiplierValue * 5
+  })
+}
+
 function getAdaptivePowerChance(humanWinStreak, roundNumber = 1) {
   if (humanWinStreak >= 2) {
     return 0.72
@@ -200,28 +254,47 @@ function getAiBombTarget({
     }
   }
 
-  return null
+  const dangerousLines = getNearLines({
+    squares,
+    boardSize,
+    winLength,
+    player: humanPlayer,
+    blockedIndexes,
+  })
+  const candidates = dangerousLines.flatMap(({ playerIndexes }) =>
+    playerIndexes.filter((index) => !shieldedSquares.includes(index))
+  )
+
+  return getBestScoredIndex(candidates, (index) =>
+    dangerousLines.reduce((score, line) => {
+      if (!line.playerIndexes.includes(index)) {
+        return score
+      }
+
+      return score + line.playerIndexes.length * 10 + line.emptyIndexes.length
+    }, 0)
+  )
 }
 
-function getAiShieldTarget({
+function getAiImmediateBombTarget({
   squares,
   boardSize,
   winLength,
   shieldedSquares = [],
   blockedIndexes = [],
-  aiPlayer = aiPlayerDefault,
+  humanPlayer = humanPlayerDefault,
 }) {
-  const nearLines = getNearLines({
+  const threats = getImmediateThreats({
     squares,
     boardSize,
     winLength,
-    player: aiPlayer,
+    player: humanPlayer,
     blockedIndexes,
   })
 
-  for (const nearLine of nearLines) {
-    const target = nearLine.playerIndexes.find(
-      (index) => !shieldedSquares.includes(index) && !blockedIndexes.includes(index)
+  for (const threat of threats) {
+    const target = threat.playerIndexes.find(
+      (index) => !shieldedSquares.includes(index)
     )
 
     if (target !== undefined) {
@@ -232,12 +305,51 @@ function getAiShieldTarget({
   return null
 }
 
+function getAiShieldTarget({
+  squares,
+  boardSize,
+  winLength,
+  shieldedSquares = [],
+  blockedIndexes = [],
+  multipliers = {},
+  aiPlayer = aiPlayerDefault,
+}) {
+  const nearLines = getNearLines({
+    squares,
+    boardSize,
+    winLength,
+    player: aiPlayer,
+    blockedIndexes,
+  })
+
+  const candidates = nearLines.flatMap(({ playerIndexes }) =>
+    playerIndexes.filter(
+      (index) => !shieldedSquares.includes(index) && !blockedIndexes.includes(index)
+    )
+  )
+
+  return getBestScoredIndex(candidates, (index) =>
+    nearLines.reduce((score, line) => {
+      if (!line.playerIndexes.includes(index)) {
+        return score
+      }
+
+      const lineValue = line.line.reduce(
+        (total, lineIndex) => total + getCellMultiplier(multipliers, lineIndex),
+        0
+      )
+      return score + line.playerIndexes.length * 10 + lineValue * 2
+    }, 0) + getCellMultiplier(multipliers, index) * 4
+  )
+}
+
 function getAiTrapTarget({
   squares,
   boardSize,
   winLength,
   blockedIndexes = [],
   aiTrapIndexes = [],
+  multipliers = {},
   humanPlayer = humanPlayerDefault,
 }) {
   const threats = getImmediateThreats({
@@ -259,6 +371,30 @@ function getAiTrapTarget({
 
   if (threatTarget !== undefined) {
     return threatTarget
+  }
+
+  const nearLines = getNearLines({
+    squares,
+    boardSize,
+    winLength,
+    player: humanPlayer,
+    blockedIndexes,
+  })
+  const likelyHumanMoves = nearLines.flatMap(({ emptyIndexes }) =>
+    emptyIndexes.filter((index) => !aiTrapIndexes.includes(index))
+  )
+  const strategicTarget = getBestScoredIndex(likelyHumanMoves, (index) =>
+    nearLines.reduce((score, line) => {
+      if (!line.emptyIndexes.includes(index)) {
+        return score
+      }
+
+      return score + line.playerIndexes.length * 10
+    }, 0) + getCellMultiplier(multipliers, index) * 3
+  )
+
+  if (strategicTarget !== null) {
+    return strategicTarget
   }
 
   const centerTarget = getCenterMove(squares, boardSize, blockedIndexes)
@@ -314,10 +450,19 @@ function getTacticalMove({
   aiPlayer,
   humanPlayer,
   blockedIndexes = [],
+  multipliers,
 }) {
   return (
     findWinningMove(squares, boardSize, winLength, aiPlayer, blockedIndexes) ??
     findWinningMove(squares, boardSize, winLength, humanPlayer, blockedIndexes) ??
+    getArenaStrategicMove({
+      squares,
+      boardSize,
+      winLength,
+      multipliers,
+      blockedIndexes,
+      aiPlayer,
+    }) ??
     getCenterMove(squares, boardSize, blockedIndexes) ??
     getCornerMove(squares, boardSize, blockedIndexes) ??
     getRandomMove(squares, blockedIndexes)
@@ -358,9 +503,34 @@ export function getAdaptiveAiMove({
   humanWinStreak,
   roundNumber = 1,
   blockedIndexes = [],
+  multipliers,
   aiPlayer = 'O',
   humanPlayer = 'X',
 }) {
+  const winningMove = findWinningMove(
+    squares,
+    boardSize,
+    winLength,
+    aiPlayer,
+    blockedIndexes
+  )
+
+  if (winningMove !== null) {
+    return winningMove
+  }
+
+  const blockingMove = findWinningMove(
+    squares,
+    boardSize,
+    winLength,
+    humanPlayer,
+    blockedIndexes
+  )
+
+  if (blockingMove !== null) {
+    return blockingMove
+  }
+
   const randomChance = getAdaptiveRandomChance(humanWinStreak, roundNumber)
 
   if (Math.random() < randomChance) {
@@ -374,6 +544,7 @@ export function getAdaptiveAiMove({
     aiPlayer,
     humanPlayer,
     blockedIndexes,
+    multipliers,
   })
 }
 
@@ -388,28 +559,10 @@ export function getArenaAiPowerAction({
   boostedSquares = [],
   blockedIndexes = [],
   aiTrapIndexes = [],
+  multipliers = {},
   aiPlayer = aiPlayerDefault,
   humanPlayer = humanPlayerDefault,
 }) {
-  if (Math.random() > getAdaptivePowerChance(humanWinStreak, roundNumber)) {
-    return null
-  }
-
-  const bombTarget = hasPower(playerPowers, 'bomb')
-    ? getAiBombTarget({
-        squares,
-        boardSize,
-        winLength,
-        shieldedSquares,
-        blockedIndexes,
-        humanPlayer,
-      })
-    : null
-
-  if (bombTarget !== null) {
-    return { type: 'bomb', index: bombTarget }
-  }
-
   const boostTarget = hasPower(playerPowers, 'boost')
     ? getAiBoostTarget({
         squares,
@@ -425,6 +578,63 @@ export function getArenaAiPowerAction({
     return { type: 'boost', index: boostTarget }
   }
 
+  const humanThreats = getImmediateThreats({
+    squares,
+    boardSize,
+    winLength,
+    player: humanPlayer,
+    blockedIndexes,
+  })
+  const bombTarget = humanThreats.length > 0 && hasPower(playerPowers, 'bomb')
+    ? getAiImmediateBombTarget({
+        squares,
+        boardSize,
+        winLength,
+        shieldedSquares,
+        blockedIndexes,
+        humanPlayer,
+      })
+    : null
+
+  if (bombTarget !== null) {
+    return { type: 'bomb', index: bombTarget }
+  }
+
+  const trapTarget = humanThreats.length > 0 && hasPower(playerPowers, 'trap')
+    ? getAiTrapTarget({
+        squares,
+        boardSize,
+        winLength,
+        blockedIndexes,
+        aiTrapIndexes,
+        multipliers,
+        humanPlayer,
+      })
+    : null
+
+  if (trapTarget !== null) {
+    return { type: 'trap', index: trapTarget }
+  }
+
+  if (Math.random() > getAdaptivePowerChance(humanWinStreak, roundNumber)) {
+    return null
+  }
+
+  const opportunisticBombTarget = hasPower(playerPowers, 'bomb')
+    ? getAiBombTarget({
+        squares,
+        boardSize,
+        winLength,
+        shieldedSquares,
+        blockedIndexes,
+        humanPlayer,
+      })
+    : null
+
+  if (opportunisticBombTarget !== null) {
+    return { type: 'bomb', index: opportunisticBombTarget }
+  }
+
   const shieldTarget = hasPower(playerPowers, 'shield')
     ? getAiShieldTarget({
         squares,
@@ -432,6 +642,7 @@ export function getArenaAiPowerAction({
         winLength,
         shieldedSquares,
         blockedIndexes,
+        multipliers,
         aiPlayer,
       })
     : null
@@ -440,19 +651,20 @@ export function getArenaAiPowerAction({
     return { type: 'shield', index: shieldTarget }
   }
 
-  const trapTarget = hasPower(playerPowers, 'trap')
+  const opportunisticTrapTarget = hasPower(playerPowers, 'trap')
     ? getAiTrapTarget({
         squares,
         boardSize,
         winLength,
         blockedIndexes,
         aiTrapIndexes,
+        multipliers,
         humanPlayer,
       })
     : null
 
-  if (trapTarget !== null) {
-    return { type: 'trap', index: trapTarget }
+  if (opportunisticTrapTarget !== null) {
+    return { type: 'trap', index: opportunisticTrapTarget }
   }
 
   return null
