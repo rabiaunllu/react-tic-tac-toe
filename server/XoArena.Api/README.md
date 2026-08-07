@@ -10,11 +10,110 @@ dotnet build server/XoArena.Api
 dotnet run --project server/XoArena.Api
 ```
 
+To run the API on the local URL expected by the frontend:
+
+```powershell
+dotnet run --project .\server\XoArena.Api --urls http://localhost:5243
+```
+
 The local HTTP URL from `Properties/launchSettings.json` is:
 
 ```text
 http://localhost:5243
 ```
+
+## Hosting Hazirligi
+
+This branch prepares the API for hosting, but does not deploy it.
+
+### Local calistirma
+
+```powershell
+dotnet run --project .\server\XoArena.Api --urls http://localhost:5243
+```
+
+### Health check
+
+```text
+GET /health
+```
+
+The response is production-safe and returns service status, service name, environment name, and a UTC timestamp. It does not return secrets, connection strings, stack traces, room data, or host internals.
+
+### Frontend env
+
+The GitHub Pages frontend must be built with the live backend URL:
+
+```env
+VITE_API_BASE_URL=https://YOUR_BACKEND_URL
+VITE_ENABLE_ONLINE=true
+```
+
+For local development, `.env.example` stays:
+
+```env
+VITE_API_BASE_URL=http://localhost:5243
+VITE_ENABLE_ONLINE=true
+```
+
+Do not commit a real `.env` file.
+
+### CORS
+
+Allowed frontend origins are configured in `Cors:AllowedOrigins`.
+
+Production must include only the GitHub Pages origin:
+
+```text
+https://rabiaunllu.github.io
+```
+
+Origins do not include paths, so do not add `https://rabiaunllu.github.io/react-tic-tac-toe`. Do not use wildcard CORS for production.
+
+### Runtime host and port
+
+ASP.NET Core hosting providers commonly set the listening address through `ASPNETCORE_URLS`, for example:
+
+```text
+ASPNETCORE_URLS=http://0.0.0.0:${PORT}
+```
+
+Some providers expose only `PORT`; in that case configure the provider start command or environment so Kestrel binds to that port. Locally, `--urls http://localhost:5243` is enough.
+
+`UseHttpsRedirection` is not enabled in `Program.cs`. This is intentional for hosted environments where TLS is usually terminated by the platform or reverse proxy. HTTPS should be enforced at the hosting/provider layer for production traffic.
+
+`AllowedHosts` is still provider-dependent because the backend hostname is not selected in this branch. Before the first live deploy, set it to the deployed backend host through production configuration or the hosting provider environment instead of guessing a hostname in source.
+
+### In-memory room store
+
+Rooms are stored in memory. If the backend restarts, active rooms are lost. For multiple instances, scale-out, or long-lived rooms, replace the in-memory store with Redis or a database-backed store.
+
+For the first commercial MVP, use:
+
+- Single backend instance.
+- Open health check.
+- CORS restricted to the frontend origin.
+- No secrets or API keys in source.
+- No connection strings in source.
+
+### Deployment target notlari
+
+Render or Railway are fast for demos and simple deploys, but free tiers may sleep or hit quotas.
+
+Azure App Service is a professional fit for .NET hosting, but cost and credit usage should be watched.
+
+No provider-specific config file is committed in this branch.
+
+### Ilk deploy oncesi manual checklist
+
+- Pick the hosting provider and backend URL.
+- Set `ASPNETCORE_ENVIRONMENT=Production`.
+- Set `ASPNETCORE_URLS` or provider start command so the API binds to the provider port.
+- Restrict `AllowedHosts` to the deployed backend host when the host is known.
+- Verify `Cors:AllowedOrigins` contains `https://rabiaunllu.github.io` and no wildcard.
+- Verify `GET /health` returns 200 from the public backend URL.
+- Build the frontend with `VITE_API_BASE_URL=https://YOUR_BACKEND_URL` and `VITE_ENABLE_ONLINE=true`.
+- Confirm no `.env`, secrets, API keys, or connection strings are committed.
 
 ## Frontend API URL
 
@@ -67,7 +166,9 @@ Expected response:
 ```json
 {
   "status": "ok",
-  "service": "xo-arena-api"
+  "service": "xo-arena-api",
+  "environment": "Development",
+  "utc": "2026-08-07T09:00:00.0000000+00:00"
 }
 ```
 

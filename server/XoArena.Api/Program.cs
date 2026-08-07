@@ -30,10 +30,18 @@ var app = builder.Build();
 
 app.UseCors("Frontend");
 
+app.MapGet("/", () => Results.Ok(new
+{
+    service = "XO Arena API",
+    health = "/health"
+}));
+
 app.MapGet("/health", () => Results.Ok(new
 {
     status = "ok",
-    service = "xo-arena-api"
+    service = "xo-arena-api",
+    environment = app.Environment.EnvironmentName,
+    utc = DateTimeOffset.UtcNow
 }));
 
 app.MapHub<RoomsHub>("/hubs/rooms");
