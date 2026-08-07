@@ -243,6 +243,11 @@ public sealed class InMemoryRoomStore : IRoomStore
                 return MoveRoomResult.BadRequest("index", "Index is outside the board.");
             }
 
+            if (room.Game.LockedSquares.Contains(index))
+            {
+                return MoveRoomResult.Conflict("Square is temporarily locked.");
+            }
+
             if (room.Game.Squares[index] is not null)
             {
                 return MoveRoomResult.Conflict("Square is already occupied.");
@@ -270,6 +275,7 @@ public sealed class InMemoryRoomStore : IRoomStore
                     Game = room.Game with
                     {
                         XIsNext = !room.Game.XIsNext,
+                        LockedSquares = [],
                         Traps = room.Game.Traps.Where(trap => trap != triggeredTrap).ToArray()
                     }
                 };
@@ -308,7 +314,8 @@ public sealed class InMemoryRoomStore : IRoomStore
                     Scores = scores,
                     Winner = winner,
                     IsDraw = isDraw,
-                    WinningLine = winningLine
+                    WinningLine = winningLine,
+                    LockedSquares = []
                 }
             };
 
@@ -399,13 +406,17 @@ public sealed class InMemoryRoomStore : IRoomStore
             var squares = room.Game.Squares.ToArray();
             var shields = room.Game.ShieldedSquares.ToList();
             var boosts = room.Game.BoostedSquares.ToList();
+            var lockedSquares = room.Game.LockedSquares.ToList();
             var traps = room.Game.Traps.ToList();
+
+            lockedSquares.Clear();
 
             switch (normalizedPowerId)
             {
                 case "bomb":
                     squares[targetIndex] = null;
                     boosts.Remove(targetIndex);
+                    lockedSquares.Add(targetIndex);
                     break;
                 case "shield":
                     shields.Add(targetIndex);
@@ -435,6 +446,7 @@ public sealed class InMemoryRoomStore : IRoomStore
                     PlayerPowers = playerPowers,
                     ShieldedSquares = shields,
                     BoostedSquares = boosts,
+                    LockedSquares = lockedSquares,
                     Traps = traps
                 }
             };
@@ -527,6 +539,7 @@ public sealed class InMemoryRoomStore : IRoomStore
                         : new Dictionary<string, IReadOnlyDictionary<string, int>>(),
                     ShieldedSquares = [],
                     BoostedSquares = [],
+                    LockedSquares = [],
                     Traps = []
                 }
             };
@@ -569,6 +582,7 @@ public sealed class InMemoryRoomStore : IRoomStore
             gameMode is GameModes.Arena
                 ? players.ToDictionary(player => player.Id, _ => CreateInitialPowerCounts())
                 : new Dictionary<string, IReadOnlyDictionary<string, int>>(),
+            [],
             [],
             [],
             []);
@@ -659,10 +673,14 @@ public sealed class InMemoryRoomStore : IRoomStore
                 => "Stone is already shielded.",
             "boost" when room.Game.Squares[targetIndex] is not null
                 => "Boost needs an empty square.",
+            "boost" when room.Game.LockedSquares.Contains(targetIndex)
+                => "Square is temporarily locked.",
             "boost" when room.Game.BoostedSquares.Contains(targetIndex)
                 => "Square is already boosted.",
             "trap" when room.Game.Squares[targetIndex] is not null
                 => "Black Hole needs an empty square.",
+            "trap" when room.Game.LockedSquares.Contains(targetIndex)
+                => "Square is temporarily locked.",
             "trap" when room.Game.Traps.Any(trap => trap.Index == targetIndex)
                 => "Square already contains a Black Hole.",
             _ => null

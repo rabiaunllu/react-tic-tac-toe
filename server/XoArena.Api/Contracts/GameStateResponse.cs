@@ -14,7 +14,8 @@ public sealed record GameStateResponse(
     IReadOnlyDictionary<int, int> Multipliers,
     IReadOnlyDictionary<string, IReadOnlyDictionary<string, int>> PlayerPowers,
     IReadOnlyList<int> ShieldedSquares,
-    IReadOnlyList<int> BoostedSquares)
+    IReadOnlyList<int> BoostedSquares,
+    IReadOnlyList<int> LockedSquares)
 {
     public static GameStateResponse FromGameState(GameState game)
         => new(
@@ -29,5 +30,6 @@ public sealed record GameStateResponse(
             game.Multipliers,
             game.PlayerPowers,
             game.ShieldedSquares,
-            game.BoostedSquares);
+            game.BoostedSquares,
+            game.LockedSquares);
 }

@@ -860,6 +860,7 @@ p {
 }
 
 .setup-secondary-action {
+  min-width: 0;
   min-height: 62px;
   display: grid;
   gap: 4px;
@@ -876,12 +877,15 @@ p {
 .setup-secondary-action span {
   font-size: 14px;
   font-weight: 900;
+  line-height: 1.1;
 }
 
 .setup-secondary-action small {
   color: #b8c0d9;
   font-size: 11px;
   font-weight: 800;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .setup-secondary-action--help {
@@ -3246,10 +3250,19 @@ button,
 }
 
 .online-room-summary {
-  padding: 12px;
-  border: 1px solid rgba(18, 245, 220, 0.22);
-  border-radius: 14px;
-  background: rgba(18, 245, 220, 0.06);
+  padding: 16px;
+  border: 1px solid rgba(142, 216, 255, 0.22);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(142, 216, 255, 0.08), rgba(18, 245, 220, 0.04)),
+    rgba(255, 255, 255, 0.03);
+}
+
+.online-room-summary--ready {
+  border-color: rgba(18, 245, 220, 0.34);
+  background:
+    linear-gradient(180deg, rgba(18, 245, 220, 0.1), rgba(142, 216, 255, 0.05)),
+    rgba(255, 255, 255, 0.03);
 }
 
 .online-room-code {
@@ -3322,9 +3335,9 @@ button,
   min-width: 0;
   display: grid;
   gap: 4px;
-  padding: 9px;
-  border-radius: 11px;
-  background: rgba(255, 255, 255, 0.06);
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.055);
 }
 
 .online-room-details strong {
@@ -3387,25 +3400,30 @@ button,
 
 .online-play-action {
   width: 100%;
-  min-height: 48px;
+  min-height: 54px;
   display: grid;
   gap: 4px;
   place-items: center;
-  border: 1px solid rgba(18, 245, 220, 0.24);
-  border-radius: 13px;
-  padding: 11px 12px;
-  background: rgba(18, 245, 220, 0.09);
-  color: #c9fff8;
+  border: 1px solid rgba(18, 245, 220, 0.54);
+  border-radius: 14px;
+  padding: 13px 14px;
+  background:
+    linear-gradient(135deg, rgba(18, 245, 220, 0.2), rgba(142, 216, 255, 0.12)),
+    rgba(18, 245, 220, 0.1);
+  color: #f4fffe;
+  box-shadow: 0 14px 34px rgba(18, 245, 220, 0.12);
   cursor: pointer;
 }
 
 .online-play-action:hover {
-  border-color: rgba(18, 245, 220, 0.5);
-  background: rgba(18, 245, 220, 0.14);
+  border-color: rgba(18, 245, 220, 0.78);
+  background:
+    linear-gradient(135deg, rgba(18, 245, 220, 0.26), rgba(142, 216, 255, 0.16)),
+    rgba(18, 245, 220, 0.12);
 }
 
 .online-play-action span {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 950;
 }
 
