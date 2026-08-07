@@ -3118,22 +3118,6 @@ button,
   text-align: center;
 }
 
-.online-flow-back {
-  min-height: 38px;
-  border: 0;
-  border-radius: 11px;
-  background: rgba(255, 255, 255, 0.06);
-  color: #cfd7e8;
-  font-size: 12px;
-  font-weight: 900;
-  cursor: pointer;
-}
-
-.online-flow-back:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
-}
-
 .online-flow-card {
   min-width: 0;
   display: grid;
@@ -3167,8 +3151,43 @@ button,
   text-align: left;
 }
 
+.online-flow-card-header {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+}
+
+.online-flow-card-header > div {
+  min-width: 0;
+}
+
 .online-flow-header h2 {
   margin-top: 4px;
+}
+
+.online-flow-close {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgba(142, 216, 255, 0.24);
+  border-radius: 999px;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.06);
+  color: #dfe8f7;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.online-flow-close:hover,
+.online-flow-close:focus-visible {
+  border-color: rgba(18, 245, 220, 0.52);
+  background: rgba(18, 245, 220, 0.12);
+  color: #ffffff;
+  outline: none;
 }
 
 .online-field label {
