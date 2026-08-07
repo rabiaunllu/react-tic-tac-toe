@@ -1,5 +1,9 @@
 # XO Arena
 
+## Commercial Azure deployment
+
+Azure App Service (API) + Azure Static Web Apps (frontend) is the primary commercial production path. GitHub Pages is retained for its current deployment and is not the production path. See [Azure deployment guide](docs/AZURE_DEPLOYMENT.md) for portal values, CORS setup, build-time frontend variables, costs, and smoke tests.
+
 XO Arena, klasik Tic Tac Toe mantığını Arena modu, özel güçler, çarpanlı hücreler ve puan hedefleriyle genişletmeyi amaçlayan bir React oyun projesidir.
 
 ## Oyun Modları
@@ -83,4 +87,4 @@ Skor korunur; sadece oyun tahtası, sıra, aktif güçler, kalkanlar, boostlar v
 - Turnuva mantığı
 
 ###
-hepimizn bildiği klasik xox oyunun kurallarını bastan yazdıgımız xo arena işte karşınızda. beyin gucumuzu sonuna kadra aktif edeceğimiz, özel güçlerimizle kendi stratejimi geliştirceğimiz, rekabeti sevenler için işte karşınızd arena. 
+hepimizn bildiği klasik xox oyunun kurallarını bastan yazdıgımız xo arena işte karşınızda. beyin gucumuzu sonuna kadra aktif edeceğimiz, özel güçlerimizle kendi stratejimi geliştirceğimiz, rekabeti sevenler için işte karşınızd arena.

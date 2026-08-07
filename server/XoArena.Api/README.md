@@ -42,7 +42,7 @@ The response is production-safe and returns service status, service name, enviro
 
 ### Frontend env
 
-The GitHub Pages frontend must be built with the live backend URL:
+The Azure Static Web Apps frontend must be built with the live backend URL:
 
 ```env
 VITE_API_BASE_URL=https://YOUR_BACKEND_URL
@@ -62,10 +62,10 @@ Do not commit a real `.env` file.
 
 Allowed frontend origins are configured in `Cors:AllowedOrigins`.
 
-Production must include only the GitHub Pages origin:
+Production must include only the deployed Azure frontend origin, supplied through the App Service setting `Cors__AllowedOrigins__0`:
 
 ```text
-https://rabiaunllu.github.io
+https://YOUR_STATIC_WEB_APP.azurestaticapps.net
 ```
 
 Origins do not include paths, so do not add `https://rabiaunllu.github.io/react-tic-tac-toe`. Do not use wildcard CORS for production.
@@ -110,7 +110,7 @@ No provider-specific config file is committed in this branch.
 - Set `ASPNETCORE_ENVIRONMENT=Production`.
 - Set `ASPNETCORE_URLS` or provider start command so the API binds to the provider port.
 - Restrict `AllowedHosts` to the deployed backend host when the host is known.
-- Verify `Cors:AllowedOrigins` contains `https://rabiaunllu.github.io` and no wildcard.
+- Set `Cors__AllowedOrigins__0` to the Azure Static Web Apps origin and verify no wildcard is used.
 - Verify `GET /health` returns 200 from the public backend URL.
 - Build the frontend with `VITE_API_BASE_URL=https://YOUR_BACKEND_URL` and `VITE_ENABLE_ONLINE=true`.
 - Confirm no `.env`, secrets, API keys, or connection strings are committed.
@@ -147,13 +147,13 @@ Local Vite uses:
 http://localhost:5173
 ```
 
-GitHub Pages uses the origin only:
+The Azure Static Web Apps production origin is configured through the App Service setting `Cors__AllowedOrigins__0`:
 
 ```text
-https://rabiaunllu.github.io
+https://YOUR_STATIC_WEB_APP.azurestaticapps.net
 ```
 
-CORS origins do not include URL paths, so `https://rabiaunllu.github.io/react-tic-tac-toe` must not be listed as a separate origin. `Program.cs` reads the allowed origins from configuration and keeps `http://localhost:5173` as the development fallback.
+CORS origins do not include URL paths. `Program.cs` reads allowed origins from configuration; localhost values are defined only in `appsettings.Development.json`.
 
 Health check:
 
