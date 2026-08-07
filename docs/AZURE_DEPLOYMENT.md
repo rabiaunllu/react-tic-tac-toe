@@ -1,97 +1,80 @@
-# Azure production deployment
+# Azure single App Service deployment
 
-Azure is the primary production path for XO Arena. The existing GitHub Pages workflow remains available for the current Pages site, but it is not the commercial production deployment path.
+XO Arena's commercial production path is one Azure App Service: the ASP.NET Core API and the React build run under the same hostname. Azure Static Web Apps is not used because the current Azure policy blocks its deployment. The former Static Web Apps workflow was removed to prevent an unusable deployment path from running. GitHub Pages remains in the repository for its existing site, but is not the commercial production target.
 
-This guide deliberately does not provision Application Insights, Log Analytics, autoscale, a database, or Redis. The API currently keeps rooms in memory, so the first release should run as one App Service instance. Creating those resources now would consume Azure Student credit and does not make the current in-memory game state durable.
+The existing Windows, .NET 8, Free F1 App Service can host this first release. Do not create Application Insights, Log Analytics, autoscale, a database, Redis, CDN, Front Door, or another App Service for this deployment. The API keeps rooms in memory, so use one instance; active rooms are lost if the app restarts.
 
-## Before creating Azure resources
+## URLs on the single App Service
 
-- Use an allowed region such as **France Central**. Confirm that App Service and Static Web Apps are available for the selected subscription and region before creating a resource; availability, including Azure Student eligibility, can vary.
-- Use a single resource group, for example `xo-arena-prod-rg`, to make costs and cleanup clear.
-- Keep an Azure Student subscription's $100 credit in mind. Set a Cost Management budget and a low alert threshold before deployment. A budget alerts; it does not enforce a spend cap.
-- Do not add Application Insights, Log Analytics, autoscale, a database, or Redis for this initial deployment. Review these only when the product needs telemetry, durable rooms, or scale-out.
-- Choose a unique backend name such as `xo-arena-api-<unique>`. Its public URL will be `https://xo-arena-api-<unique>.azurewebsites.net`.
+For an App Service hostname such as `https://xo-arena.azurewebsites.net`:
 
-## 1. Deploy the API to Azure App Service
-
-In the Azure portal, create **App Services** > **Web App** with these values:
-
-| Portal field | Value |
+| URL | Purpose |
 | --- | --- |
-| Publish | Code |
-| Runtime stack | .NET 8 (LTS) |
-| Operating System | Linux |
-| Region | France Central (or another allowed region) |
-| App Service plan | Start with the least-cost plan that meets the subscription's availability; keep **one instance** |
+| `https://xo-arena.azurewebsites.net/` | React frontend (`wwwroot/index.html`) |
+| `https://xo-arena.azurewebsites.net/health` | Open API health check |
+| `https://xo-arena.azurewebsites.net/api/...` | Room and gameplay API |
+| `https://xo-arena.azurewebsites.net/hubs/rooms` | SignalR rooms hub |
+| `https://xo-arena.azurewebsites.net/<frontend-route>` | React SPA fallback to `index.html` |
 
-After deployment, open **Settings** > **Environment variables** > **App settings** and add:
+Production serves static files and the SPA fallback from `wwwroot`. Development keeps the existing API-first local behavior: it does not serve `wwwroot` and does not register the SPA fallback.
 
-| Name | Value |
-| --- | --- |
-| `ASPNETCORE_ENVIRONMENT` | `Production` |
-| `AllowedHosts` | `xo-arena-api-<unique>.azurewebsites.net` |
-| `Cors__AllowedOrigins__0` | `https://<your-static-web-app>.azurestaticapps.net` |
+## Exact local build and publish commands
 
-Use the exact Static Web Apps **origin**: `https` plus hostname only—no trailing slash and no path. Add a second indexed value only if an intentional custom frontend domain also needs browser access. Never use `*`. `localhost` is present only in `appsettings.Development.json`, so it is not enabled in the production configuration.
-
-Set the App Service **Health check** path to `/health` after publish. It must return HTTP 200 at `https://<your-api>.azurewebsites.net/health`. The endpoint is mapped regardless of environment, including Production.
-
-For a portal-based code deploy, build the publish output locally and upload the contents of the output folder through **Deployment Center** (or use its generated GitHub Actions workflow):
-
-```powershell
-dotnet publish .\server\XoArena.Api -c Release -o .\server\XoArena.Api\publish -p:UseAppHost=false
-```
-
-Do not configure a database connection string, Redis connection string, Application Insights connection string, or an autoscale rule for this stage.
-
-## 2. Deploy the frontend to Azure Static Web Apps
-
-In the Azure portal, create **Static Web Apps** and choose the same subscription/resource group. Choose **GitHub** as the deployment source and select this repository and the branch that will become production (`main` after approval). Select the React/Vite preset, then use these build settings exactly:
-
-| Static Web Apps setting | Value |
-| --- | --- |
-| App location | `/` |
-| API location | *(empty)* |
-| Output location | `dist` |
-| App build command | `npm run build` |
-
-The repository also includes `.github/workflows/deploy-azure-static-web-apps.yml` with these same settings. Set the repository **Actions variable** `VITE_API_BASE_URL` to the API origin, for example `https://xo-arena-api-<unique>.azurewebsites.net`; do not include a trailing slash. The workflow reads the Azure deployment token from the `AZURE_STATIC_WEB_APPS_API_TOKEN` repository secret created by Azure.
-
-Set `VITE_ENABLE_ONLINE=true` and `VITE_BASE_PATH=/` for the Azure build. They are public, build-time Vite variables—not secrets—and are compiled into the frontend bundle. A rebuild/redeploy is required whenever either value changes. Do not place credentials, keys, connection strings, or any sensitive data in `VITE_*` variables.
-
-After the Static Web App has a public hostname, return to the API App Service and set `Cors__AllowedOrigins__0` to that exact hostname, then save/restart. The order matters: the frontend's API URL is needed at build time, while the API's allowed browser origin is only known after the frontend is created.
-
-## GitHub Pages compatibility and Azure base path
-
-Vite now defaults to `VITE_BASE_PATH=/`, which is correct for an Azure root domain or subdomain. The existing GitHub Pages workflow explicitly supplies `VITE_BASE_PATH=/react-tic-tac-toe/`, so its asset paths keep working. This lets both deployment paths use the same source without a hard-coded Pages path.
-
-## Static Web Apps fallback: App Service static hosting
-
-If Static Web Apps is unavailable, publish the Vite `dist` output to a separate Azure App Service/static-site-capable host. Build it with:
+Run these from the repository root in PowerShell:
 
 ```powershell
 $env:VITE_BASE_PATH = '/'
-$env:VITE_API_BASE_URL = 'https://xo-arena-api-<unique>.azurewebsites.net'
 $env:VITE_ENABLE_ONLINE = 'true'
+Remove-Item Env:VITE_API_BASE_URL -ErrorAction SilentlyContinue
 npm run build
+
+Remove-Item .\server\XoArena.Api\wwwroot -Recurse -Force -ErrorAction SilentlyContinue
+New-Item -ItemType Directory .\server\XoArena.Api\wwwroot | Out-Null
+Copy-Item .\dist\* .\server\XoArena.Api\wwwroot -Recurse -Force
+
+dotnet publish .\server\XoArena.Api -c Release -o .\server\XoArena.Api\publish -p:UseAppHost=false
+Test-Path .\server\XoArena.Api\publish\wwwroot\index.html
 ```
 
-Use a separate frontend hostname and configure the backend `Cors__AllowedOrigins__0` to that frontend origin. Do not deploy the Vite `dist` folder into the API App Service without deliberately adding static-file hosting and SPA fallback; that is not part of this change.
+The final command must return `True`. Alternatively, the repository script performs the same sequence and verifies the file:
 
-## Cost-control checklist
+```powershell
+.\scripts\Publish-AppService.ps1
+```
 
-- [ ] Cost Management budget and alert created before deployment.
-- [ ] One App Service instance only; no autoscale.
-- [ ] Application Insights and Log Analytics not created.
-- [ ] No database, cache, Redis, private endpoint, CDN, Front Door, or custom domain purchased for the first release.
-- [ ] Check Cost Analysis after the first day and weekly thereafter.
-- [ ] Stop/delete unused resource groups when testing is complete; confirm the exact resource group first.
+`wwwroot` and `publish` are generated and ignored by Git. Do not commit them.
+
+## Frontend API configuration
+
+For the single App Service build, leave `VITE_API_BASE_URL` empty and set `VITE_ENABLE_ONLINE=true`. The frontend then calls relative URLs such as `/api/rooms`, so browser calls stay on the same origin and do not need CORS.
+
+`VITE_BASE_PATH=/` is the default and is required for this root-hosted deployment. The existing GitHub Pages workflow explicitly sets `VITE_BASE_PATH=/react-tic-tac-toe/`, preserving its asset paths.
+
+`VITE_API_BASE_URL`, `VITE_ENABLE_ONLINE`, and `VITE_BASE_PATH` are public Vite build-time values, not secrets. They are compiled into the browser bundle; rebuild and redeploy after changing them. Keep keys, passwords, connection strings, and all sensitive values out of `VITE_*` variables.
+
+For a future separate frontend (including GitHub Pages), set `VITE_API_BASE_URL=https://<api-host>` during its build. The existing absolute API URL behavior remains supported. In that case set `Cors__AllowedOrigins__0` in the API App Service to the separate frontend origin; never use `*` and do not include a path.
+
+## Deploy to the existing Windows App Service
+
+1. In Azure Portal, confirm the existing Web App is **Windows**, **.NET 8**, **Free F1**, and is running as a single instance. Use an allowed region such as France Central if the resource must be recreated.
+2. In **Settings** > **Environment variables** > **App settings**, set `ASPNETCORE_ENVIRONMENT=Production` and `AllowedHosts=xo-arena.azurewebsites.net` (replace with the actual App Service hostname). No `Cors__AllowedOrigins__0` setting is required for same-origin hosting.
+3. In **Monitoring** > **Health check**, set the path to `/health`.
+4. Run `.\scripts\Publish-AppService.ps1` locally. It creates `server\XoArena.Api\publish` with both API files and `wwwroot\index.html`.
+5. In VS Code, use the Azure App Service extension's **Deploy to Web App** command and choose the `server\XoArena.Api\publish` folder. Confirm the target Web App before accepting the deployment.
+6. Open `/health`, then `/`, then test an online room from two browser sessions.
+
+## Cost controls
+
+- [ ] Keep the existing Free F1 plan and one instance while it meets the product need.
+- [ ] Create a Cost Management budget and low alerts for Azure Student's $100 credit; alerts are not spending caps.
+- [ ] Do not enable Application Insights, Log Analytics, autoscale, database, Redis, private endpoints, CDN, Front Door, or custom domains for this stage.
+- [ ] Review Cost Analysis after the first day and weekly thereafter.
 
 ## Pre-merge manual smoke test
 
-1. From the deployed API URL, open `/health` and confirm HTTP 200 and `environment: Production`.
-2. Open the Azure frontend and inspect the built asset URLs: they must start at `/assets/`, not `/react-tic-tac-toe/assets/`.
-3. Create and join an Online Arena room from two browser sessions; verify room updates and gameplay still work.
-4. Confirm the browser Network panel has no CSP or CORS errors for API calls.
-5. Confirm an unlisted origin is rejected by CORS; do not test by adding a wildcard.
-6. Confirm the existing GitHub Pages deployment still loads assets under `/react-tic-tac-toe/`.
+1. Run the publish script and confirm `publish/wwwroot/index.html` exists.
+2. On Azure, `/health` returns HTTP 200 with `environment: Production`.
+3. `/` loads the React UI; refresh a client-side frontend route and confirm it returns the UI rather than a 404.
+4. Test `/api/rooms` and `/hubs/rooms` through the deployed frontend; confirm no CORS or CSP errors occur.
+5. Create, join, and play an Online Arena room from two browser sessions.
+6. Confirm the GitHub Pages site still loads assets beneath `/react-tic-tac-toe/`.

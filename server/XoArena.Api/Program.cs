@@ -37,13 +37,22 @@ builder.Services.AddSingleton<IRoomStore, InMemoryRoomStore>();
 
 var app = builder.Build();
 
+if (!app.Environment.IsDevelopment())
+{
+    app.UseDefaultFiles();
+    app.UseStaticFiles();
+}
+
 app.UseCors("Frontend");
 
-app.MapGet("/", () => Results.Ok(new
+if (app.Environment.IsDevelopment())
 {
-    service = "XO Arena API",
-    health = "/health"
-}));
+    app.MapGet("/", () => Results.Ok(new
+    {
+        service = "XO Arena API",
+        health = "/health"
+    }));
+}
 
 app.MapGet("/health", () => Results.Ok(new
 {
@@ -257,6 +266,11 @@ app.MapPost("/api/rooms/{roomCode}/next-round", async (
         _ => Results.Problem("Unexpected next round result.")
     };
 });
+
+if (!app.Environment.IsDevelopment())
+{
+    app.MapFallbackToFile("index.html");
+}
 
 app.Run();
 
