@@ -13,4 +13,5 @@ public sealed record GameState(
     IReadOnlyDictionary<string, IReadOnlyDictionary<string, int>> PlayerPowers,
     IReadOnlyList<int> ShieldedSquares,
     IReadOnlyList<int> BoostedSquares,
+    IReadOnlyList<int> LockedSquares,
     IReadOnlyList<ArenaTrap> Traps);

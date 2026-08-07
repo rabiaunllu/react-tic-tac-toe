@@ -40,24 +40,6 @@ function getCurrentOnlinePlayer(room, playerName, preferredSymbol) {
   )
 }
 
-function getLobbyMessage(onlineLobby) {
-  if (!onlineLobby) {
-    return ''
-  }
-
-  if (onlineLobby.room.status === 'waiting') {
-    return 'Rakip bekleniyor.'
-  }
-
-  if (onlineLobby.room.status === 'ready') {
-    return onlineLobby.symbol === 'X'
-      ? 'Oyunu başlatabilirsin.'
-      : 'Oda sahibi oyunu başlatacak.'
-  }
-
-  return getRoomStatusText(onlineLobby.room.status)
-}
-
 export default function GameSetup({
   onStartGame,
   onStartOnlineGame,
@@ -75,7 +57,6 @@ export default function GameSetup({
   const [joinRoomCode, setJoinRoomCode] = useState('')
   const [onlineFlow, setOnlineFlow] = useState(null)
   const [onlineLobby, setOnlineLobby] = useState(null)
-  const [onlineMessage, setOnlineMessage] = useState('')
   const [onlineError, setOnlineError] = useState('')
   const [onlineConnectionMessage, setOnlineConnectionMessage] = useState('')
   const [onlineLoadingAction, setOnlineLoadingAction] = useState(null)
@@ -87,7 +68,7 @@ export default function GameSetup({
   const targetLabel = gameMode === 'classic' ? 'Tur Sayısı' : 'Hedef Puan'
   const isOnlineMode = opponentType === 'online'
   const isOnlineLoading = onlineLoadingAction !== null
-  const lobbyMessage = getLobbyMessage(onlineLobby)
+  const canStartOnlineRoom = onlineLobby?.room.status === 'ready' && onlineLobby.symbol === 'X'
   const previewGameConfig = {
     boardSize,
     winLength: selectedBoard.winLength,
@@ -100,7 +81,6 @@ export default function GameSetup({
   function resetOnlineLobby() {
     setOnlineFlow(null)
     setOnlineLobby(null)
-    setOnlineMessage('')
     setOnlineError('')
     setOnlineConnectionMessage('')
     setIsRoomCodeCopied(false)
@@ -122,7 +102,6 @@ export default function GameSetup({
     if (nextOpponentType === 'online' && !IS_ONLINE_ENABLED) {
       setOpponentType('human')
       resetOnlineLobby()
-      setOnlineMessage(ONLINE_UNAVAILABLE_MESSAGE)
       return
     }
 
@@ -178,7 +157,6 @@ export default function GameSetup({
     }
 
     setOnlineError('')
-    setOnlineMessage('')
     setOnlineConnectionMessage('')
     setOnlineLoadingAction('create')
 
@@ -198,7 +176,6 @@ export default function GameSetup({
 
       saveOnlineLobby(room, player, playerName)
       setJoinRoomCode(room.roomCode)
-      setOnlineMessage('')
     } catch (error) {
       setOnlineError(error.message)
     } finally {
@@ -223,22 +200,10 @@ export default function GameSetup({
     }
 
     setOnlineError('')
-    setOnlineMessage('')
     setOnlineConnectionMessage('')
     setOnlineLoadingAction('join')
 
     try {
-      let isReconnect = false
-
-      try {
-        const currentRoom = await requestRoomJson(`/api/rooms/${roomCode}`)
-        isReconnect = currentRoom.players.some(
-          (player) => normalizeName(player.name) === normalizeName(playerName)
-        )
-      } catch {
-        isReconnect = false
-      }
-
       const room = await requestRoomJson(`/api/rooms/${roomCode}/join`, {
         method: 'POST',
         body: JSON.stringify({ playerName }),
@@ -247,9 +212,6 @@ export default function GameSetup({
 
       saveOnlineLobby(room, player, playerName)
       setJoinRoomCode(room.roomCode)
-      setOnlineMessage(
-        isReconnect ? 'Bu odaya aynı isimle geri döndün.' : 'Oda sahibi oyunu başlatacak.'
-      )
     } catch (error) {
       setOnlineError(error.message)
     } finally {
@@ -335,7 +297,6 @@ export default function GameSetup({
           if (isRoomNotFoundError(error)) {
             clearOnlineSession()
             setOnlineLobby(null)
-            setOnlineMessage('')
             setOnlineConnectionMessage('')
             setOnlineError('Oda artık aktif değil. Menüye dönüp yeni oda oluşturabilirsin.')
             return
@@ -626,7 +587,6 @@ export default function GameSetup({
                 onClick={() => {
                   setOnlineFlow(null)
                   setOnlineError('')
-                  setOnlineMessage('')
                   setOnlineConnectionMessage('')
                 }}
               >
@@ -647,7 +607,10 @@ export default function GameSetup({
             )}
 
             {onlineLobby && (
-              <div className="online-room-summary" aria-live="polite">
+              <div
+                className={`online-room-summary ${canStartOnlineRoom ? 'online-room-summary--ready' : ''}`}
+                aria-live="polite"
+              >
                 <div className="online-room-code online-room-code--large">
                   <span>Oda Kodu</span>
                   <strong>{onlineLobby.room.roomCode}</strong>
@@ -681,19 +644,7 @@ export default function GameSetup({
                   ))}
                 </div>
 
-                {onlineMessage && (
-                  <div className="online-message">
-                    {onlineMessage}
-                  </div>
-                )}
-
-                {lobbyMessage && lobbyMessage !== onlineMessage && (
-                  <div className="online-message">
-                    {lobbyMessage}
-                  </div>
-                )}
-
-                {onlineLobby.room.status === 'ready' && onlineLobby.symbol === 'X' && (
+                {canStartOnlineRoom && (
                   <button
                     type="button"
                     className="online-play-action"
@@ -718,8 +669,7 @@ export default function GameSetup({
             aria-disabled="true"
           >
             <span>Turnuva</span>
-            <small>Turnuva modu yakında.
-             Arkadaşlarınla takım kurup rekabet etmeye hazırlan.</small>
+            <small>Yakında</small>
           </button>
           <button
             type="button"

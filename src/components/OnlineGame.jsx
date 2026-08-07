@@ -199,6 +199,10 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
   const guestPowerCounts = playerPowers[guestPlayer?.id] ?? EMPTY_ARENA_POWER_COUNTS
   const shieldedSquares = room.game.shieldedSquares ?? []
   const boostedSquares = room.game.boostedSquares ?? []
+  const lockedSquares = room.game.lockedSquares ?? []
+  const visibleLockedSquares = bombEvent
+    ? Array.from(new Set([...lockedSquares, bombEvent.index]))
+    : lockedSquares
   const boostMode = room.boostMode ?? 'manual'
   const visibleBoostedSquares = boostMode === 'random'
     ? boostedSquares.filter((index) => Boolean(room.game.squares[index]))
@@ -211,9 +215,11 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
       square === mySymbol && !shieldedSquares.includes(index) ? [index] : []
     ),
     boost: room.game.squares.flatMap((square, index) =>
-      !square && !boostedSquares.includes(index) ? [index] : []
+      !square && !boostedSquares.includes(index) && !lockedSquares.includes(index) ? [index] : []
     ),
-    trap: room.game.squares.flatMap((square, index) => (!square ? [index] : [])),
+    trap: room.game.squares.flatMap((square, index) =>
+      !square && !lockedSquares.includes(index) ? [index] : []
+    ),
   }
   const activePowerTargets = isArena && activePower ? arenaPowerTargets[activePower] ?? [] : null
   const arenaDisabledPowers = {
@@ -334,7 +340,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
       return
     }
 
-    if (room.game.squares[index]) {
+    if (room.game.squares[index] || lockedSquares.includes(index)) {
       return
     }
 
@@ -640,7 +646,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
                 multipliers={room.game.multipliers ?? {}}
                 winningLine={winningLine}
                 shieldedSquares={shieldedSquares}
-                lockedSquares={bombEvent ? [bombEvent.index] : []}
+                lockedSquares={visibleLockedSquares}
                 visibleBoostedSquares={visibleBoostedSquares}
                 powerTargetIndexes={activePowerTargets}
                 powerTargetLabel={ARENA_POWER_NAMES[activePower]}
