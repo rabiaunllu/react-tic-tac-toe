@@ -9,6 +9,7 @@ import { createInitialPowerCounts, rewardedPowerIds } from './game/powers'
 import GameSetup from './components/GameSetup'
 import OnlineGame from './components/OnlineGame'
 import RoundResultModal from './components/RoundResultModal'
+import RoundResultPreviewBar from './components/RoundResultPreviewBar'
 import SoundToggle from './components/SoundToggle'
 import {
   calculateRoundScore,
@@ -90,6 +91,7 @@ export default function App() {
   const [setupRestoreMessage, setSetupRestoreMessage] = useState('')
   const [showSetupReturnConfirm, setShowSetupReturnConfirm] = useState(false)
   const [showScoreResetConfirm, setShowScoreResetConfirm] = useState(false)
+  const [isRoundResultDismissed, setIsRoundResultDismissed] = useState(false)
   const [roundNumber, setRoundNumber] = useState(1)
   const [humanWinStreak, setHumanWinStreak] = useState(0)
   const [rewardedPowerClaimed, setRewardedPowerClaimed] = useState(false)
@@ -252,6 +254,7 @@ const hasGameStarted =
     })
     setResultMessage(null)
     setLoserMessage(null)
+    setIsRoundResultDismissed(false)
     
   }
 
@@ -279,6 +282,10 @@ const hasGameStarted =
   }
 
   function handleSelectHumanPower(powerId) {
+    if (winner || matchWinner || isDraw) {
+      return
+    }
+
     if (powerId === 'vampire') {
       handleVampirePower()
       return
@@ -485,7 +492,7 @@ const hasGameStarted =
   }
 
   function handleRandomBoostPower() {
-    if (winner || !hasBoostTarget) {
+    if (winner || matchWinner || isDraw || !hasBoostTarget) {
       return
     }
 
@@ -495,7 +502,7 @@ const hasGameStarted =
 
   function handleSquareClick(index) {
   registerUserGesture()
-  if (winner || matchWinner) {
+  if (winner || matchWinner || isDraw) {
     return
   }
 
@@ -985,6 +992,7 @@ const hasGameStarted =
     setRewardedPowerMessage('')
     setIsRewardedPowerPickerOpen(false)
     setRoundNumber((currentRound) => currentRound + 1)
+    setIsRoundResultDismissed(false)
   }
 
   function handleNewMatch() {
@@ -1006,6 +1014,7 @@ const hasGameStarted =
     setVisibleBoostedSquares([])
     setResultMessage(null)
     setLoserMessage(null)
+    setIsRoundResultDismissed(false)
     setHumanWinStreak(0)
     setRewardedPowerClaimed(false)
     setIsRewarding(false)
@@ -1077,6 +1086,7 @@ const hasGameStarted =
     setBlackHoleEvent(null)
     setResultMessage(null)
     setLoserMessage(null)
+    setIsRoundResultDismissed(false)
     setShowSetupReturnConfirm(false)
     setShowScoreResetConfirm(false)
     setHumanWinStreak(0)
@@ -1321,12 +1331,20 @@ const hasGameStarted =
             onSelectPower={setActivePower}
             onUseRandomBoost={handleRandomBoostPower}
           />
+
+          {(winner || isDraw) && !matchWinner && isRoundResultDismissed && (
+            <RoundResultPreviewBar
+              onNextRound={handleNextRound}
+            />
+          )}
         </div>
 
 
       </section>
 
-      {(winner || isDraw) && !showSetupReturnConfirm && (
+      {(winner || isDraw) &&
+        !showSetupReturnConfirm &&
+        (!isRoundResultDismissed || Boolean(matchWinner)) && (
         <RoundResultModal
           roundNumber={roundNumber}
           winner={winner}
@@ -1339,6 +1357,7 @@ const hasGameStarted =
           onNextRound={handleNextRound}
           onNewMatch={handleNewMatch}
           onMenu={handleResultMenu}
+          onClose={matchWinner ? undefined : () => setIsRoundResultDismissed(true)}
         />
       )}
 

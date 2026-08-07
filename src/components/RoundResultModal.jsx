@@ -13,6 +13,7 @@ export default function RoundResultModal({
   onNextRound,
   onNewMatch,
   onMenu,
+  onClose,
   nextRoundLabel = 'Sonraki tur',
   isNextRoundDisabled = false,
   nextRoundTitle,
@@ -63,6 +64,20 @@ export default function RoundResultModal({
     : 'round-result-message'
 }
       >
+        {onClose && !isMenuConfirmOpen && (
+          <button
+            type="button"
+            className="round-result-close"
+            aria-label="Tahtayı gör"
+            onClick={() => {
+              registerUserGesture()
+              playSound('click')
+              onClose()
+            }}
+          >
+            ×
+          </button>
+        )}
         <span className="round-result-eyebrow">{heading}</span>
 
         <span
