@@ -87,24 +87,34 @@ const STYLES = `
   
   .psim-powers-row {
     display: flex;
-    gap: 8px;
-    margin-bottom: 24px;
-    flex-wrap: wrap;
-    justify-content: center;
+    gap: 6px;
+    margin-bottom: 20px;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    overflow-x: auto;
+    padding: 2px 0;
+    scrollbar-width: none;
+  }
+  
+  .psim-powers-row::-webkit-scrollbar {
+    display: none;
   }
   
   .psim-power-btn {
     background: #151a30;
     border: 1px solid #2a3052;
-    border-radius: 20px;
-    padding: 8px 12px;
-    font-size: 20px;
+    border-radius: 12px;
+    padding: 8px 10px;
+    font-size: 18px;
     cursor: pointer;
     transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
     box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    flex: 1;
+    min-width: 36px;
   }
   
   .psim-power-btn:hover {
@@ -112,10 +122,10 @@ const STYLES = `
   }
   
   .psim-power-btn.active {
-    border-color: #12f5dc;
-    box-shadow: 0 0 10px rgba(18,245,220,0.4);
+    border-color: #38bdf8;
+    box-shadow: 0 0 12px rgba(56,189,248,0.35);
     transform: translateY(-2px);
-    background: #1a2744;
+    background: rgba(56,189,248,0.18);
   }
   
   .psim-board {

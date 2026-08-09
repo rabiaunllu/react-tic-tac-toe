@@ -82,7 +82,27 @@ export function registerUserGesture() {
   }
 }
 
+export function triggerHaptic(type) {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined' || !('vibrate' in navigator)) {
+    return
+  }
+  try {
+    if (type === 'move') navigator.vibrate(20)
+    else if (type === 'click') navigator.vibrate(10)
+    else if (type === 'bomb') navigator.vibrate([40, 30, 60])
+    else if (type === 'blackhole') navigator.vibrate([60, 40, 80])
+    else if (type === 'power') navigator.vibrate(30)
+    else if (type === 'win') navigator.vibrate([80, 50, 80, 50, 120])
+    else if (type === 'draw') navigator.vibrate([40, 40, 40])
+  } catch {
+    // Haptics supported optionally
+  }
+}
+
 export function playSound(effect) {
+  // Always trigger haptics for touch feedback
+  triggerHaptic(effect)
+
   if (!readStoredSoundEnabled() || !hasUserGesture) {
     return
   }

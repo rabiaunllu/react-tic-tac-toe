@@ -26,7 +26,10 @@ export default function WinConfetti({ active, particleCount = 60, duration = 250
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
-    const colors = ['#8cf2ff', '#ff8fc5', '#ffd166', '#12f5dc', '#c084fc'];
+    const bodyStyle = getComputedStyle(document.body);
+    const xColor = bodyStyle.getPropertyValue('--x-color').trim() || '#38bdf8';
+    const oColor = bodyStyle.getPropertyValue('--o-color').trim() || '#f43f5e';
+    const colors = [xColor, oColor, '#fbbf24', '#c084fc', '#34d399'];
     
     class Particle {
       constructor() {
