@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { playSound, registerUserGesture } from '../game/soundManager'
+import WinConfetti from './WinConfetti'
 
 export default function RoundResultModal({
   roundNumber,
@@ -49,6 +50,7 @@ export default function RoundResultModal({
 
   return (
     <div className="round-result-overlay" role="presentation">
+      {!isDraw && <WinConfetti active={true} particleCount={80} duration={3000} />}
       <section
         className={`round-result-card round-result-card--${symbolModifier}`}
         role="dialog"

@@ -13,6 +13,8 @@ import { BoostModeSetting } from './ArenaSettings'
 import HowToPlay from './HowToPlay'
 import SoundToggle from './SoundToggle'
 import { playSound, registerUserGesture } from '../game/soundManager'
+import SetupHeroBanner from './SetupHeroBanner'
+import PowerSimulation from './PowerSimulation'
 
 const boardOptions = [
   { size: 3, label: '3x3', description: 'Klasik hızlı oyun', winLength: 3 },
@@ -40,12 +42,18 @@ function getCurrentOnlinePlayer(room, playerName, preferredSymbol) {
   )
 }
 
+const STEP_WELCOME = 'welcome'
+const STEP_CONFIG = 'config'
+const STEP_ONLINE_LOBBY = 'online-lobby'
+
 export default function GameSetup({
   onStartGame,
   onStartOnlineGame,
   onSaveOnlineSession,
   restoreMessage,
 }) {
+  const [setupStep, setSetupStep] = useState(STEP_WELCOME)
+  const [stepDirection, setStepDirection] = useState('forward')
   const [boardSize, setBoardSize] = useState(3)
   const [gameMode, setGameMode] = useState('classic')
   const [opponentType, setOpponentType] = useState('human')
@@ -77,6 +85,17 @@ export default function GameSetup({
     isInfinite,
     opponentType,
   }
+
+  // ── Step Navigation ──
+
+  function goToStep(nextStep, direction = 'forward') {
+    registerUserGesture()
+    playSound('click')
+    setStepDirection(direction)
+    setSetupStep(nextStep)
+  }
+
+  // ── Existing Handlers (unchanged) ──
 
   function resetOnlineLobby() {
     setOnlineFlow(null)
@@ -342,14 +361,23 @@ export default function GameSetup({
     })
   }, [onlineLobby, onStartOnlineGame])
 
+  // ── Step Indicator ──
+
+  const stepKeys = isOnlineMode
+    ? [STEP_WELCOME, STEP_CONFIG, STEP_ONLINE_LOBBY]
+    : [STEP_WELCOME, STEP_CONFIG]
+
+  const stepAnimClass = stepDirection === 'forward'
+    ? 'setup-step--enter-forward'
+    : 'setup-step--enter-backward'
+
+  // ══════════════════════════════════════
+  //  RENDER
+  // ══════════════════════════════════════
+
   return (
     <main className="app-shell">
       <section className="game-card setup-card">
-        <header className="game-header brand-header setup-brand-header">
-          <h1>XO ARENA</h1>
-          <p>Tahtanı seç. Modu kur. Rövanşa hazır ol.</p>
-        </header>
-
         <div className="setup-quick-actions">
           <SoundToggle />
         </div>
@@ -360,347 +388,435 @@ export default function GameSetup({
           </div>
         )}
 
-        <div className="setup-control-group setup-opponent-group">
-          <span className="setup-control-label">OYUNCU MODU</span>
-
-          <div className="setup-segment-grid setup-segment-grid--three">
-            <button
-              type="button"
-              className={`setup-segment ${opponentType === 'human' ? 'is-selected' : ''}`}
-              onClick={() => handleOpponentTypeChange('human')}
-              aria-pressed={opponentType === 'human'}
-            >
-              <span>PvP</span>
-            </button>
-
-            <button
-              type="button"
-              className={`setup-segment ${opponentType === 'ai' ? 'is-selected' : ''}`}
-              onClick={() => handleOpponentTypeChange('ai')}
-              aria-pressed={opponentType === 'ai'}
-            >
-              <span>PvC</span>
-            </button>
-
-            <button
-              type="button"
-              className={`setup-segment ${opponentType === 'online' ? 'is-selected' : ''} ${!IS_ONLINE_ENABLED ? 'is-disabled' : ''}`}
-              onClick={() => handleOpponentTypeChange('online')}
-              aria-pressed={opponentType === 'online'}
-              disabled={!IS_ONLINE_ENABLED}
-              aria-disabled={!IS_ONLINE_ENABLED}
-              title={!IS_ONLINE_ENABLED ? ONLINE_UNAVAILABLE_MESSAGE : undefined}
-            >
-              <span>Online</span>
-              {!IS_ONLINE_ENABLED && <small>Yakında</small>}
-            </button>
-          </div>
+        {/* Step Indicator Dots */}
+        <div className="setup-step-dots">
+          {stepKeys.map((key) => (
+            <div
+              key={key}
+              className={`setup-step-dot ${setupStep === key ? 'setup-step-dot--active' : ''}`}
+            />
+          ))}
         </div>
 
-        {!IS_ONLINE_ENABLED && (
-          <div className="online-message" role="status">
-            {ONLINE_UNAVAILABLE_MESSAGE}
-          </div>
-        )}
+        {/* ═══ STEP 1: WELCOME ═══ */}
+        {setupStep === STEP_WELCOME && (
+          <div className={`setup-step ${stepAnimClass}`} key="welcome">
+            <header className="game-header brand-header setup-brand-header">
+              <h1>XO ARENA</h1>
+              <p>Taşını koy. Gücünü kullan. Rövanşı al.</p>
+            </header>
 
-        <div className="setup-group">
-          <span className="setup-label">Izgara Boyutu</span>
-          <div className="setup-options">
-            {boardOptions.map((board) => (
-              <button
-                key={board.size}
-                className={boardSize === board.size ? 'setup-option active' : 'setup-option'}
-                type="button"
-                onClick={() => setBoardSize(board.size)}
-              >
-                {board.label}
-              </button>
-            ))}
-          </div>
-        </div>
+            <SetupHeroBanner />
 
-        <div className="setup-group">
-          <span className="setup-label">Oyun Türü</span>
-          <div className="setup-options">
-            <button
-              className={gameMode === 'classic' ? 'setup-option active' : 'setup-option'}
-              type="button"
-              onClick={() => handleModeChange('classic')}
-            >
-              Klasik
-            </button>
-            <button
-              className={gameMode === 'arena' ? 'setup-option active' : 'setup-option'}
-              type="button"
-              onClick={() => handleModeChange('arena')}
-            >
-              Arena
-            </button>
-          </div>
-        </div>
+            <div className="setup-control-group setup-opponent-group">
+              <span className="setup-control-label">OYUNCU MODU</span>
 
-        <div className="setup-group">
-          <span className="setup-label">{targetLabel}</span>
-          <div className="setup-options target-options">
-            {targetOptions.map((target) => (
-              <button
-                key={target}
-                className={!isInfinite && targetValue === target ? 'setup-option active' : 'setup-option'}
-                type="button"
-                onClick={() => {
-                  setTargetValue(target)
-                  setIsInfinite(false)
-                  resetOnlineLobby()
-                }}
-              >
-                {gameMode === 'classic' ? `${target} Tur` : `${target} Puan`}
-              </button>
-            ))}
-            <button
-              className={isInfinite ? 'setup-option active infinite-option' : 'setup-option infinite-option'}
-              type="button"
-              onClick={() => {
-                setIsInfinite(true)
-                resetOnlineLobby()
-              }}
-            >
-              ∞
-            </button>
-          </div>
-        </div>
-
-        <div className={`setup-summary ${gameMode}`}>
-          {gameMode === 'classic'
-            ? `Klasik mod: ${isInfinite ? 'Sonsuz oyun' : `${targetValue} tur hedefi`}. Izgara ${selectedBoard.label}, ${selectedBoard.winLength} taş yan yana kazandırır.`
-            : `Arena mod: ${isInfinite ? 'Sonsuz puan' : `${targetValue} puan hedefi`}. Izgara ${selectedBoard.label}, ${selectedBoard.winLength} taş yan yana kazandırır.`}
-        </div>
-
-        {isOnlineMode && (
-          <div className="online-lobby-panel">
-            {!onlineLobby && !onlineFlow && (
-              <div className="online-choice-grid">
+              <div className="setup-segment-grid setup-segment-grid--three">
                 <button
                   type="button"
-                  className="online-choice-card"
-                  onClick={() => setOnlineFlow('create')}
+                  className={`setup-segment ${opponentType === 'human' ? 'is-selected' : ''}`}
+                  onClick={() => handleOpponentTypeChange('human')}
+                  aria-pressed={opponentType === 'human'}
                 >
-                  <span>Oda Kur</span>
+                  <span>PvP</span>
                 </button>
 
                 <button
                   type="button"
-                  className="online-choice-card"
-                  onClick={() => setOnlineFlow('join')}
+                  className={`setup-segment ${opponentType === 'ai' ? 'is-selected' : ''}`}
+                  onClick={() => handleOpponentTypeChange('ai')}
+                  aria-pressed={opponentType === 'ai'}
                 >
-                  <span>Odaya Katıl</span>
+                  <span>PvC</span>
                 </button>
+
+                <button
+                  type="button"
+                  className={`setup-segment ${opponentType === 'online' ? 'is-selected' : ''} ${!IS_ONLINE_ENABLED ? 'is-disabled' : ''}`}
+                  onClick={() => handleOpponentTypeChange('online')}
+                  aria-pressed={opponentType === 'online'}
+                  disabled={!IS_ONLINE_ENABLED}
+                  aria-disabled={!IS_ONLINE_ENABLED}
+                  title={!IS_ONLINE_ENABLED ? ONLINE_UNAVAILABLE_MESSAGE : undefined}
+                >
+                  <span>Online</span>
+                  {!IS_ONLINE_ENABLED && <small>Yakında</small>}
+                </button>
+              </div>
+            </div>
+
+            {!IS_ONLINE_ENABLED && (
+              <div className="online-message" role="status">
+                {ONLINE_UNAVAILABLE_MESSAGE}
               </div>
             )}
 
-            {!onlineLobby && onlineFlow === 'create' && (
-              <div className="online-mode-grid online-mode-grid--single">
-                <div className="online-flow-card">
-                  <header className="online-flow-header online-flow-card-header">
-                    <div>
-                      <span className="setup-control-label">
-                        {gameMode === 'arena' ? 'ONLINE ARENA' : 'ONLINE KLASİK'}
-                      </span>
-                      <h2>Odanı kur</h2>
-                      <p>Oyuncu adını yaz ve maç kurallarını tamamla.</p>
-                    </div>
-                    <button
-                      type="button"
-                      className="online-flow-close"
-                      onClick={handleOnlineFlowBack}
-                      aria-label="Online seçeneklere dön"
-                    >
-                      ×
-                    </button>
-                  </header>
+            <div className="setup-sim-section">
+              <span className="setup-sim-label">GÜÇLER — Simülasyon</span>
+              <PowerSimulation />
+            </div>
 
-                  <div className="online-field">
-                    <label htmlFor="create-player-name">Oyuncu Adı</label>
-                    <input
-                      id="create-player-name"
-                      type="text"
-                      value={createPlayerName}
-                      onChange={(event) => setCreatePlayerName(event.target.value)}
-                      placeholder="Adını yaz"
-                      disabled={isOnlineLoading}
-                    />
-                  </div>
+            <div className="setup-step-nav">
+              <button
+                type="button"
+                className="setup-nav-button setup-nav-button--continue"
+                onClick={() => goToStep(STEP_CONFIG, 'forward')}
+              >
+                Devam →
+              </button>
+            </div>
+          </div>
+        )}
 
-                  {gameMode === 'arena' && (
-                    <div className="online-arena-create-settings">
-                      <BoostModeSetting
-                        boostMode={onlineBoostMode}
-                        onChange={setOnlineBoostMode}
-                        explained
+        {/* ═══ STEP 2: CONFIG ═══ */}
+        {setupStep === STEP_CONFIG && (
+          <div className={`setup-step ${stepAnimClass}`} key="config">
+            <div className="setup-badge-header">
+              <h2>XO ARENA</h2>
+            </div>
+
+            <SetupHeroBanner compact />
+
+            <div className="setup-group">
+              <span className="setup-label">Izgara Boyutu</span>
+              <div className="setup-options">
+                {boardOptions.map((board) => (
+                  <button
+                    key={board.size}
+                    className={boardSize === board.size ? 'setup-option active' : 'setup-option'}
+                    type="button"
+                    onClick={() => setBoardSize(board.size)}
+                  >
+                    {board.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="setup-group">
+              <span className="setup-label">Oyun Türü</span>
+              <div className="setup-options">
+                <button
+                  className={gameMode === 'classic' ? 'setup-option active' : 'setup-option'}
+                  type="button"
+                  onClick={() => handleModeChange('classic')}
+                >
+                  Klasik
+                </button>
+                <button
+                  className={gameMode === 'arena' ? 'setup-option active' : 'setup-option'}
+                  type="button"
+                  onClick={() => handleModeChange('arena')}
+                >
+                  Arena
+                </button>
+                
+              </div>
+            </div>
+
+            <div className="setup-group">
+              <span className="setup-label">{targetLabel}</span>
+              <div className="setup-options target-options">
+                {targetOptions.map((target) => (
+                  <button
+                    key={target}
+                    className={!isInfinite && targetValue === target ? 'setup-option active' : 'setup-option'}
+                    type="button"
+                    onClick={() => {
+                      setTargetValue(target)
+                      setIsInfinite(false)
+                      resetOnlineLobby()
+                    }}
+                  >
+                    {gameMode === 'classic' ? `${target} Tur` : `${target} Puan`}
+                  </button>
+                ))}
+                <button
+                  className={isInfinite ? 'setup-option active infinite-option' : 'setup-option infinite-option'}
+                  type="button"
+                  onClick={() => {
+                    setIsInfinite(true)
+                    resetOnlineLobby()
+                  }}
+                >
+                  ∞
+                </button>
+              </div>
+            </div>
+
+            <div className={`setup-summary ${gameMode}`}>
+              {gameMode === 'classic'
+                ? `Klasik mod: ${isInfinite ? 'Sonsuz oyun' : `${targetValue} tur hedefi`}. Izgara ${selectedBoard.label}, ${selectedBoard.winLength} taş yan yana kazandırır.`
+                : `Arena mod: ${isInfinite ? 'Sonsuz puan' : `${targetValue} puan hedefi`}. Izgara ${selectedBoard.label}, ${selectedBoard.winLength} taş yan yana kazandırır.`}
+            </div>
+
+            <div className="setup-action-row" aria-label="Setup ek aksiyonlari">
+              <button
+                type="button"
+                className="setup-secondary-action setup-secondary-action--help"
+                onClick={() => setIsHowToPlayOpen(true)}
+              >
+                <span>Nasıl Oynanır</span>
+                <small>Kurallar ve güçler</small>
+              </button>
+              <button
+                  className="setup-option"
+                  type="button"
+                  disabled
+                  aria-disabled="true"
+                  style={{ opacity: 0.45, cursor: 'not-allowed', borderStyle: 'dashed' }}
+                >
+                  Turnuva
+                </button>
+            </div>
+               
+            <div className="setup-step-nav setup-step-nav--split">
+              <button
+                type="button"
+                className="setup-nav-button setup-nav-button--back"
+                onClick={() => goToStep(STEP_WELCOME, 'backward')}
+              >
+                ← Geri
+              </button>
+
+              {isOnlineMode ? (
+                <button
+                  type="button"
+                  className="setup-nav-button setup-nav-button--continue"
+                  onClick={() => goToStep(STEP_ONLINE_LOBBY, 'forward')}
+                >
+                  Devam →
+                </button>
+              ) : (
+                <button
+                  className="setup-nav-button setup-nav-button--continue"
+                  onClick={handleStartGame}
+                >
+                  Oyuna Başla
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ═══ STEP 3: ONLINE LOBBY ═══ */}
+        {setupStep === STEP_ONLINE_LOBBY && isOnlineMode && (
+          <div className={`setup-step ${stepAnimClass}`} key="online-lobby">
+            <div className="setup-badge-header">
+              <h2>XO ARENA</h2>
+            </div>
+
+            <div className="online-lobby-panel">
+              {!onlineLobby && !onlineFlow && (
+                <div className="online-choice-grid">
+                  <button
+                    type="button"
+                    className="online-choice-card"
+                    onClick={() => setOnlineFlow('create')}
+                  >
+                    <span>Oda Kur</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="online-choice-card"
+                    onClick={() => setOnlineFlow('join')}
+                  >
+                    <span>Odaya Katıl</span>
+                  </button>
+                </div>
+              )}
+
+              {!onlineLobby && onlineFlow === 'create' && (
+                <div className="online-mode-grid online-mode-grid--single">
+                  <div className="online-flow-card">
+                    <header className="online-flow-header online-flow-card-header">
+                      <div>
+                        <span className="setup-control-label">
+                          {gameMode === 'arena' ? 'ONLINE ARENA' : 'ONLINE KLASİK'}
+                        </span>
+                        <h2>Odanı kur</h2>
+                        <p>Oyuncu adını yaz ve maç kurallarını tamamla.</p>
+                      </div>
+                      <button
+                        type="button"
+                        className="online-flow-close"
+                        onClick={handleOnlineFlowBack}
+                        aria-label="Online seçeneklere dön"
+                      >
+                        ×
+                      </button>
+                    </header>
+
+                    <div className="online-field">
+                      <label htmlFor="create-player-name">Oyuncu Adı</label>
+                      <input
+                        id="create-player-name"
+                        type="text"
+                        value={createPlayerName}
+                        onChange={(event) => setCreatePlayerName(event.target.value)}
+                        placeholder="Adını yaz"
+                        disabled={isOnlineLoading}
                       />
                     </div>
-                  )}
 
-                  <button
-                    type="button"
-                    className="online-primary-action"
-                    onClick={handleCreateOnlineRoom}
-                    disabled={isOnlineLoading}
-                    title={isOnlineLoading ? 'Oda hazırlanıyor.' : undefined}
-                  >
-                    {onlineLoadingAction === 'create' ? 'Oluşturuluyor...' : 'Oda Oluştur'}
-                  </button>
-                </div>
-              </div>
-            )}
+                    {gameMode === 'arena' && (
+                      <div className="online-arena-create-settings">
+                        <BoostModeSetting
+                          boostMode={onlineBoostMode}
+                          onChange={setOnlineBoostMode}
+                          explained
+                        />
+                      </div>
+                    )}
 
-            {!onlineLobby && onlineFlow === 'join' && (
-              <div className="online-mode-grid online-mode-grid--single">
-                <div className="online-flow-card">
-                  <header className="online-flow-header online-flow-card-header">
-                    <div>
-                      <span className="setup-control-label">ONLINE</span>
-                      <h2>Odaya katıl</h2>
-                      <p>Oyuncu adını ve oda kodunu gir.</p>
-                    </div>
                     <button
                       type="button"
-                      className="online-flow-close"
-                      onClick={handleOnlineFlowBack}
-                      aria-label="Online seçeneklere dön"
+                      className="online-primary-action"
+                      onClick={handleCreateOnlineRoom}
+                      disabled={isOnlineLoading}
+                      title={isOnlineLoading ? 'Oda hazırlanıyor.' : undefined}
                     >
-                      ×
+                      {onlineLoadingAction === 'create' ? 'Oluşturuluyor...' : 'Oda Oluştur'}
                     </button>
-                  </header>
-
-                  <div className="online-field">
-                    <label htmlFor="join-player-name">Oyuncu Adı</label>
-                    <input
-                      id="join-player-name"
-                      type="text"
-                      value={joinPlayerName}
-                      onChange={(event) => setJoinPlayerName(event.target.value)}
-                      placeholder="Adını yaz"
-                      disabled={isOnlineLoading}
-                    />
-                  </div>
-
-                  <div className="online-field">
-                    <label htmlFor="join-room-code">Oda Kodu</label>
-                    <input
-                      id="join-room-code"
-                      type="text"
-                      value={joinRoomCode}
-                      onChange={(event) => setJoinRoomCode(event.target.value.toUpperCase())}
-                      placeholder="Kodu yaz"
-                      disabled={isOnlineLoading}
-                    />
-                  </div>
-
-                  <button
-                    type="button"
-                    className="online-secondary-action"
-                    onClick={handleJoinOnlineRoom}
-                    disabled={isOnlineLoading}
-                    title={isOnlineLoading ? 'Odaya katılma işlemi sürüyor.' : undefined}
-                  >
-                    {onlineLoadingAction === 'join' ? 'Katılıyor...' : 'Odaya Katıl'}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {onlineError && (
-              <div className="online-message online-message--error" role="alert">
-                {onlineError}
-              </div>
-            )}
-
-            {onlineConnectionMessage && !onlineError && (
-              <div className="online-message" role="status">
-                {onlineConnectionMessage}
-              </div>
-            )}
-
-            {onlineLobby && (
-              <div
-                className={`online-room-summary ${canStartOnlineRoom ? 'online-room-summary--ready' : ''}`}
-                aria-live="polite"
-              >
-                <div className="online-room-code online-room-code--large">
-                  <span>Oda Kodu</span>
-                  <strong>{onlineLobby.room.roomCode}</strong>
-                  <button
-                    type="button"
-                    className="online-copy-action"
-                    onClick={handleCopyRoomCode}
-                    disabled={isRoomCodeCopied}
-                  >
-                    {isRoomCodeCopied ? 'Kopyalandı' : 'Kopyala'}
-                  </button>
-                </div>
-
-                <div className="online-room-details">
-                  <div>
-                    <span>Rol</span>
-                    <strong>{onlineLobby.symbol === 'X' ? 'Oda sahibi' : 'Misafir'}</strong>
-                  </div>
-                  <div>
-                    <span>Durum</span>
-                    <strong>{getRoomStatusText(onlineLobby.room.status)}</strong>
                   </div>
                 </div>
+              )}
 
-                <div className="online-player-list">
-                  {onlineLobby.room.players.map((player) => (
-                    <div key={player.id} className="online-player-row">
-                      <strong>{player.symbol}</strong>
-                      <span>{player.name}</span>
+              {!onlineLobby && onlineFlow === 'join' && (
+                <div className="online-mode-grid online-mode-grid--single">
+                  <div className="online-flow-card">
+                    <header className="online-flow-header online-flow-card-header">
+                      <div>
+                        <span className="setup-control-label">ONLINE</span>
+                        <h2>Odaya katıl</h2>
+                        <p>Oyuncu adını ve oda kodunu gir.</p>
+                      </div>
+                      <button
+                        type="button"
+                        className="online-flow-close"
+                        onClick={handleOnlineFlowBack}
+                        aria-label="Online seçeneklere dön"
+                      >
+                        ×
+                      </button>
+                    </header>
+
+                    <div className="online-field">
+                      <label htmlFor="join-player-name">Oyuncu Adı</label>
+                      <input
+                        id="join-player-name"
+                        type="text"
+                        value={joinPlayerName}
+                        onChange={(event) => setJoinPlayerName(event.target.value)}
+                        placeholder="Adını yaz"
+                        disabled={isOnlineLoading}
+                      />
                     </div>
-                  ))}
+
+                    <div className="online-field">
+                      <label htmlFor="join-room-code">Oda Kodu</label>
+                      <input
+                        id="join-room-code"
+                        type="text"
+                        value={joinRoomCode}
+                        onChange={(event) => setJoinRoomCode(event.target.value.toUpperCase())}
+                        placeholder="Kodu yaz"
+                        disabled={isOnlineLoading}
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      className="online-secondary-action"
+                      onClick={handleJoinOnlineRoom}
+                      disabled={isOnlineLoading}
+                      title={isOnlineLoading ? 'Odaya katılma işlemi sürüyor.' : undefined}
+                    >
+                      {onlineLoadingAction === 'join' ? 'Katılıyor...' : 'Odaya Katıl'}
+                    </button>
+                  </div>
                 </div>
+              )}
 
-                {canStartOnlineRoom && (
-                  <button
-                    type="button"
-                    className="online-play-action"
-                    onClick={handleStartOnlineRoom}
-                    disabled={isOnlineLoading}
-                    title={isOnlineLoading ? 'İşlem tamamlanınca başlayabilirsin.' : undefined}
-                  >
-                    <span>{onlineLoadingAction === 'start' ? 'Başlatılıyor...' : 'Oyunu Başlat'}</span>
-                  </button>
-                )}
+              {onlineError && (
+                <div className="online-message online-message--error" role="alert">
+                  {onlineError}
+                </div>
+              )}
 
-              </div>
-            )}
+              {onlineConnectionMessage && !onlineError && (
+                <div className="online-message" role="status">
+                  {onlineConnectionMessage}
+                </div>
+              )}
+
+              {onlineLobby && (
+                <div
+                  className={`online-room-summary ${canStartOnlineRoom ? 'online-room-summary--ready' : ''}`}
+                  aria-live="polite"
+                >
+                  <div className="online-room-code online-room-code--large">
+                    <span>Oda Kodu</span>
+                    <strong>{onlineLobby.room.roomCode}</strong>
+                    <button
+                      type="button"
+                      className="online-copy-action"
+                      onClick={handleCopyRoomCode}
+                      disabled={isRoomCodeCopied}
+                    >
+                      {isRoomCodeCopied ? 'Kopyalandı' : 'Kopyala'}
+                    </button>
+                  </div>
+
+                  <div className="online-room-details">
+                    <div>
+                      <span>Rol</span>
+                      <strong>{onlineLobby.symbol === 'X' ? 'Oda sahibi' : 'Misafir'}</strong>
+                    </div>
+                    <div>
+                      <span>Durum</span>
+                      <strong>{getRoomStatusText(onlineLobby.room.status)}</strong>
+                    </div>
+                  </div>
+
+                  <div className="online-player-list">
+                    {onlineLobby.room.players.map((player) => (
+                      <div key={player.id} className="online-player-row">
+                        <strong>{player.symbol}</strong>
+                        <span>{player.name}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {canStartOnlineRoom && (
+                    <button
+                      type="button"
+                      className="online-play-action"
+                      onClick={handleStartOnlineRoom}
+                      disabled={isOnlineLoading}
+                      title={isOnlineLoading ? 'İşlem tamamlanınca başlayabilirsin.' : undefined}
+                    >
+                      <span>{onlineLoadingAction === 'start' ? 'Başlatılıyor...' : 'Oyunu Başlat'}</span>
+                    </button>
+                  )}
+
+                </div>
+              )}
+            </div>
+
+            <div className="setup-step-nav">
+              <button
+                type="button"
+                className="setup-nav-button setup-nav-button--back"
+                onClick={() => goToStep(STEP_CONFIG, 'backward')}
+              >
+                ← Geri
+              </button>
+            </div>
           </div>
         )}
 
-        <div className="setup-action-row" aria-label="Setup ek aksiyonlari">
-          <button
-            type="button"
-            className="setup-secondary-action setup-secondary-action--disabled"
-            disabled
-            aria-disabled="true"
-          >
-            <span>Turnuva</span>
-            <small>Yakında</small>
-          </button>
-          <button
-            type="button"
-            className="setup-secondary-action setup-secondary-action--help"
-            onClick={() => setIsHowToPlayOpen(true)}
-          >
-            <span>Nasıl Oynanır</span>
-            <small>Kurallar ve güçler</small>
-          </button>
-        </div>
-
-        {!isOnlineMode && (
-          <button className="start-game-button" onClick={handleStartGame}>
-            Oyuna Başla
-          </button>
-        )}
       </section>
 
       {isHowToPlayOpen && (
