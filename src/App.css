@@ -3612,7 +3612,355 @@ button,
 .online-room-details {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: 10px;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   STATIC CSP-COMPLIANT STYLES FOR SETUP HERO BANNER & POWER SIM
+   ───────────────────────────────────────────────────────────── */
+
+/* Hero Banner Clash Animation */
+.hero-banner-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem 1rem;
+  background: transparent;
+  overflow: hidden;
+  width: 100%;
+}
+
+.hero-banner-container--compact {
+  padding: 0.5rem 1rem;
+}
+
+.hero-clash-container {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  height: 120px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.hero-banner-container--compact .hero-clash-container {
+  height: 70px;
+  max-width: 280px;
+}
+
+.hero-symbol {
+  font-family: 'Orbitron', system-ui, sans-serif;
+  font-size: 5.5rem;
+  font-weight: 900;
+  position: absolute;
+  line-height: 1;
+  animation-duration: 3s;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+}
+
+.hero-banner-container--compact .hero-symbol {
+  font-size: 3.2rem;
+}
+
+.hero-symbol-x {
+  color: #8cf2ff;
+  text-shadow: 0 0 10px #8cf2ff, 0 0 20px #8cf2ff, 0 0 40px #8cf2ff;
+  animation-name: hero-slide-right;
+  left: 15%;
+}
+
+.hero-symbol-o {
+  color: #ff8fc5;
+  text-shadow: 0 0 10px #ff8fc5, 0 0 20px #ff8fc5, 0 0 40px #ff8fc5;
+  animation-name: hero-slide-left;
+  right: 15%;
+}
+
+.hero-clash-glow {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 30px 20px rgba(255, 255, 255, 0.9), 0 0 60px 40px #c084fc;
+  opacity: 0;
+  animation: hero-glow-burst 3s infinite ease-in-out;
+  z-index: 0;
+}
+
+.hero-banner-container--compact .hero-clash-glow {
+  width: 20px;
+  height: 20px;
+  box-shadow: 0 0 20px 12px rgba(255, 255, 255, 0.8), 0 0 40px 24px #c084fc;
+}
+
+.hero-symbol-x, .hero-symbol-o {
+  z-index: 1;
+}
+
+@keyframes hero-slide-right {
+  0%, 100% { transform: translateX(0) scale(1); opacity: 0.8; }
+  40% { transform: translateX(70px) scale(1.1); opacity: 1; }
+  50% { transform: translateX(95px) scale(1.2); opacity: 1; }
+  60% { transform: translateX(70px) scale(1.1); opacity: 1; }
+}
+
+@keyframes hero-slide-left {
+  0%, 100% { transform: translateX(0) scale(1); opacity: 0.8; }
+  40% { transform: translateX(-70px) scale(1.1); opacity: 1; }
+  50% { transform: translateX(-95px) scale(1.2); opacity: 1; }
+  60% { transform: translateX(-70px) scale(1.1); opacity: 1; }
+}
+
+@keyframes hero-glow-burst {
+  0%, 45%, 100% { opacity: 0; transform: scale(0.5); }
+  50% { opacity: 1; transform: scale(2.2); }
+  60% { opacity: 0.6; transform: scale(1.5); }
+}
+
+@media (max-width: 480px) {
+  .hero-symbol { font-size: 4.5rem; }
+  .hero-clash-container { height: 100px; }
+  .hero-banner-container--compact .hero-symbol { font-size: 2.6rem; }
+  .hero-banner-container--compact .hero-clash-container { height: 56px; }
+  @keyframes hero-slide-right {
+    0%, 100% { transform: translateX(0) scale(1); opacity: 0.8; }
+    40% { transform: translateX(50px) scale(1.1); opacity: 1; }
+    50% { transform: translateX(70px) scale(1.2); opacity: 1; }
+    60% { transform: translateX(50px) scale(1.1); opacity: 1; }
+  }
+  @keyframes hero-slide-left {
+    0%, 100% { transform: translateX(0) scale(1); opacity: 0.8; }
+    40% { transform: translateX(-50px) scale(1.1); opacity: 1; }
+    50% { transform: translateX(-70px) scale(1.2); opacity: 1; }
+    60% { transform: translateX(-50px) scale(1.1); opacity: 1; }
+  }
+}
+
+/* Power Simulation Component Styles */
+.psim-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 380px;
+  margin: 0 auto;
+  padding: 16px 14px 14px;
+  background: rgba(12, 15, 28, 0.75);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.psim-powers-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+  margin-bottom: 14px;
+  overflow-x: auto;
+  width: 100%;
+  padding: 6px 4px 6px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.psim-powers-row::-webkit-scrollbar {
+  display: none;
+}
+
+.psim-power-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 8px 12px;
+  font-size: 17px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-height: 38px;
+}
+
+.psim-power-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.psim-power-btn.active {
+  border-color: #38bdf8;
+  box-shadow: 0 0 12px rgba(56,189,248,0.35);
+  transform: translateY(-2px);
+  background: rgba(56,189,248,0.18);
+}
+
+.psim-board {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 14px;
+  background: #1c223c;
+  padding: 6px;
+  border-radius: 12px;
+}
+
+.psim-cell {
+  width: 48px;
+  height: 48px;
+  background: #0c0f1c;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: bold;
+  position: relative;
+  border: 1px solid #232a48;
+  box-sizing: border-box;
+}
+
+.psim-val-X {
+  color: #8cf2ff;
+  text-shadow: 0 0 10px rgba(140, 242, 255, 0.7);
+}
+
+.psim-val-O {
+  color: #ff8fc5;
+  text-shadow: 0 0 10px rgba(255, 143, 197, 0.7);
+}
+
+.psim-desc {
+  text-align: center;
+  font-size: 13px;
+  color: #a0a8cc;
+  min-height: 24px;
+}
+
+.psim-mult {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #2a3052;
+  font-size: 10px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  color: #ffd700;
+}
+
+.psim-win-badge {
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ffaa00;
+  color: #fff;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+  z-index: 10;
+  box-shadow: 0 0 10px #ffaa00;
+  animation: psim-badge-in 0.3s forwards;
+}
+
+@keyframes psim-badge-in {
+  from { opacity: 0; transform: translate(-50%, 10px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@keyframes psim-anim-explode {
+  0% { transform: scale(1); background: #0c0f1c; }
+  50% { transform: scale(1.3); background: #ff4444; box-shadow: 0 0 20px #ff4444; }
+  100% { transform: scale(0); opacity: 0; }
+}
+
+.psim-explode {
+  animation: psim-anim-explode 0.6s forwards;
+}
+
+.psim-shield {
+  box-shadow: inset 0 0 15px rgba(50,205,50,0.5);
+  border-color: #32cd32;
+}
+
+@keyframes psim-anim-deflect {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); box-shadow: inset 0 0 30px rgba(50,205,50,0.9); }
+  100% { transform: scale(1); }
+}
+
+.psim-deflect {
+  animation: psim-anim-deflect 0.5s;
+}
+
+@keyframes psim-anim-boost {
+  0% { filter: brightness(1); }
+  50% { filter: brightness(2); transform: scale(1.2); text-shadow: 0 0 15px #ffd700; }
+  100% { filter: brightness(1); }
+}
+
+.psim-boost-glow {
+  animation: psim-anim-boost 0.6s forwards;
+}
+
+.psim-trap {
+  background: radial-gradient(circle, #2a0845 0%, #0c0f1c 70%);
+  box-shadow: inset 0 0 10px #61045f;
+}
+
+@keyframes psim-anim-sucked {
+  0% { transform: scale(1) rotate(0deg); opacity: 1; }
+  100% { transform: scale(0) rotate(360deg); opacity: 0; }
+}
+
+.psim-sucked {
+  animation: psim-anim-sucked 0.6s forwards;
+}
+
+@keyframes psim-anim-morph {
+  0% { filter: hue-rotate(0deg); }
+  50% { filter: hue-rotate(180deg); transform: scale(1.2); }
+  100% { filter: hue-rotate(360deg); }
+}
+
+.psim-morph {
+  animation: psim-anim-morph 0.7s forwards;
+}
+
+.psim-frozen {
+  background: #1e3a5f;
+  box-shadow: inset 0 0 15px #38bdf8;
+  border-color: #38bdf8;
+}
+
+@keyframes psim-anim-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-4px); }
+  40%, 80% { transform: translateX(4px); }
+}
+
+.psim-shake {
+  animation: psim-anim-shake 0.4s;
+}
+
+.psim-vamp-beam {
+  position: absolute;
+  height: 4px;
+  background: linear-gradient(90deg, #ff4444, #a855f7);
+  box-shadow: 0 0 10px #ff4444;
+  transform-origin: 0 50%;
+  pointer-events: none;
+  z-index: 20;
+  animation: psim-anim-beam 0.8s forwards;
+}
+
+@keyframes psim-anim-beam {
+  0% { opacity: 0; }
+  50% { opacity: 1; filter: brightness(1.5); }
+  100% { opacity: 0; }
 }
 
 .online-room-details div {

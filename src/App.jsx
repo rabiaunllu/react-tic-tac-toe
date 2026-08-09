@@ -646,23 +646,9 @@ const hasGameStarted =
           setSetupRestoreMessage('')
           setIsSessionRestoreChecked(true)
         } catch (error) {
-          if (isRoomNotFoundError(error)) {
-            clearOnlineSession()
-
-            if (isMounted) {
-              setSetupRestoreMessage('')
-              setIsSessionRestoreChecked(true)
-            }
-
-            return
-          }
-
+          clearOnlineSession()
           if (isMounted) {
-            setSetupRestoreMessage(
-              isConnectionError(error)
-                ? 'Bağlantı kurulamadı. Tekrar deneniyor...'
-                : 'Online oda bulunamadı. Kodu kontrol edip yeni oda oluşturabilir veya odaya katılabilirsin.'
-            )
+            setSetupRestoreMessage('')
             setIsSessionRestoreChecked(true)
           }
         }
