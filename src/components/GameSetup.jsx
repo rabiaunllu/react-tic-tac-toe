@@ -13,6 +13,8 @@ import { BoostModeSetting } from './ArenaSettings'
 import HowToPlay from './HowToPlay'
 import SoundToggle from './SoundToggle'
 import { playSound, registerUserGesture } from '../game/soundManager'
+import SetupHeroBanner from './SetupHeroBanner'
+import PowerSimulation from './PowerSimulation'
 
 const boardOptions = [
   { size: 3, label: '3x3', description: 'Klasik hızlı oyun', winLength: 3 },
@@ -22,6 +24,14 @@ const boardOptions = [
 
 const classicTargets = [3, 5, 7, 9]
 const arenaTargets = [15, 30, 50, 100]
+
+const SKINS = [
+  { id: 'neon', name: 'Siber Neon', icon: '⚡', isFree: true },
+  { id: 'gold', name: 'Altın Efsane', icon: '🌟', isFree: false },
+  { id: 'emerald', name: 'Zümrüt Retro', icon: '🌲', isFree: false },
+  { id: 'cosmic', name: 'Kozmik Mor', icon: '🔮', isFree: false },
+  { id: 'ice', name: 'Buz Kristali', icon: '❄️', isFree: false },
+]
 
 function normalizeName(name) {
   return name.trim().toLowerCase()
@@ -46,16 +56,20 @@ export default function GameSetup({
   onSaveOnlineSession,
   restoreMessage,
 }) {
+  // Mode selection modal states
+  const [activeModal, setActiveModal] = useState(null) // null | 'local_config' | 'online_modal'
   const [boardSize, setBoardSize] = useState(3)
   const [gameMode, setGameMode] = useState('classic')
-  const [opponentType, setOpponentType] = useState('human')
+  const [opponentType, setOpponentType] = useState('ai') // 'ai' | 'human' | 'online'
   const [targetValue, setTargetValue] = useState(5)
   const [isInfinite, setIsInfinite] = useState(false)
   const [isHowToPlayOpen, setIsHowToPlayOpen] = useState(false)
+  
+  // Online states
   const [createPlayerName, setCreatePlayerName] = useState('')
   const [joinPlayerName, setJoinPlayerName] = useState('')
   const [joinRoomCode, setJoinRoomCode] = useState('')
-  const [onlineFlow, setOnlineFlow] = useState(null)
+  const [onlineFlow, setOnlineFlow] = useState(null) // null | 'create' | 'join'
   const [onlineLobby, setOnlineLobby] = useState(null)
   const [onlineError, setOnlineError] = useState('')
   const [onlineConnectionMessage, setOnlineConnectionMessage] = useState('')
@@ -63,12 +77,99 @@ export default function GameSetup({
   const [isRoomCodeCopied, setIsRoomCodeCopied] = useState(false)
   const [onlineBoostMode, setOnlineBoostMode] = useState('random')
 
+  // Skin / Cosmetic & Rewarded Ad states
+  const [selectedSkin, setSelectedSkin] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.localStorage.getItem('xo-arena-skin') || 'neon'
+    }
+    return 'neon'
+  })
+
+  const [unlockedSkins, setUnlockedSkins] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem('xo-arena-unlocked-skins')
+      if (stored) {
+        try {
+          return JSON.parse(stored)
+        } catch {
+          // ignore parsing error
+        }
+      }
+    }
+    return ['neon']
+  })
+
+  const [skinRewardModal, setSkinRewardModal] = useState(null) // null | skin object
+  const [skinRewardCountdown, setSkinRewardCountdown] = useState(3)
+
+  function handleSelectSkin(skin) {
+    registerUserGesture()
+    playSound('click')
+
+    if (skin.isFree || unlockedSkins.includes(skin.id)) {
+      setSelectedSkin(skin.id)
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('xo-arena-skin', skin.id)
+        document.body.setAttribute('data-skin', skin.id)
+      }
+    } else {
+      // Trigger Mock Rewarded Ad Modal
+      setSkinRewardModal(skin)
+      setSkinRewardCountdown(3)
+    }
+  }
+
+  // Handle Mock Rewarded Ad Countdown for Skin unlock
+  useEffect(() => {
+    if (!skinRewardModal) return undefined
+    const timer = setInterval(() => {
+      setSkinRewardCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer)
+          // Unlock skin
+          setUnlockedSkins((prevUnlocked) => {
+            const newUnlocked = [...prevUnlocked, skinRewardModal.id]
+            if (typeof window !== 'undefined') {
+              window.localStorage.setItem('xo-arena-unlocked-skins', JSON.stringify(newUnlocked))
+            }
+            return newUnlocked
+          })
+          setSelectedSkin(skinRewardModal.id)
+          if (typeof window !== 'undefined') {
+            window.localStorage.setItem('xo-arena-skin', skinRewardModal.id)
+            document.body.setAttribute('data-skin', skinRewardModal.id)
+          }
+          setSkinRewardModal(null)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [skinRewardModal])
+
+  // Deep Link Parser on load (?room=ROOMCODE)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const roomParam = params.get('room')
+    if (roomParam && IS_ONLINE_ENABLED) {
+      setOpponentType('online')
+      setActiveModal('online_modal')
+      setOnlineFlow('join')
+      setJoinRoomCode(roomParam.toUpperCase())
+    }
+    const savedSkin = window.localStorage.getItem('xo-arena-skin') || 'neon'
+    document.body.setAttribute('data-skin', savedSkin)
+  }, [])
+
   const selectedBoard = boardOptions.find((board) => board.size === boardSize)
   const targetOptions = gameMode === 'classic' ? classicTargets : arenaTargets
   const targetLabel = gameMode === 'classic' ? 'Tur Sayısı' : 'Hedef Puan'
   const isOnlineMode = opponentType === 'online'
   const isOnlineLoading = onlineLoadingAction !== null
   const canStartOnlineRoom = onlineLobby?.room.status === 'ready' && onlineLobby.symbol === 'X'
+
   const previewGameConfig = {
     boardSize,
     winLength: selectedBoard.winLength,
@@ -76,6 +177,31 @@ export default function GameSetup({
     targetValue,
     isInfinite,
     opponentType,
+  }
+
+  // ── Mode Card Click Handlers ──
+
+  function handleSelectMode(type) {
+    registerUserGesture()
+    playSound('click')
+    setOpponentType(type)
+
+    if (type === 'online') {
+      if (!IS_ONLINE_ENABLED) return
+      setOnlineError('')
+      setActiveModal('online_modal')
+      setOnlineFlow(null)
+    } else {
+      setActiveModal('local_config')
+    }
+  }
+
+  function closeModal() {
+    registerUserGesture()
+    playSound('click')
+    setActiveModal(null)
+    setOnlineFlow(null)
+    setOnlineError('')
   }
 
   function resetOnlineLobby() {
@@ -86,29 +212,14 @@ export default function GameSetup({
     setIsRoomCodeCopied(false)
   }
 
+  // FIX: Do not reset online flow when changing mode during create room form!
   function handleModeChange(nextMode) {
     registerUserGesture()
     playSound('click')
     setGameMode(nextMode)
     setTargetValue(nextMode === 'classic' ? 5 : 30)
     setIsInfinite(false)
-    resetOnlineLobby()
-  }
-
-  function handleOpponentTypeChange(nextOpponentType) {
-    registerUserGesture()
-    playSound('click')
-
-    if (nextOpponentType === 'online' && !IS_ONLINE_ENABLED) {
-      setOpponentType('human')
-      resetOnlineLobby()
-      return
-    }
-
-    setOpponentType(nextOpponentType)
-    setOnlineError('')
-
-    if (nextOpponentType !== 'online') {
+    if (onlineLobby) {
       resetOnlineLobby()
     }
   }
@@ -259,11 +370,11 @@ export default function GameSetup({
           return currentLobby
         }
 
-          return {
-            ...currentLobby,
-            room,
-          }
-        })
+        return {
+          ...currentLobby,
+          room,
+        }
+      })
       setOnlineConnectionMessage('')
     } catch (error) {
       setOnlineError(error.message)
@@ -342,14 +453,28 @@ export default function GameSetup({
     })
   }, [onlineLobby, onStartOnlineGame])
 
+  // ══════════════════════════════════════
+  //  RENDER - VIRAL HUB PATTERN
+  // ══════════════════════════════════════
+
   return (
     <main className="app-shell">
-      <section className="game-card setup-card">
-        <header className="game-header brand-header setup-brand-header">
-          <h1>XO ARENA</h1>
-          <p>Tahtanı seç. Modu kur. Rövanşa hazır ol.</p>
-        </header>
+      {/* ── Mock Rewarded Ad Modal for Skin Unlock ── */}
+      {skinRewardModal && (
+        <div className="interstitial-ad-overlay" style={{ zIndex: 300 }}>
+          <div className="interstitial-ad-card">
+            <span className="ad-badge">ÖDÜLLÜ REKLAM (AdMob Entegrasyonu)</span>
+            <h3>{skinRewardModal.icon} {skinRewardModal.name}</h3>
+            <p>Tema kilidi açılıyor...</p>
+            <div className="ad-countdown">
+              Reklam sonlanıyor: <strong>{skinRewardCountdown}s</strong>
+            </div>
+          </div>
+        </div>
+      )}
 
+      <section className="game-card setup-card viral-hub-card">
+        {/* Top Sound Action */}
         <div className="setup-quick-actions">
           <SoundToggle />
         </div>
@@ -360,349 +485,525 @@ export default function GameSetup({
           </div>
         )}
 
-        <div className="setup-control-group setup-opponent-group">
-          <span className="setup-control-label">OYUNCU MODU</span>
+        {/* ── Brand Hero Header ── */}
+        <header className="game-header brand-header setup-brand-header">
+          <h1>XO ARENA</h1>
+          <p>Taşını koy. Gücünü kullan. Rövanşı al.</p>
+        </header>
 
-          <div className="setup-segment-grid setup-segment-grid--three">
-            <button
-              type="button"
-              className={`setup-segment ${opponentType === 'human' ? 'is-selected' : ''}`}
-              onClick={() => handleOpponentTypeChange('human')}
-              aria-pressed={opponentType === 'human'}
-            >
-              <span>PvP</span>
-            </button>
+        <SetupHeroBanner />
 
-            <button
-              type="button"
-              className={`setup-segment ${opponentType === 'ai' ? 'is-selected' : ''}`}
-              onClick={() => handleOpponentTypeChange('ai')}
-              aria-pressed={opponentType === 'ai'}
-            >
-              <span>PvC</span>
-            </button>
-
-            <button
-              type="button"
-              className={`setup-segment ${opponentType === 'online' ? 'is-selected' : ''} ${!IS_ONLINE_ENABLED ? 'is-disabled' : ''}`}
-              onClick={() => handleOpponentTypeChange('online')}
-              aria-pressed={opponentType === 'online'}
-              disabled={!IS_ONLINE_ENABLED}
-              aria-disabled={!IS_ONLINE_ENABLED}
-              title={!IS_ONLINE_ENABLED ? ONLINE_UNAVAILABLE_MESSAGE : undefined}
-            >
-              <span>Online</span>
-              {!IS_ONLINE_ENABLED && <small>Yakında</small>}
-            </button>
-          </div>
-        </div>
-
-        {!IS_ONLINE_ENABLED && (
-          <div className="online-message" role="status">
-            {ONLINE_UNAVAILABLE_MESSAGE}
-          </div>
-        )}
-
-        <div className="setup-group">
-          <span className="setup-label">Izgara Boyutu</span>
-          <div className="setup-options">
-            {boardOptions.map((board) => (
-              <button
-                key={board.size}
-                className={boardSize === board.size ? 'setup-option active' : 'setup-option'}
-                type="button"
-                onClick={() => setBoardSize(board.size)}
-              >
-                {board.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="setup-group">
-          <span className="setup-label">Oyun Türü</span>
-          <div className="setup-options">
-            <button
-              className={gameMode === 'classic' ? 'setup-option active' : 'setup-option'}
-              type="button"
-              onClick={() => handleModeChange('classic')}
-            >
-              Klasik
-            </button>
-            <button
-              className={gameMode === 'arena' ? 'setup-option active' : 'setup-option'}
-              type="button"
-              onClick={() => handleModeChange('arena')}
-            >
-              Arena
-            </button>
-          </div>
-        </div>
-
-        <div className="setup-group">
-          <span className="setup-label">{targetLabel}</span>
-          <div className="setup-options target-options">
-            {targetOptions.map((target) => (
-              <button
-                key={target}
-                className={!isInfinite && targetValue === target ? 'setup-option active' : 'setup-option'}
-                type="button"
-                onClick={() => {
-                  setTargetValue(target)
-                  setIsInfinite(false)
-                  resetOnlineLobby()
-                }}
-              >
-                {gameMode === 'classic' ? `${target} Tur` : `${target} Puan`}
-              </button>
-            ))}
-            <button
-              className={isInfinite ? 'setup-option active infinite-option' : 'setup-option infinite-option'}
-              type="button"
-              onClick={() => {
-                setIsInfinite(true)
-                resetOnlineLobby()
-              }}
-            >
-              ∞
-            </button>
-          </div>
-        </div>
-
-        <div className={`setup-summary ${gameMode}`}>
-          {gameMode === 'classic'
-            ? `Klasik mod: ${isInfinite ? 'Sonsuz oyun' : `${targetValue} tur hedefi`}. Izgara ${selectedBoard.label}, ${selectedBoard.winLength} taş yan yana kazandırır.`
-            : `Arena mod: ${isInfinite ? 'Sonsuz puan' : `${targetValue} puan hedefi`}. Izgara ${selectedBoard.label}, ${selectedBoard.winLength} taş yan yana kazandırır.`}
-        </div>
-
-        {isOnlineMode && (
-          <div className="online-lobby-panel">
-            {!onlineLobby && !onlineFlow && (
-              <div className="online-choice-grid">
-                <button
-                  type="button"
-                  className="online-choice-card"
-                  onClick={() => setOnlineFlow('create')}
-                >
-                  <span>Oda Kur</span>
-                </button>
-
-                <button
-                  type="button"
-                  className="online-choice-card"
-                  onClick={() => setOnlineFlow('join')}
-                >
-                  <span>Odaya Katıl</span>
-                </button>
-              </div>
-            )}
-
-            {!onlineLobby && onlineFlow === 'create' && (
-              <div className="online-mode-grid online-mode-grid--single">
-                <div className="online-flow-card">
-                  <header className="online-flow-header online-flow-card-header">
-                    <div>
-                      <span className="setup-control-label">
-                        {gameMode === 'arena' ? 'ONLINE ARENA' : 'ONLINE KLASİK'}
-                      </span>
-                      <h2>Odanı kur</h2>
-                      <p>Oyuncu adını yaz ve maç kurallarını tamamla.</p>
-                    </div>
-                    <button
-                      type="button"
-                      className="online-flow-close"
-                      onClick={handleOnlineFlowBack}
-                      aria-label="Online seçeneklere dön"
-                    >
-                      ×
-                    </button>
-                  </header>
-
-                  <div className="online-field">
-                    <label htmlFor="create-player-name">Oyuncu Adı</label>
-                    <input
-                      id="create-player-name"
-                      type="text"
-                      value={createPlayerName}
-                      onChange={(event) => setCreatePlayerName(event.target.value)}
-                      placeholder="Adını yaz"
-                      disabled={isOnlineLoading}
-                    />
-                  </div>
-
-                  {gameMode === 'arena' && (
-                    <div className="online-arena-create-settings">
-                      <BoostModeSetting
-                        boostMode={onlineBoostMode}
-                        onChange={setOnlineBoostMode}
-                        explained
-                      />
-                    </div>
-                  )}
-
-                  <button
-                    type="button"
-                    className="online-primary-action"
-                    onClick={handleCreateOnlineRoom}
-                    disabled={isOnlineLoading}
-                    title={isOnlineLoading ? 'Oda hazırlanıyor.' : undefined}
-                  >
-                    {onlineLoadingAction === 'create' ? 'Oluşturuluyor...' : 'Oda Oluştur'}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {!onlineLobby && onlineFlow === 'join' && (
-              <div className="online-mode-grid online-mode-grid--single">
-                <div className="online-flow-card">
-                  <header className="online-flow-header online-flow-card-header">
-                    <div>
-                      <span className="setup-control-label">ONLINE</span>
-                      <h2>Odaya katıl</h2>
-                      <p>Oyuncu adını ve oda kodunu gir.</p>
-                    </div>
-                    <button
-                      type="button"
-                      className="online-flow-close"
-                      onClick={handleOnlineFlowBack}
-                      aria-label="Online seçeneklere dön"
-                    >
-                      ×
-                    </button>
-                  </header>
-
-                  <div className="online-field">
-                    <label htmlFor="join-player-name">Oyuncu Adı</label>
-                    <input
-                      id="join-player-name"
-                      type="text"
-                      value={joinPlayerName}
-                      onChange={(event) => setJoinPlayerName(event.target.value)}
-                      placeholder="Adını yaz"
-                      disabled={isOnlineLoading}
-                    />
-                  </div>
-
-                  <div className="online-field">
-                    <label htmlFor="join-room-code">Oda Kodu</label>
-                    <input
-                      id="join-room-code"
-                      type="text"
-                      value={joinRoomCode}
-                      onChange={(event) => setJoinRoomCode(event.target.value.toUpperCase())}
-                      placeholder="Kodu yaz"
-                      disabled={isOnlineLoading}
-                    />
-                  </div>
-
-                  <button
-                    type="button"
-                    className="online-secondary-action"
-                    onClick={handleJoinOnlineRoom}
-                    disabled={isOnlineLoading}
-                    title={isOnlineLoading ? 'Odaya katılma işlemi sürüyor.' : undefined}
-                  >
-                    {onlineLoadingAction === 'join' ? 'Katılıyor...' : 'Odaya Katıl'}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {onlineError && (
-              <div className="online-message online-message--error" role="alert">
-                {onlineError}
-              </div>
-            )}
-
-            {onlineConnectionMessage && !onlineError && (
-              <div className="online-message" role="status">
-                {onlineConnectionMessage}
-              </div>
-            )}
-
-            {onlineLobby && (
-              <div
-                className={`online-room-summary ${canStartOnlineRoom ? 'online-room-summary--ready' : ''}`}
-                aria-live="polite"
-              >
-                <div className="online-room-code online-room-code--large">
-                  <span>Oda Kodu</span>
-                  <strong>{onlineLobby.room.roomCode}</strong>
-                  <button
-                    type="button"
-                    className="online-copy-action"
-                    onClick={handleCopyRoomCode}
-                    disabled={isRoomCodeCopied}
-                  >
-                    {isRoomCodeCopied ? 'Kopyalandı' : 'Kopyala'}
-                  </button>
-                </div>
-
-                <div className="online-room-details">
-                  <div>
-                    <span>Rol</span>
-                    <strong>{onlineLobby.symbol === 'X' ? 'Oda sahibi' : 'Misafir'}</strong>
-                  </div>
-                  <div>
-                    <span>Durum</span>
-                    <strong>{getRoomStatusText(onlineLobby.room.status)}</strong>
-                  </div>
-                </div>
-
-                <div className="online-player-list">
-                  {onlineLobby.room.players.map((player) => (
-                    <div key={player.id} className="online-player-row">
-                      <strong>{player.symbol}</strong>
-                      <span>{player.name}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {canStartOnlineRoom && (
-                  <button
-                    type="button"
-                    className="online-play-action"
-                    onClick={handleStartOnlineRoom}
-                    disabled={isOnlineLoading}
-                    title={isOnlineLoading ? 'İşlem tamamlanınca başlayabilirsin.' : undefined}
-                  >
-                    <span>{onlineLoadingAction === 'start' ? 'Başlatılıyor...' : 'Oyunu Başlat'}</span>
-                  </button>
-                )}
-
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="setup-action-row" aria-label="Setup ek aksiyonlari">
+        {/* ── Viral Mode Action Cards Grid ── */}
+        <div className="viral-mode-grid">
           <button
             type="button"
-            className="setup-secondary-action setup-secondary-action--disabled"
-            disabled
-            aria-disabled="true"
+            className="viral-mode-card viral-mode-card--ai"
+            onClick={() => handleSelectMode('ai')}
           >
-            <span>Turnuva</span>
-            <small>Yakında</small>
+            <div className="viral-card-icon">🤖</div>
+            <div className="viral-card-content">
+              <h3>BOT'A KARŞI</h3>
+              <p>Yapay zekâ ile hızlı maç oyna</p>
+            </div>
+            <div className="viral-card-arrow">→</div>
           </button>
+
           <button
             type="button"
-            className="setup-secondary-action setup-secondary-action--help"
+            className="viral-mode-card viral-mode-card--pvp"
+            onClick={() => handleSelectMode('human')}
+          >
+            <div className="viral-card-icon">👥</div>
+            <div className="viral-card-content">
+              <h3>YAN YANA</h3>
+              <p>Tek cihazda arkadaşınla kapış</p>
+            </div>
+            <div className="viral-card-arrow">→</div>
+          </button>
+
+          <button
+            type="button"
+            className={`viral-mode-card viral-mode-card--online ${!IS_ONLINE_ENABLED ? 'is-disabled' : ''}`}
+            onClick={() => handleSelectMode('online')}
+            disabled={!IS_ONLINE_ENABLED}
+          >
+            <div className="viral-card-icon">🌐</div>
+            <div className="viral-card-content">
+              <h3>ÇEVRİMİÇİ ODA</h3>
+              <p>Uzaktan arkadaşınla oda kur veya katıl</p>
+            </div>
+            <div className="viral-card-arrow">→</div>
+          </button>
+
+          <button
+            type="button"
+            className="viral-mode-card viral-mode-card--tournament is-disabled"
+            disabled
+          >
+            <div className="viral-card-badge viral-card-badge--soon">YAKINDA</div>
+            <div className="viral-card-icon">🏆</div>
+            <div className="viral-card-content">
+              <h3>TURNUVA MODU</h3>
+              <p>Çok oyunculu lig turnuvası</p>
+            </div>
+          </button>
+        </div>
+
+        {/* ── Interactive Power Section ── */}
+        <div className="setup-sim-section">
+          <span className="setup-sim-label">⚡ ARENA GÜÇLERİ</span>
+          <PowerSimulation />
+        </div>
+
+        {/* ── Prominent Footer Action ── */}
+        <footer className="viral-footer-actions">
+          <button
+            type="button"
+            className="viral-footer-btn viral-footer-btn--prominent"
             onClick={() => setIsHowToPlayOpen(true)}
           >
-            <span>Nasıl Oynanır</span>
-            <small>Kurallar ve güçler</small>
+            <span>📖 Nasıl Oynanır?</span>
           </button>
-        </div>
-
-        {!isOnlineMode && (
-          <button className="start-game-button" onClick={handleStartGame}>
-            Oyuna Başla
-          </button>
-        )}
+        </footer>
       </section>
 
+      {/* ════════════════════════════════════════════════════════
+          MODAL A: QUICK MATCH SETTINGS (Bot'a Karşı / Yan Yana)
+         ════════════════════════════════════════════════════════ */}
+      {activeModal === 'local_config' && (
+        <div className="viral-modal-overlay" role="presentation" onClick={closeModal}>
+          <div
+            className="viral-modal-card"
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button type="button" className="viral-modal-close" onClick={closeModal}>×</button>
+
+            <div className="viral-modal-header">
+              <span className="viral-modal-icon">
+                {opponentType === 'ai' ? '🤖' : '👥'}
+              </span>
+              <h2>{opponentType === 'ai' ? "BOT'A KARŞI" : 'YAN YANA'}</h2>
+              <p>Maç ayarlarını seç ve oyuna başla</p>
+            </div>
+
+            <div className="setup-group">
+              <span className="setup-label">Izgara Boyutu</span>
+              <div className="setup-options">
+                {boardOptions.map((board) => (
+                  <button
+                    key={board.size}
+                    className={boardSize === board.size ? 'setup-option active' : 'setup-option'}
+                    type="button"
+                    onClick={() => setBoardSize(board.size)}
+                  >
+                    {board.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="setup-group">
+              <span className="setup-label">Oyun Türü</span>
+              <div className="setup-options">
+                <button
+                  className={gameMode === 'classic' ? 'setup-option active' : 'setup-option'}
+                  type="button"
+                  onClick={() => handleModeChange('classic')}
+                >
+                  Klasik
+                </button>
+                <button
+                  className={gameMode === 'arena' ? 'setup-option active' : 'setup-option'}
+                  type="button"
+                  onClick={() => handleModeChange('arena')}
+                >
+                  Arena
+                </button>
+              </div>
+            </div>
+
+            <div className="setup-group">
+              <span className="setup-label">{targetLabel}</span>
+              <div className="setup-options target-options">
+                {targetOptions.map((target) => (
+                  <button
+                    key={target}
+                    className={!isInfinite && targetValue === target ? 'setup-option active' : 'setup-option'}
+                    type="button"
+                    onClick={() => {
+                      setTargetValue(target)
+                      setIsInfinite(false)
+                    }}
+                  >
+                    {gameMode === 'classic' ? `${target} Tur` : `${target} Puan`}
+                  </button>
+                ))}
+                <button
+                  className={isInfinite ? 'setup-option active infinite-option' : 'setup-option infinite-option'}
+                  type="button"
+                  onClick={() => setIsInfinite(true)}
+                >
+                  ∞
+                </button>
+              </div>
+            </div>
+
+            {/* ── Single-Row Non-Wrapping Skin / Theme Selector ── */}
+            <div className="setup-group">
+              <span className="setup-label">Taş & Tema Görünümü</span>
+              <div className="skin-options-row">
+                {SKINS.map((skin) => {
+                  const isUnlocked = skin.isFree || unlockedSkins.includes(skin.id)
+                  const isActive = selectedSkin === skin.id
+
+                  return (
+                    <button
+                      key={skin.id}
+                      className={`setup-option skin-option-btn ${isActive ? 'active' : ''} ${!isUnlocked ? 'is-locked-skin' : ''}`}
+                      type="button"
+                      onClick={() => handleSelectSkin(skin)}
+                      title={!isUnlocked ? 'Reklam izleyerek kilidi aç' : undefined}
+                    >
+                      <span className="skin-btn-content">
+                        {skin.icon} {skin.name}
+                      </span>
+                      {!skin.isFree && !isUnlocked && <span className="skin-ad-badge">🎬</span>}
+                      {isActive && <span className="skin-check-badge">✓</span>}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div className={`setup-summary ${gameMode}`}>
+              {gameMode === 'classic'
+                ? `Klasik mod: ${isInfinite ? 'Sonsuz oyun' : `${targetValue} tur hedefi`}. ${selectedBoard.label} ızgarada ${selectedBoard.winLength} yan yana kazandırır.`
+                : `Arena mod: ${isInfinite ? 'Sonsuz puan' : `${targetValue} puan hedefi`}. ${selectedBoard.label} ızgarada güçler ve çarpanlar aktif.`}
+            </div>
+
+            <div className="viral-modal-actions">
+              <button type="button" className="viral-btn-secondary" onClick={closeModal}>
+                Vazgeç
+              </button>
+              <button type="button" className="start-game-button" onClick={handleStartGame}>
+                ▶ OYUNA BAŞLA
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════
+          MODAL B: ONLINE ROOM MODAL (Çevrimiçi Oda)
+         ════════════════════════════════════════════════════════ */}
+      {activeModal === 'online_modal' && (
+        <div className="viral-modal-overlay" role="presentation" onClick={closeModal}>
+          <div
+            className="viral-modal-card viral-modal-card--online"
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button type="button" className="viral-modal-close" onClick={closeModal}>×</button>
+
+            <div className="viral-modal-header">
+              <span className="viral-modal-icon">🌐</span>
+              <h2>ÇEVRİMİÇİ ODA</h2>
+              <p>Arkadaşınla uzaktan oyna</p>
+            </div>
+
+            <div className="online-lobby-panel">
+              {!onlineLobby && !onlineFlow && (
+                <div className="online-choice-grid">
+                  <button
+                    type="button"
+                    className="online-choice-card"
+                    onClick={() => setOnlineFlow('create')}
+                  >
+                    <span className="online-choice-icon">🏠</span>
+                    <span className="online-choice-title">Oda Kur</span>
+                    <small>Maç kurallarını sen belirle</small>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="online-choice-card"
+                    onClick={() => setOnlineFlow('join')}
+                  >
+                    <span className="online-choice-icon">🔑</span>
+                    <span className="online-choice-title">Odaya Katıl</span>
+                    <small>Arkadaşının kodunu gir</small>
+                  </button>
+                </div>
+              )}
+
+              {/* ── CREATE ROOM FORM (HOST) ── */}
+              {!onlineLobby && onlineFlow === 'create' && (
+                <div className="online-mode-grid online-mode-grid--single">
+                  <div className="online-flow-card">
+                    <header className="online-flow-header online-flow-card-header">
+                      <div>
+                        <h2>Odanı kur</h2>
+                        <p>Oyuncu adını yaz ve maç ayarlarını yap.</p>
+                      </div>
+                      <button
+                        type="button"
+                        className="online-flow-close"
+                        onClick={handleOnlineFlowBack}
+                      >
+                        ×
+                      </button>
+                    </header>
+
+                    <div className="online-field">
+                      <label htmlFor="create-player-name">Oyuncu Adın</label>
+                      <input
+                        id="create-player-name"
+                        type="text"
+                        value={createPlayerName}
+                        onChange={(e) => setCreatePlayerName(e.target.value)}
+                        placeholder="Adını yaz"
+                        disabled={isOnlineLoading}
+                      />
+                    </div>
+
+                    {/* Room Host Settings */}
+                    <div className="setup-group">
+                      <span className="setup-label">Izgara Boyutu</span>
+                      <div className="setup-options">
+                        {boardOptions.map((board) => (
+                          <button
+                            key={board.size}
+                            className={boardSize === board.size ? 'setup-option active' : 'setup-option'}
+                            type="button"
+                            onClick={() => setBoardSize(board.size)}
+                          >
+                            {board.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="setup-group">
+                      <span className="setup-label">Oyun Türü</span>
+                      <div className="setup-options">
+                        <button
+                          className={gameMode === 'classic' ? 'setup-option active' : 'setup-option'}
+                          type="button"
+                          onClick={() => handleModeChange('classic')}
+                        >
+                          Klasik
+                        </button>
+                        <button
+                          className={gameMode === 'arena' ? 'setup-option active' : 'setup-option'}
+                          type="button"
+                          onClick={() => handleModeChange('arena')}
+                        >
+                          Arena
+                        </button>
+                      </div>
+                    </div>
+
+                    {gameMode === 'arena' && (
+                      <div className="online-arena-create-settings">
+                        <BoostModeSetting
+                          boostMode={onlineBoostMode}
+                          onChange={setOnlineBoostMode}
+                          explained
+                        />
+                      </div>
+                    )}
+
+                    {/* Theme Skin Setting for Host */}
+                    <div className="setup-group">
+                      <span className="setup-label">Taş & Tema Görünümü</span>
+                      <div className="skin-options-row">
+                        {SKINS.map((skin) => {
+                          const isUnlocked = skin.isFree || unlockedSkins.includes(skin.id)
+                          const isActive = selectedSkin === skin.id
+
+                          return (
+                            <button
+                              key={skin.id}
+                              className={`setup-option skin-option-btn ${isActive ? 'active' : ''} ${!isUnlocked ? 'is-locked-skin' : ''}`}
+                              type="button"
+                              onClick={() => handleSelectSkin(skin)}
+                            >
+                              <span className="skin-btn-content">
+                                {skin.icon} {skin.name}
+                              </span>
+                              {!skin.isFree && !isUnlocked && <span className="skin-ad-badge">🎬</span>}
+                              {isActive && <span className="skin-check-badge">✓</span>}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="online-primary-action"
+                      onClick={handleCreateOnlineRoom}
+                      disabled={isOnlineLoading}
+                    >
+                      {onlineLoadingAction === 'create' ? 'Oluşturuluyor...' : '🏠 Oda Oluştur'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ── JOIN ROOM FORM (GUEST) ── */}
+              {!onlineLobby && onlineFlow === 'join' && (
+                <div className="online-mode-grid online-mode-grid--single">
+                  <div className="online-flow-card">
+                    <header className="online-flow-header online-flow-card-header">
+                      <div>
+                        <h2>Odaya katıl</h2>
+                        <p>Adını ve oda kodunu girerek maça dahil ol.</p>
+                      </div>
+                      <button
+                        type="button"
+                        className="online-flow-close"
+                        onClick={handleOnlineFlowBack}
+                      >
+                        ×
+                      </button>
+                    </header>
+
+                    <div className="online-field">
+                      <label htmlFor="join-player-name">Oyuncu Adın</label>
+                      <input
+                        id="join-player-name"
+                        type="text"
+                        value={joinPlayerName}
+                        onChange={(e) => setJoinPlayerName(e.target.value)}
+                        placeholder="Adını yaz"
+                        disabled={isOnlineLoading}
+                      />
+                    </div>
+
+                    <div className="online-field">
+                      <label htmlFor="join-room-code">Oda Kodu</label>
+                      <input
+                        id="join-room-code"
+                        type="text"
+                        value={joinRoomCode}
+                        onChange={(e) => setJoinRoomCode(e.target.value.toUpperCase())}
+                        placeholder="Kodu gir (ör: XA89)"
+                        disabled={isOnlineLoading}
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      className="online-secondary-action"
+                      onClick={handleJoinOnlineRoom}
+                      disabled={isOnlineLoading}
+                    >
+                      {onlineLoadingAction === 'join' ? 'Katılıyor...' : '🔑 Odaya Katıl'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {onlineError && (
+                <div className="online-message online-message--error" role="alert">
+                  {onlineError}
+                </div>
+              )}
+
+              {onlineConnectionMessage && !onlineError && (
+                <div className="online-message" role="status">
+                  {onlineConnectionMessage}
+                </div>
+              )}
+
+              {/* ── LOBBY ACTIVE ROOM SUMMARY ── */}
+              {onlineLobby && (
+                <div
+                  className={`online-room-summary ${canStartOnlineRoom ? 'online-room-summary--ready' : ''}`}
+                  aria-live="polite"
+                >
+                  <div className="online-room-code online-room-code--large">
+                    <span>Oda Kodu</span>
+                    <strong className="online-code-display">{onlineLobby.room.roomCode}</strong>
+
+                    {/* Copy buttons only render for the Host (Oda Sahibi) */}
+                    {onlineLobby.symbol === 'X' && (
+                      <div className="online-copy-buttons-group">
+                        <button
+                          type="button"
+                          className="online-copy-action"
+                          onClick={handleCopyRoomCode}
+                          disabled={isRoomCodeCopied}
+                        >
+                          {isRoomCodeCopied ? '✓ Kopyalandı' : '📋 Kodu Kopyala'}
+                        </button>
+                        <button
+                          type="button"
+                          className="online-copy-action online-copy-action--whatsapp"
+                          onClick={async () => {
+                            registerUserGesture()
+                            playSound('click')
+                            const link = `${window.location.origin}${window.location.pathname}?room=${onlineLobby.room.roomCode}`
+                            if (navigator.clipboard) {
+                              await navigator.clipboard.writeText(link)
+                              setIsRoomCodeCopied(true)
+                            }
+                          }}
+                        >
+                          💬 WhatsApp Linki Kopyala
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="online-room-details">
+                    <div>
+                      <span>Rolün</span>
+                      <strong>{onlineLobby.symbol === 'X' ? 'Oda sahibi' : 'Misafir'}</strong>
+                    </div>
+                    <div>
+                      <span>Durum</span>
+                      <strong>{getRoomStatusText(onlineLobby.room.status)}</strong>
+                    </div>
+                  </div>
+
+                  <div className="online-player-list">
+                    {onlineLobby.room.players.map((player) => (
+                      <div key={player.id} className="online-player-row">
+                        <strong>{player.symbol}</strong>
+                        <span>{player.name}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {canStartOnlineRoom && (
+                    <button
+                      type="button"
+                      className="online-play-action"
+                      onClick={handleStartOnlineRoom}
+                      disabled={isOnlineLoading}
+                    >
+                      <span>{onlineLoadingAction === 'start' ? 'Başlatılıyor...' : '▶ Oyunu Başlat'}</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="viral-modal-actions">
+              <button type="button" className="viral-btn-secondary" onClick={closeModal}>
+                Kapat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── HOW TO PLAY MODAL ── */}
       {isHowToPlayOpen && (
         <HowToPlay
           gameConfig={previewGameConfig}

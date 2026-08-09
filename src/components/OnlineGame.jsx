@@ -618,21 +618,21 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
           {isArena ? (
             <>
               <PowerPanel
-                currentPlayer={ownerPlayer.symbol}
-                playerName={ownerPlayer.name}
-                score={ownerPlayer.score ?? 0}
+                currentPlayer={ownerPlayer?.symbol ?? 'X'}
+                playerName={ownerPlayer?.name ?? 'Oda Sahibi'}
+                score={ownerPlayer?.score ?? 0}
                 scoreLabel="Puan"
                 powerOptions={ONLINE_ARENA_POWER_OPTIONS}
                 isActivePlayer={ownerIsActive}
-                canInteract={ownerPlayer.id === playerId && canMove}
-                isPowersEnabled
+                canInteract={ownerPlayer?.id === playerId && canMove}
+                isPowersEnabled={Boolean(ownerPlayer)}
                 powerCounts={ownerPowerCounts}
-                activePower={ownerPlayer.id === playerId ? activePower : null}
+                activePower={ownerPlayer?.id === playerId ? activePower : null}
                 boostMode={boostMode}
                 disabledPowers={arenaDisabledPowers}
                 statusText={
                   ownerIsActive
-                    ? ownerPlayer.id === playerId
+                    ? ownerPlayer?.id === playerId
                       ? activePower
                         ? 'Güç hazır. Parlayan hedeflerden birini seç.'
                         : 'Hamle sende. Güç seç veya taş koy.'
@@ -659,26 +659,28 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
               />
 
               <PowerPanel
-                currentPlayer={guestPlayer.symbol}
-                playerName={guestPlayer.name}
-                score={guestPlayer.score ?? 0}
+                currentPlayer={guestPlayer?.symbol ?? 'O'}
+                playerName={guestPlayer?.name ?? 'Rakip Bekleniyor...'}
+                score={guestPlayer?.score ?? 0}
                 scoreLabel="Puan"
                 powerOptions={ONLINE_ARENA_POWER_OPTIONS}
                 isActivePlayer={guestIsActive}
-                canInteract={guestPlayer.id === playerId && canMove}
-                isPowersEnabled
+                canInteract={guestPlayer?.id === playerId && canMove}
+                isPowersEnabled={Boolean(guestPlayer)}
                 powerCounts={guestPowerCounts}
-                activePower={guestPlayer.id === playerId ? activePower : null}
+                activePower={guestPlayer?.id === playerId ? activePower : null}
                 boostMode={boostMode}
                 disabledPowers={arenaDisabledPowers}
                 statusText={
-                  guestIsActive
-                    ? guestPlayer.id === playerId
-                      ? activePower
-                        ? 'Güç hazır. Parlayan hedeflerden birini seç.'
-                        : 'Hamle sende. Güç seç veya taş koy.'
-                      : 'Rakibin hamlesi bekleniyor.'
-                    : 'Sıranı bekle, tahtayı oku.'
+                  !guestPlayer
+                    ? 'Rakip katılması bekleniyor...'
+                    : guestIsActive
+                      ? guestPlayer?.id === playerId
+                        ? activePower
+                          ? 'Güç hazır. Parlayan hedeflerden birini seç.'
+                          : 'Hamle sende. Güç seç veya taş koy.'
+                        : 'Rakibin hamlesi bekleniyor.'
+                      : 'Sıranı bekle, tahtayı oku.'
                 }
                 onSelectPower={setActivePower}
                 onUseRandomBoost={handleRandomBoostPower}
