@@ -765,6 +765,7 @@ const hasGameStarted =
           humanWinStreak,
           roundNumber,
           playerPowers: playerPowers.O,
+          humanPowers: playerPowers.X,
           shieldedSquares,
           boostedSquares,
           blockedIndexes: [...lockedSquares, ...frozenSquares],
@@ -773,6 +774,11 @@ const hasGameStarted =
             .map((trap) => trap.index),
           multipliers,
         })
+
+        if (aiPowerAction?.type === 'move') {
+          placeAiStone(aiPowerAction.index)
+          return
+        }
 
         if (aiPowerAction?.type === 'bomb') {
           const nextSquares = squares.slice()
