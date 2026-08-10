@@ -668,8 +668,13 @@ const hasGameStarted =
 
       if (localSession) {
         if (isMounted) {
-          restoreLocalGameSession(localSession)
-          setSetupRestoreMessage('')
+          if (localSession.matchWinner || localSession.isMatchCompleted) {
+            clearLocalSession()
+            setSetupRestoreMessage('')
+          } else {
+            restoreLocalGameSession(localSession)
+            setSetupRestoreMessage('')
+          }
         }
       }
 
@@ -765,6 +770,7 @@ const hasGameStarted =
           humanWinStreak,
           roundNumber,
           playerPowers: playerPowers.O,
+          humanPowers: playerPowers.X,
           shieldedSquares,
           boostedSquares,
           blockedIndexes: [...lockedSquares, ...frozenSquares],
@@ -773,6 +779,11 @@ const hasGameStarted =
             .map((trap) => trap.index),
           multipliers,
         })
+
+        if (aiPowerAction?.type === 'move') {
+          placeAiStone(aiPowerAction.index)
+          return
+        }
 
         if (aiPowerAction?.type === 'bomb') {
           const nextSquares = squares.slice()
@@ -906,6 +917,11 @@ const hasGameStarted =
       return
     }
 
+    if (matchWinner) {
+      clearLocalSession()
+      return
+    }
+
     const localSession = {
       gameConfig,
       gameMode,
@@ -928,6 +944,8 @@ const hasGameStarted =
       loserMessage,
       roundNumber,
       isRoundResultOpen: Boolean((winner || isDraw) && !showSetupReturnConfirm),
+      matchWinner,
+      isMatchCompleted: Boolean(matchWinner),
       humanWinStreak,
       ...(gameMode === 'arena' && opponentType === 'ai'
         ? { frozenSquares, rewardedPowerClaimed, rewardedPowerMessage }

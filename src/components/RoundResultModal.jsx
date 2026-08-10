@@ -37,22 +37,32 @@ export default function RoundResultModal({
   }, [])
 
   const displayedWinner = matchWinner ?? winner
-  const isMatchOver = Boolean(matchWinner)
+  const isForfeitWin = Boolean(
+    resultMessage?.includes('ayrıldı') ||
+    resultMessage?.includes('kazandın')
+  )
+  const isMatchOver = Boolean(matchWinner) || isForfeitWin
 
-  const heading = isMatchOver
-    ? 'MAÇ SONUCU'
-    : `TUR ${roundNumber} SONUCU`
-
-  const resultLabel = isDraw
-    ? 'TUR BERABERE'
+  const heading = isForfeitWin
+    ? 'HÜKMEN GALİBİYET'
     : isMatchOver
-      ? `${displayedWinner} MAÇI KAZANDI`
-      : `${displayedWinner} TURU KAZANDI`
+      ? 'MAÇ SONUCU'
+      : `TUR ${roundNumber} SONUCU`
 
-  const symbol = isDraw ? '=' : displayedWinner
-  const symbolModifier = isDraw
-    ? 'draw'
-    : displayedWinner.toLowerCase()
+  const resultLabel = isForfeitWin
+    ? '🏆 RAKİP OYUNDAN AYRILDI!'
+    : isDraw
+      ? 'TUR BERABERE'
+      : isMatchOver
+        ? `${displayedWinner} MAÇI KAZANDI`
+        : `${displayedWinner} TURU KAZANDI`
+
+  const symbol = isForfeitWin ? '🏆' : isDraw ? '=' : displayedWinner
+  const symbolModifier = isForfeitWin
+    ? 'x'
+    : isDraw
+      ? 'draw'
+      : displayedWinner?.toLowerCase() ?? 'x'
 
   // Interstitial Ad Trigger logic (Every 3 completed matches/rounds)
   function triggerActionWithAdCheck(actionFn) {
@@ -187,8 +197,17 @@ export default function RoundResultModal({
         </div>
 
         <div className="round-result-message" id="round-result-message">
-          {resultMessage && <strong>{resultMessage}</strong>}
-          {loserMessage && <small>{loserMessage}</small>}
+          {isForfeitWin ? (
+            <>
+              <strong>Sen kazandın!</strong>
+              <small>Rakip oyundan ayrıldığı için zafer senindir.</small>
+            </>
+          ) : (
+            <>
+              {resultMessage && <strong>{resultMessage}</strong>}
+              {loserMessage && <small>{loserMessage}</small>}
+            </>
+          )}
         </div>
 
         {/* ── Social Victory Share Button ── */}

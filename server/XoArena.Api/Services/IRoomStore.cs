@@ -17,4 +17,6 @@ public interface IRoomStore
     StartRoomResult Start(string roomCode, Guid playerId);
 
     NextRoundResult NextRound(string roomCode, Guid playerId);
+
+    bool Leave(string roomCode, Guid playerId, bool isSurrender = false);
 }

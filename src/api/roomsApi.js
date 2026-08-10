@@ -80,11 +80,25 @@ export async function requestRoomJson(path, options = {}) {
     }
 
     if (response.status === 409) {
-      if (errorCode.toLowerCase().includes('full')) {
+      const normalizedError = String(errorCode ?? '').toLowerCase()
+
+      if (normalizedError.includes('game is not finished')) {
+        throw new RoomRequestError('Oyun henüz tamamlanmadı.', { status: response.status })
+      }
+
+      if (normalizedError.includes('full')) {
         throw new RoomRequestError('Bu oda dolu.', { status: response.status })
       }
 
-      const normalizedError = errorCode.toLowerCase()
+      if (normalizedError.includes('not accepting')) {
+        throw new RoomRequestError('Oda yeni katılan oyuncu kabul etmiyor.', { status: response.status })
+      }
+
+      if (errorCode && !/^[a-z\s]+$/i.test(errorCode) && errorCode.includes(' ')) {
+        // Safe custom Turkish error string passed directly from server
+        throw new RoomRequestError(errorCode, { status: response.status })
+      }
+
       const powerErrorMessages = [
         ['occupied square', 'Bomba için dolu bir kare seç.'],
         ['shielded stones', 'Kalkanlı taş bombalanamaz.'],
@@ -118,5 +132,12 @@ export function startRoom(roomCode, playerId) {
   return requestRoomJson(`/api/rooms/${roomCode}/start`, {
     method: 'POST',
     body: JSON.stringify({ playerId }),
+  })
+}
+
+export function leaveRoom(roomCode, playerId, options = {}) {
+  return requestRoomJson(`/api/rooms/${roomCode}/leave`, {
+    method: 'POST',
+    body: JSON.stringify({ playerId, isSurrender: Boolean(options.isSurrender) }),
   })
 }
