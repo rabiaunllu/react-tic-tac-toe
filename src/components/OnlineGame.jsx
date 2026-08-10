@@ -466,6 +466,11 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
     let isPollingActive = true
 
     async function pollRoom() {
+      // Security: skip polling when tab is hidden to prevent server hammering
+      if (document.visibilityState === 'hidden') {
+        return
+      }
+
       try {
         const nextRoom = await requestRoomJson(`/api/rooms/${roomCode}`)
 

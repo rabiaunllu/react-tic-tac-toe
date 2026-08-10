@@ -91,18 +91,38 @@ export function clearLocalSession() {
   clearSession(LOCAL_SESSION_KEY)
 }
 
+// Security: playerId must be a UUID (issued by the server) — rejects tampered / guessable tokens
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+// Security: online session expires after 24 hours to limit localStorage exposure window
+const ONLINE_SESSION_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
+
 export function isValidOnlineSession(session) {
-  return Boolean(
-    session &&
-      typeof session.roomCode === 'string' &&
-      session.roomCode.trim() &&
-      typeof session.playerId === 'string' &&
-      session.playerId.trim() &&
-      typeof session.symbol === 'string' &&
-      ['X', 'O'].includes(session.symbol) &&
-      typeof session.playerName === 'string' &&
-      session.playerName.trim()
-  )
+  if (!session) return false
+
+  // Reject tampered or missing format fields
+  if (
+    typeof session.roomCode !== 'string' ||
+    !session.roomCode.trim() ||
+    typeof session.playerId !== 'string' ||
+    !UUID_REGEX.test(session.playerId.trim()) ||
+    typeof session.symbol !== 'string' ||
+    !['X', 'O'].includes(session.symbol) ||
+    typeof session.playerName !== 'string' ||
+    !session.playerName.trim()
+  ) {
+    return false
+  }
+
+  // Reject expired sessions (older than 24 hours)
+  if (typeof session.savedAt === 'number') {
+    const ageMs = Date.now() - session.savedAt
+    if (ageMs > ONLINE_SESSION_TTL_MS || ageMs < 0) {
+      return false
+    }
+  }
+
+  return true
 }
 
 export function readOnlineSession() {
@@ -121,9 +141,11 @@ export function readOnlineSession() {
 }
 
 export function writeOnlineSession(session) {
-  writeSession(ONLINE_SESSION_KEY, session)
+  // Security: stamp the save time so TTL can be enforced on read
+  writeSession(ONLINE_SESSION_KEY, { ...session, savedAt: Date.now() })
 }
 
 export function clearOnlineSession() {
   clearSession(ONLINE_SESSION_KEY)
 }
+

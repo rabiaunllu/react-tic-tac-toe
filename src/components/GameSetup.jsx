@@ -33,6 +33,20 @@ const SKINS = [
   { id: 'ice', name: 'Buz Kristali', icon: '❄️', isFree: false },
 ]
 
+// Security: strip HTML/JS injection chars and enforce max length on player names
+const MAX_NAME_LENGTH = 16
+const ROOM_CODE_REGEX = /^[A-Z0-9]{1,8}$/
+
+function sanitizePlayerName(raw) {
+  return raw
+    .replace(/[<>"'&/\\]/g, '') // strip HTML/JS chars
+    .slice(0, MAX_NAME_LENGTH)
+}
+
+function isValidRoomCodeInput(code) {
+  return ROOM_CODE_REGEX.test(code)
+}
+
 function normalizeName(name) {
   return name.trim().toLowerCase()
 }
@@ -153,11 +167,15 @@ export default function GameSetup({
     if (typeof window === 'undefined') return
     const params = new URLSearchParams(window.location.search)
     const roomParam = params.get('room')
+    // Security: validate deep-link room code format before using it
     if (roomParam && IS_ONLINE_ENABLED) {
-      setOpponentType('online')
-      setActiveModal('online_modal')
-      setOnlineFlow('join')
-      setJoinRoomCode(roomParam.toUpperCase())
+      const sanitizedRoom = roomParam.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8)
+      if (isValidRoomCodeInput(sanitizedRoom)) {
+        setOpponentType('online')
+        setActiveModal('online_modal')
+        setOnlineFlow('join')
+        setJoinRoomCode(sanitizedRoom)
+      }
     }
     const savedSkin = window.localStorage.getItem('xo-arena-skin') || 'neon'
     document.body.setAttribute('data-skin', savedSkin)
@@ -392,6 +410,11 @@ export default function GameSetup({
     const roomCode = onlineLobby.room.roomCode
 
     async function pollRoom() {
+      // Security: skip polling when tab is hidden to prevent server hammering
+      if (document.visibilityState === 'hidden') {
+        return
+      }
+
       try {
         const room = await requestRoomJson(`/api/rooms/${roomCode}`)
 
@@ -763,9 +786,11 @@ export default function GameSetup({
                         id="create-player-name"
                         type="text"
                         value={createPlayerName}
-                        onChange={(e) => setCreatePlayerName(e.target.value)}
+                        onChange={(e) => setCreatePlayerName(sanitizePlayerName(e.target.value))}
                         placeholder="Adını yaz"
+                        maxLength={MAX_NAME_LENGTH}
                         disabled={isOnlineLoading}
+                        autoComplete="off"
                       />
                     </div>
 
@@ -878,9 +903,11 @@ export default function GameSetup({
                         id="join-player-name"
                         type="text"
                         value={joinPlayerName}
-                        onChange={(e) => setJoinPlayerName(e.target.value)}
+                        onChange={(e) => setJoinPlayerName(sanitizePlayerName(e.target.value))}
                         placeholder="Adını yaz"
+                        maxLength={MAX_NAME_LENGTH}
                         disabled={isOnlineLoading}
+                        autoComplete="off"
                       />
                     </div>
 
@@ -890,9 +917,15 @@ export default function GameSetup({
                         id="join-room-code"
                         type="text"
                         value={joinRoomCode}
-                        onChange={(e) => setJoinRoomCode(e.target.value.toUpperCase())}
+                        onChange={(e) => {
+                          // Security: only allow valid room code chars
+                          const cleaned = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8)
+                          setJoinRoomCode(cleaned)
+                        }}
                         placeholder="Kodu gir (ör: XA89)"
+                        maxLength={8}
                         disabled={isOnlineLoading}
+                        autoComplete="off"
                       />
                     </div>
 
