@@ -668,8 +668,13 @@ const hasGameStarted =
 
       if (localSession) {
         if (isMounted) {
-          restoreLocalGameSession(localSession)
-          setSetupRestoreMessage('')
+          if (localSession.matchWinner || localSession.isMatchCompleted) {
+            clearLocalSession()
+            setSetupRestoreMessage('')
+          } else {
+            restoreLocalGameSession(localSession)
+            setSetupRestoreMessage('')
+          }
         }
       }
 
@@ -912,6 +917,11 @@ const hasGameStarted =
       return
     }
 
+    if (matchWinner) {
+      clearLocalSession()
+      return
+    }
+
     const localSession = {
       gameConfig,
       gameMode,
@@ -934,6 +944,8 @@ const hasGameStarted =
       loserMessage,
       roundNumber,
       isRoundResultOpen: Boolean((winner || isDraw) && !showSetupReturnConfirm),
+      matchWinner,
+      isMatchCompleted: Boolean(matchWinner),
       humanWinStreak,
       ...(gameMode === 'arena' && opponentType === 'ai'
         ? { frozenSquares, rewardedPowerClaimed, rewardedPowerMessage }

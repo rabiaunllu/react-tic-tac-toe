@@ -3,10 +3,11 @@ import {
   getRoomStatusText,
   isConnectionError,
   isRoomNotFoundError,
+  leaveRoom,
   requestRoomJson,
   startRoom,
 } from '../api/roomsApi'
-import { clearOnlineSession } from '../sessionStorage'
+import { clearOnlineSession, writeOnlineSession } from '../sessionStorage'
 import Board from './Board'
 import PowerPanel from './PowerPanel'
 import RoundResultModal from './RoundResultModal'
@@ -63,7 +64,7 @@ function getBoardSignature(room) {
 }
 
 function getResultSignature(room) {
-  return `${room.game.roundNumber}:${room.game.winner ?? ''}:${room.game.isDraw}`
+  return `${room.game.roundNumber}:${room.game.winner ?? ''}:${room.game.isDraw}:${room.status}`
 }
 
 function pickRandomMessage(messages) {
@@ -71,8 +72,15 @@ function pickRandomMessage(messages) {
 }
 
 function createOnlineRoundMessage(room, mySymbol) {
-  if (!room.game.winner && !room.game.isDraw) {
+  if (!room.game.winner && !room.game.isDraw && room.status !== 'completed') {
     return null
+  }
+
+  if (
+    room.game.winner === mySymbol &&
+    (room.status === 'completed' || !room.game.winningLine || room.game.winningLine.length === 0)
+  ) {
+    return ['🏆 Rakip oyundan ayrıldı!', 'Sen kazandın!']
   }
 
   if (room.game.isDraw) {
@@ -84,7 +92,11 @@ function createOnlineRoundMessage(room, mySymbol) {
   )
 }
 
-function getStatusMessage({ room, mySymbol }) {
+function getStatusMessage({ room, mySymbol, reconnectSeconds = 30 }) {
+  if (room.status === 'reconnecting') {
+    return `📡 Rakibin interneti koptu. Yeniden bağlanması bekleniyor... (${reconnectSeconds}s)`
+  }
+
   if (room.status === 'waiting') {
     return 'Rakip bekleniyor'
   }
@@ -169,22 +181,38 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
   const [isNextRoundPending, setIsNextRoundPending] = useState(false)
   const [isMenuConfirmOpen, setIsMenuConfirmOpen] = useState(false)
   const [isRoundResultDismissed, setIsRoundResultDismissed] = useState(false)
+  const [reconnectSeconds, setReconnectSeconds] = useState(30)
   const [onlineRoundMessage, setOnlineRoundMessage] = useState(() =>
     createOnlineRoundMessage(initialOnlineGame.room, initialOnlineGame.symbol)
   )
+
+  useEffect(() => {
+    if (room.status !== 'reconnecting') {
+      setReconnectSeconds(30)
+      return undefined
+    }
+
+    const timerId = window.setInterval(() => {
+      setReconnectSeconds((current) => Math.max(0, current - 1))
+    }, 1000)
+
+    return () => window.clearInterval(timerId)
+  }, [room.status])
   const onlineRoundMessageSignatureRef = useRef(getResultSignature(initialOnlineGame.room))
   const previousRoomRef = useRef(initialOnlineGame.room)
   const pendingLocalMoveSignatureRef = useRef(null)
   const resultSoundSignatureRef = useRef(getResultSignature(initialOnlineGame.room))
+  const roomJsonCacheRef = useRef(null)
 
-  const { roomCode, playerId } = initialOnlineGame
+  const roomCode = initialOnlineGame.roomCode || room.code || room.roomCode || initialOnlineGame.room?.code || ''
+  const playerId = initialOnlineGame.playerId
   const ownerPlayer = room.players[0]
   const guestPlayer = room.players[1]
   const myPlayer = room.players.find((player) => player.id === playerId)
   const mySymbol = myPlayer?.symbol ?? ''
   const currentSymbol = room.game.xIsNext ? 'X' : 'O'
   const isArena = room.gameMode === 'arena'
-  const isRoundFinished = Boolean(room.game.winner) || room.game.isDraw
+  const isRoundFinished = Boolean(room.game.winner) || room.game.isDraw || room.status === 'completed'
   const nextRoundPlayerIds = room.game.nextRoundPlayerIds ?? []
   const hasRequestedNextRound = nextRoundPlayerIds.includes(playerId)
   const waitingNextRoundCount = nextRoundPlayerIds.length
@@ -577,6 +605,17 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
     return () => window.clearTimeout(timerId)
   }, [blackHoleEvent])
 
+  useEffect(() => {
+    if (roomCode && playerId && mySymbol && room.status !== 'completed') {
+      writeOnlineSession({
+        roomCode,
+        playerId,
+        symbol: mySymbol,
+        playerName: myPlayer?.name ?? '',
+      })
+    }
+  }, [roomCode, playerId, mySymbol, myPlayer?.name, room.status])
+
   return (
     <main className="app-shell">
       <section className="game-card online-game-card">
@@ -588,6 +627,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
             <span className="match-chip">{room.targetValue} {isArena ? 'PUAN' : 'TUR'}</span>
             <span className="match-chip">{room.boardSize}x{room.boardSize}</span>
             <span className="match-chip">{room.winLength} TAŞ</span>
+            <span className="match-chip online-code-chip">ODA: <strong>{roomCode}</strong></span>
           </div>
         </header>
 
@@ -623,9 +663,15 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
               <button
                 type="button"
                 className="danger-action"
-                onClick={() => {
+                onClick={async () => {
                   registerUserGesture()
                   playSound('click')
+                  try {
+                    await leaveRoom(roomCode, playerId, { isSurrender: true })
+                  } catch {
+                    // Proceed with local menu navigation
+                  }
+                  clearOnlineSession()
                   onMenu()
                 }}
               >
@@ -635,9 +681,16 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
           </div>
         )}
 
+        {room.status === 'reconnecting' && (
+          <div className="online-reconnecting-banner" role="alert" aria-live="assertive">
+            <strong>📡 Rakibin interneti koptu</strong>
+            <span>Yeniden bağlanması bekleniyor... <strong>({reconnectSeconds}s)</strong></span>
+          </div>
+        )}
+
         {!isArena && (
           <div className="online-turn-line" role="status" aria-live="polite">
-            {isRoomInactive ? 'Oda aktif değil' : getStatusMessage({ room, mySymbol })}
+            {isRoomInactive ? 'Oda aktif değil' : getStatusMessage({ room, mySymbol, reconnectSeconds })}
           </div>
         )}
 

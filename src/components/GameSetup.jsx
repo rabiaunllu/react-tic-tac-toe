@@ -4,6 +4,7 @@ import {
   IS_ONLINE_ENABLED,
   isConnectionError,
   isRoomNotFoundError,
+  leaveRoom,
   ONLINE_UNAVAILABLE_MESSAGE,
   requestRoomJson,
   startRoom,
@@ -90,6 +91,7 @@ export default function GameSetup({
   const [onlineLoadingAction, setOnlineLoadingAction] = useState(null)
   const [isRoomCodeCopied, setIsRoomCodeCopied] = useState(false)
   const [onlineBoostMode, setOnlineBoostMode] = useState('random')
+  const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false)
 
   // Skin / Cosmetic & Rewarded Ad states
   const [selectedSkin, setSelectedSkin] = useState(() => {
@@ -228,6 +230,29 @@ export default function GameSetup({
     setOnlineError('')
     setOnlineConnectionMessage('')
     setIsRoomCodeCopied(false)
+    setIsLeaveConfirmOpen(false)
+    setJoinRoomCode('')
+    clearOnlineSession()
+
+    if (typeof window !== 'undefined' && window.location.search.includes('room=')) {
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }
+
+  async function handleLeaveOnlineLobby() {
+    registerUserGesture()
+    playSound('click')
+
+    if (onlineLobby?.room?.roomCode && onlineLobby?.playerId) {
+      try {
+        await leaveRoom(onlineLobby.room.roomCode, onlineLobby.playerId)
+      } catch {
+        // Proceed with local cleanup even if request fails
+      }
+    }
+
+    resetOnlineLobby()
+    closeModal()
   }
 
   // FIX: Do not reset online flow when changing mode during create room form!
@@ -422,6 +447,16 @@ export default function GameSetup({
           return
         }
 
+        const hasOwner = room.players?.some((player) => player.symbol === 'X')
+
+        if (!hasOwner || room.status === 'closed') {
+          clearOnlineSession()
+          setOnlineLobby(null)
+          setOnlineConnectionMessage('')
+          setOnlineError('Oda sahibi odadan ayrıldığı için lobi kapatıldı.')
+          return
+        }
+
         setOnlineLobby((currentLobby) => {
           if (!currentLobby || currentLobby.room.roomCode !== roomCode) {
             return currentLobby
@@ -440,7 +475,7 @@ export default function GameSetup({
             clearOnlineSession()
             setOnlineLobby(null)
             setOnlineConnectionMessage('')
-            setOnlineError('Oda artık aktif değil. Menüye dönüp yeni oda oluşturabilirsin.')
+            setOnlineError('Oda sahibi odadan ayrıldı veya oda kapatıldı.')
             return
           }
 
@@ -460,15 +495,17 @@ export default function GameSetup({
       isPollingActive = false
       window.clearInterval(pollingId)
     }
-  }, [isOnlineMode, onlineLobby?.room.roomCode])
+  }, [isOnlineMode, onlineLobby?.room?.code, onlineLobby?.room?.roomCode])
 
   useEffect(() => {
-    if (onlineLobby?.room.status !== 'playing') {
+    if (onlineLobby?.room?.status !== 'playing') {
       return
     }
 
+    const activeRoomCode = onlineLobby.room.code || onlineLobby.room.roomCode || onlineLobby.roomCode || ''
+
     onStartOnlineGame({
-      roomCode: onlineLobby.room.roomCode,
+      roomCode: activeRoomCode,
       playerId: onlineLobby.playerId,
       symbol: onlineLobby.symbol,
       playerName: onlineLobby.playerName,
@@ -1013,25 +1050,71 @@ export default function GameSetup({
                     ))}
                   </div>
 
-                  {canStartOnlineRoom && (
-                    <button
-                      type="button"
-                      className="online-play-action"
-                      onClick={handleStartOnlineRoom}
-                      disabled={isOnlineLoading}
-                    >
-                      <span>{onlineLoadingAction === 'start' ? 'Başlatılıyor...' : '▶ Oyunu Başlat'}</span>
-                    </button>
-                  )}
+                  <div className="online-room-actions-group">
+                    {canStartOnlineRoom && (
+                      <button
+                        type="button"
+                        className="online-play-action"
+                        onClick={handleStartOnlineRoom}
+                        disabled={isOnlineLoading}
+                      >
+                        <span>{onlineLoadingAction === 'start' ? 'Başlatılıyor...' : '▶ Oyunu Başlat'}</span>
+                      </button>
+                    )}
+
+                    {isLeaveConfirmOpen ? (
+                      <div className="online-leave-confirm-card">
+                        <strong>Odayı kapatmak istediğinden emin misin?</strong>
+                        <div className="online-leave-confirm-actions">
+                          <button
+                            type="button"
+                            className="online-leave-confirm-btn online-leave-confirm-btn--cancel"
+                            onClick={() => {
+                              registerUserGesture()
+                              playSound('click')
+                              setIsLeaveConfirmOpen(false)
+                            }}
+                          >
+                            Vazgeç
+                          </button>
+                          <button
+                            type="button"
+                            className="online-leave-confirm-btn online-leave-confirm-btn--danger"
+                            onClick={handleLeaveOnlineLobby}
+                          >
+                            Evet, Odayı Kapat
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="online-leave-action"
+                        onClick={() => {
+                          registerUserGesture()
+                          playSound('click')
+                          if (onlineLobby.symbol === 'X') {
+                            setIsLeaveConfirmOpen(true)
+                          } else {
+                            handleLeaveOnlineLobby()
+                          }
+                        }}
+                      >
+                        <span>{onlineLobby.symbol === 'X' ? '🚪 Odayı Kapat / Ayrıl' : '🚪 Lobiden Ayrıl'}</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
 
-            <div className="viral-modal-actions">
-              <button type="button" className="viral-btn-secondary" onClick={closeModal}>
-                Kapat
-              </button>
-            </div>
+            {!onlineLobby && (
+              <div className="viral-modal-actions">
+                <button type="button" className="viral-btn-secondary" onClick={closeModal}>
+                  Kapat
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

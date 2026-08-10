@@ -58,14 +58,42 @@ public sealed class InMemoryRoomStore : IRoomStore
 
         var normalizedRoomCode = NormalizeRoomCode(roomCode);
 
-        if (normalizedRoomCode is null)
+        if (normalizedRoomCode is null || !rooms.TryGetValue(normalizedRoomCode, out var room))
         {
             return null;
         }
 
-        return rooms.TryGetValue(normalizedRoomCode, out var room)
-            ? room
-            : null;
+        // 30-Second Grace Period Check for Reconnecting status
+        if (string.Equals(room.Status, RoomStatuses.Reconnecting, StringComparison.OrdinalIgnoreCase))
+        {
+            var now = DateTimeOffset.UtcNow;
+            if (now - room.UpdatedAt >= TimeSpan.FromSeconds(30))
+            {
+                // 30 seconds expired -> forfeit win to the player who remained in room
+                var remainingPlayer = room.Players.FirstOrDefault();
+                var winnerSymbol = remainingPlayer?.Symbol ?? "X";
+                var updatedScores = string.Equals(winnerSymbol, "X", StringComparison.OrdinalIgnoreCase)
+                    ? room.Game.Scores with { X = Math.Max(room.Game.Scores.X, room.TargetValue) }
+                    : room.Game.Scores with { O = Math.Max(room.Game.Scores.O, room.TargetValue) };
+
+                var updatedGame = room.Game with
+                {
+                    Winner = winnerSymbol,
+                    Scores = updatedScores,
+                    WinningLine = []
+                };
+                var expiredRoom = room with
+                {
+                    Status = RoomStatuses.Completed,
+                    Game = updatedGame,
+                    UpdatedAt = now
+                };
+                rooms[normalizedRoomCode] = expiredRoom;
+                return expiredRoom;
+            }
+        }
+
+        return room;
     }
 
     public JoinRoomResult Join(string roomCode, string playerName)
@@ -87,6 +115,13 @@ public sealed class InMemoryRoomStore : IRoomStore
                 return JoinRoomResult.NotFound();
             }
 
+            var isHost = room.Players.Count > 0 && string.Equals(room.Players[0].Name.Trim(), normalizedPlayerName, StringComparison.OrdinalIgnoreCase);
+
+            if (isHost && room.Players.Count == 1)
+            {
+                return JoinRoomResult.Conflict("Oyuna katılan kişi oda sahibi ile aynı isme sahip olamaz.");
+            }
+
             var existingPlayer = room.Players.FirstOrDefault(player =>
                 string.Equals(
                     player.Name.Trim(),
@@ -95,8 +130,13 @@ public sealed class InMemoryRoomStore : IRoomStore
 
             if (existingPlayer is not null)
             {
+                var reconnectedStatus = string.Equals(room.Status, RoomStatuses.Reconnecting, StringComparison.OrdinalIgnoreCase)
+                    ? RoomStatuses.Playing
+                    : room.Status;
+
                 var reconnectedRoom = room with
                 {
+                    Status = reconnectedStatus,
                     UpdatedAt = DateTimeOffset.UtcNow
                 };
 
@@ -110,7 +150,7 @@ public sealed class InMemoryRoomStore : IRoomStore
 
             if (room.Players.Count >= 2)
             {
-                return JoinRoomResult.Conflict("Room is full.");
+                return JoinRoomResult.Conflict("Bu oda dolu.");
             }
 
             if (room.Status is not RoomStatuses.Waiting)
@@ -760,6 +800,89 @@ public sealed class InMemoryRoomStore : IRoomStore
         }
 
         return line;
+    }
+
+    public bool Leave(string roomCode, Guid playerId, bool isSurrender = false)
+    {
+        var normalizedRoomCode = NormalizeRoomCode(roomCode);
+
+        if (normalizedRoomCode is null || !rooms.TryGetValue(normalizedRoomCode, out var room))
+        {
+            return false;
+        }
+
+        var playerStr = playerId.ToString("N");
+        var player = room.Players.FirstOrDefault(p => string.Equals(p.Id, playerStr, StringComparison.OrdinalIgnoreCase));
+
+        if (player is null)
+        {
+            return false;
+        }
+
+        // If game is actively playing or reconnecting:
+        if (string.Equals(room.Status, RoomStatuses.Playing, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(room.Status, RoomStatuses.Reconnecting, StringComparison.OrdinalIgnoreCase))
+        {
+            var remainingPlayer = room.Players.FirstOrDefault(p => !string.Equals(p.Id, playerStr, StringComparison.OrdinalIgnoreCase));
+
+            // Explicit menu surrender -> IMMEDIATE FORFEIT WIN (0s delay!)
+            if (isSurrender || remainingPlayer is null)
+            {
+                var winnerSymbol = remainingPlayer?.Symbol ?? "X";
+                var updatedScores = string.Equals(winnerSymbol, "X", StringComparison.OrdinalIgnoreCase)
+                    ? room.Game.Scores with { X = Math.Max(room.Game.Scores.X, room.TargetValue) }
+                    : room.Game.Scores with { O = Math.Max(room.Game.Scores.O, room.TargetValue) };
+
+                var updatedGame = room.Game with
+                {
+                    Winner = winnerSymbol,
+                    Scores = updatedScores,
+                    WinningLine = []
+                };
+
+                var forfeitRoom = room with
+                {
+                    Status = RoomStatuses.Completed,
+                    Game = updatedGame,
+                    UpdatedAt = DateTimeOffset.UtcNow
+                };
+
+                rooms[normalizedRoomCode] = forfeitRoom;
+                return true;
+            }
+
+            // Connection drop: Start 30s Reconnection Grace Period
+            var reconnectingRoom = room with
+            {
+                Status = RoomStatuses.Reconnecting,
+                UpdatedAt = DateTimeOffset.UtcNow
+            };
+
+            rooms[normalizedRoomCode] = reconnectingRoom;
+            return true;
+        }
+
+        // Host ('X') left or only 1 player -> destroy room completely
+        if (string.Equals(player.Symbol, "X", StringComparison.OrdinalIgnoreCase) || room.Players.Count <= 1)
+        {
+            rooms.TryRemove(normalizedRoomCode, out _);
+            return true;
+        }
+
+        // Guest ('O') left -> remove guest, revert status to waiting
+        var remainingPlayers = room.Players
+            .Where(p => !string.Equals(p.Id, playerStr, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var updatedRoom = room with
+        {
+            Players = remainingPlayers,
+            Status = RoomStatuses.Waiting,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+
+        rooms[normalizedRoomCode] = updatedRoom;
+        return true;
     }
 
     private static string? NormalizeRoomCode(string roomCode)

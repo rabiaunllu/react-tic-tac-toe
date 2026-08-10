@@ -119,6 +119,20 @@ app.MapPost("/api/rooms/{roomCode}/join", (string roomCode, JoinRoomRequest requ
     };
 });
 
+app.MapPost("/api/rooms/{roomCode}/leave", (string roomCode, LeaveRoomRequest request, IRoomStore roomStore) =>
+{
+    if (!Guid.TryParse(request.PlayerId, out var playerId))
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["playerId"] = ["Player id must be a valid Guid."]
+        });
+    }
+
+    var success = roomStore.Leave(roomCode, playerId, request.IsSurrender);
+    return success ? Results.Ok() : Results.NotFound();
+});
+
 app.MapPost("/api/rooms/{roomCode}/moves", async (
     string roomCode,
     MoveRoomRequest request,

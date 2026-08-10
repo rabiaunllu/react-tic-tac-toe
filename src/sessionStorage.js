@@ -91,11 +91,11 @@ export function clearLocalSession() {
   clearSession(LOCAL_SESSION_KEY)
 }
 
-// Security: playerId must be a UUID (issued by the server) — rejects tampered / guessable tokens
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+// Security: playerId must be a UUID (issued by the server) — accepts both hyphenated and 32-hex formats
+const UUID_REGEX = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9a-f]{32})$/i
 
-// Security: online session expires after 24 hours to limit localStorage exposure window
-const ONLINE_SESSION_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
+// Security: online room sessions expire after 15 minutes to prevent stale unstarted lobbies from persisting
+const ONLINE_SESSION_TTL_MS = 15 * 60 * 1000 // 15 minutes in milliseconds
 
 export function isValidOnlineSession(session) {
   if (!session) return false
@@ -114,7 +114,7 @@ export function isValidOnlineSession(session) {
     return false
   }
 
-  // Reject expired sessions (older than 24 hours)
+  // Reject expired sessions (older than 15 minutes)
   if (typeof session.savedAt === 'number') {
     const ageMs = Date.now() - session.savedAt
     if (ageMs > ONLINE_SESSION_TTL_MS || ageMs < 0) {

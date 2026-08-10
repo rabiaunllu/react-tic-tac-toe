@@ -5,5 +5,6 @@ public static class RoomStatuses
     public const string Waiting = "waiting";
     public const string Ready = "ready";
     public const string Playing = "playing";
+    public const string Reconnecting = "reconnecting";
     public const string Completed = "completed";
 }
