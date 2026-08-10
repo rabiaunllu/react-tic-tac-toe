@@ -2,6 +2,16 @@
   box-sizing: border-box;
 }
 
+/* GPU hardware acceleration for smooth 60fps mobile rendering */
+.game-card,
+.board,
+.square,
+.psim-container,
+.hero-clash-container {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -2725,10 +2735,19 @@ button,
 @media (max-width: 560px) {
   .brand-header {
     gap: 8px;
+    position: relative;
+    padding-left: 36px;
+    padding-right: 36px;
   }
 
   .brand-header h1 {
-    font-size: clamp(42px, 15vw, 56px);
+    font-size: clamp(32px, 10vw, 48px);
+    max-width: 100%;
+  }
+
+  .setup-quick-actions {
+    top: 8px;
+    right: 8px;
   }
 
   .brand-header p {
@@ -2751,6 +2770,13 @@ button,
 
   .setup-return-confirm {
     width: 100%;
+  }
+
+  .psim-container {
+    max-width: 100%;
+    padding: 12px 8px;
+    border-radius: 12px;
+    box-sizing: border-box;
   }
 }
 .round-result-overlay {
@@ -4433,21 +4459,83 @@ button,
   line-height: 1;
 }
 
+.settings-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 19;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+}
+
 .settings-popover {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
   z-index: 20;
   min-width: 142px;
-  padding: 8px;
+  padding: 10px;
   border: 1px solid rgba(142, 216, 255, 0.22);
-  border-radius: 12px;
+  border-radius: 14px;
   background:
     linear-gradient(180deg, rgba(142, 216, 255, 0.08), transparent),
     rgba(13, 17, 29, 0.96);
   box-shadow:
-    0 18px 44px rgba(0, 0, 0, 0.34),
+    0 18px 44px rgba(0, 0, 0, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.settings-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.settings-popover-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #8cf2ff;
+}
+
+.settings-popover-close-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 16px;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s ease;
+}
+
+.settings-popover-close-btn:hover {
+  background: rgba(255, 143, 197, 0.3);
+  border-color: #ff8fc5;
+}
+
+.settings-popover-done-btn {
+  margin-top: 10px;
+  width: 100%;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(140, 242, 255, 0.3);
+  background: rgba(140, 242, 255, 0.12);
+  color: #8cf2ff;
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.settings-popover-done-btn:hover {
+  background: rgba(140, 242, 255, 0.25);
 }
 
 .settings-popover--expanded {

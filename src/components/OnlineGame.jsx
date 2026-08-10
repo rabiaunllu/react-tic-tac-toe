@@ -253,6 +253,14 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
     isNextRoundPending || hasRequestedNextRound || !canRequestNextRound
 
   const applyRoom = useCallback((nextRoom) => {
+    const nextJson = JSON.stringify(nextRoom)
+
+    // Performance Optimization: Skip re-rendering if room state hasn't changed
+    if (nextJson === roomJsonCacheRef.current) {
+      return
+    }
+    roomJsonCacheRef.current = nextJson
+
     const nextResultSignature = getResultSignature(nextRoom)
     const nextCurrentSymbol = nextRoom.game.xIsNext ? 'X' : 'O'
 
@@ -349,6 +357,22 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
 
     setActionError('')
     setIsMovePending(true)
+    const currentRoomSnapshot = room
+
+    // Optimistic UI Update: Render local move immediately (0ms latency feel!)
+    const optimisticSquares = [...room.game.squares]
+    optimisticSquares[index] = mySymbol
+    const optimisticRoom = {
+      ...room,
+      game: {
+        ...room.game,
+        squares: optimisticSquares,
+        xIsNext: !room.game.xIsNext,
+      },
+    }
+
+    applyRoom(optimisticRoom)
+    playSound('move')
 
     try {
       const nextRoom = await requestRoomJson(`/api/rooms/${roomCode}/moves`, {
@@ -362,13 +386,15 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
 
       if (wasBlackHoleTriggered) {
         setBlackHoleEvent({ index })
+        playSound('blackhole')
       }
 
       pendingLocalMoveSignatureRef.current = getBoardSignature(nextRoom)
       applyRoom(nextRoom)
-      playSound(wasBlackHoleTriggered ? 'blackhole' : 'move')
       setConnectionMessage('')
     } catch (error) {
+      // Rollback optimistic state if server rejects or connection drops
+      applyRoom(currentRoomSnapshot)
       handleRoomError(error, setActionError)
     } finally {
       setIsMovePending(false)
@@ -379,11 +405,12 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
     registerUserGesture()
     playSound('click')
 
-    if (!canRequestNextRound || hasRequestedNextRound) {
+    if (!canRequestNextRound) {
       return
     }
 
     setActionError('')
+    setConnectionMessage('')
     setIsNextRoundPending(true)
 
     try {
@@ -391,8 +418,8 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
         method: 'POST',
         body: JSON.stringify({ playerId }),
       })
+
       applyRoom(nextRoom)
-      setConnectionMessage('')
     } catch (error) {
       handleRoomError(error, setActionError)
     } finally {
@@ -400,7 +427,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
     }
   }
 
-  async function handleStartRoom() {
+  async function handleConfirmStartRoom() {
     registerUserGesture()
     playSound('click')
 
@@ -409,12 +436,12 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
     }
 
     setActionError('')
+    setConnectionMessage('')
     setIsStartPending(true)
 
     try {
       const nextRoom = await startRoom(roomCode, playerId)
       applyRoom(nextRoom)
-      setConnectionMessage('')
     } catch (error) {
       handleRoomError(error, setActionError)
     } finally {
@@ -462,12 +489,15 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
     previousRoomRef.current = room
   }, [room])
 
+  // Adaptive Polling Effect: Fast detection when waiting for opponent, reduced server load on my turn or completed game
   useEffect(() => {
     let isPollingActive = true
+    let timeoutId = null
 
     async function pollRoom() {
-      // Security: skip polling when tab is hidden to prevent server hammering
+      // Security/Performance: Skip polling when tab is hidden
       if (document.visibilityState === 'hidden') {
+        scheduleNextPoll()
         return
       }
 
@@ -491,21 +521,43 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
 
           if (isConnectionError(error)) {
             setConnectionMessage(error.message)
-            return
+          } else {
+            setActionError(error.message)
           }
-
-          setActionError(error.message)
+        }
+      } finally {
+        if (isPollingActive) {
+          scheduleNextPoll()
         }
       }
     }
 
-    const pollingId = window.setInterval(pollRoom, 2000)
+    function scheduleNextPoll() {
+      if (!isPollingActive) return
+
+      // Adaptive polling delay:
+      // - Opponent turn (waiting for move): 1200ms (fast response!)
+      // - My turn (thinking): 3500ms (cuts server traffic in half)
+      // - Completed / Inactive: 8000ms (minimizes idle traffic)
+      let delay = 2000
+      if (room.status === 'completed' || isRoomInactive) {
+        delay = 8000
+      } else if (mySymbol === currentSymbol && room.status === 'playing') {
+        delay = 3500
+      } else if (mySymbol !== currentSymbol && room.status === 'playing') {
+        delay = 1200
+      }
+
+      timeoutId = window.setTimeout(pollRoom, delay)
+    }
+
+    scheduleNextPoll()
 
     return () => {
       isPollingActive = false
-      window.clearInterval(pollingId)
+      if (timeoutId) window.clearTimeout(timeoutId)
     }
-  }, [applyRoom, roomCode])
+  }, [applyRoom, roomCode, room.status, isRoomInactive, mySymbol, currentSymbol])
 
   useEffect(() => {
     if (!bombEvent) {
