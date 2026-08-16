@@ -686,9 +686,29 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
         )}
 
         {room.status === 'reconnecting' && (
-          <div className="online-reconnecting-banner" role="alert" aria-live="assertive">
-            <strong>📡 Rakibin interneti koptu</strong>
-            <span>Yeniden bağlanması bekleniyor... <strong>({reconnectSeconds}s)</strong></span>
+          <div className="online-reconnecting-hud" role="alert" aria-live="assertive">
+            <div className="reconnect-hud-radar">
+              <span className="radar-pulse"></span>
+              <span className="radar-icon">📡</span>
+            </div>
+            <div className="reconnect-hud-info">
+              <strong>Rakibin İnterneti Koptu</strong>
+              <small>Yeniden bağlanması bekleniyor...</small>
+            </div>
+            <div className="reconnect-hud-timer" aria-label={`Kalan süre ${reconnectSeconds} saniye`}>
+              <svg className="reconnect-countdown-svg" viewBox="0 0 36 36">
+                <path
+                  className="reconnect-circle-bg"
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                />
+                <path
+                  className="reconnect-circle-progress"
+                  strokeDasharray={`${(reconnectSeconds / 30) * 100}, 100`}
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                />
+              </svg>
+              <span className="reconnect-timer-text">{reconnectSeconds}s</span>
+            </div>
           </div>
         )}
 

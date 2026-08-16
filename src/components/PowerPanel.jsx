@@ -1,4 +1,5 @@
 import { getAvailablePowerDefinitions, getPowerDefinitions } from '../game/powers'
+import { playSound, registerUserGesture } from '../game/soundManager'
 
 export default function PowerPanel({
   currentPlayer,
@@ -24,9 +25,12 @@ export default function PowerPanel({
   const availablePowers = [...basePowers, ...extraPowers]
   const selectedPower = availablePowers.find((power) => power.id === activePower)
   function handlePowerClick(powerId, isActive) {
+    registerUserGesture()
     if (!canInteract || !isPowersEnabled) {
       return
     }
+
+    playSound(isActive ? 'click' : 'power')
 
     if (powerId === 'boost' && boostMode === 'random') {
       onUseRandomBoost()
