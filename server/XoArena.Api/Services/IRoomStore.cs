@@ -19,4 +19,9 @@ public interface IRoomStore
     NextRoundResult NextRound(string roomCode, Guid playerId);
 
     bool Leave(string roomCode, Guid playerId, bool isSurrender = false);
+
+    /// <summary>
+    /// Süresi dolmuş odaları temizler. Silinen oda sayısını döndürür.
+    /// </summary>
+    int CleanupExpiredRooms();
 }

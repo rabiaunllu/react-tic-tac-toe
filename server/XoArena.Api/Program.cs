@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
+using System.Threading.RateLimiting;
 using XoArena.Api.Hubs;
 using XoArena.Api.Contracts;
 using XoArena.Api.Models;
@@ -6,6 +8,7 @@ using XoArena.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ── CORS ──────────────────────────────────────────────────────────────────────
 var configuredAllowedOrigins = builder.Configuration
     .GetSection("Cors:AllowedOrigins")
     .Get<string[]>()
@@ -32,11 +35,58 @@ builder.Services.AddCors(options =>
     });
 });
 
+// ── Rate Limiting ─────────────────────────────────────────────────────────────
+// Yapılandırma: appsettings.json > RateLimiting bölümü
+// Varsayılanlar: Genel: 300 req/dk (polling uyumlu), Oda oluşturma: 20 req/dk, Hamle: 240 req/dk
+var rlConfig = builder.Configuration.GetSection("RateLimiting");
+var globalPermits     = rlConfig.GetValue<int>("Global:PermitsPerMinute",   300);
+var createRoomPermits = rlConfig.GetValue<int>("CreateRoom:PermitsPerMinute", 20);
+var movePermits       = rlConfig.GetValue<int>("Move:PermitsPerMinute",     240);
+
+builder.Services.AddRateLimiter(options =>
+{
+    // Limit aşımında 429 Too Many Requests döndür
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    // Global limiter: tüm endpoint'lere uygulanır (fallback)
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = globalPermits,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }));
+
+    // Oda oluşturma: daha sıkı (spam ile yüzlerce oda açılmasın)
+    options.AddFixedWindowLimiter("create-room", opt =>
+    {
+        opt.PermitLimit = createRoomPermits;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        opt.QueueLimit = 0;
+    });
+
+    // Hamle endpoint'i: daha geniş (aktif oyun sırasında yoğun trafik normal)
+    options.AddFixedWindowLimiter("move", opt =>
+    {
+        opt.PermitLimit = movePermits;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        opt.QueueLimit = 0;
+    });
+});
+
+// ── Services ──────────────────────────────────────────────────────────────────
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<IRoomStore, InMemoryRoomStore>();
+builder.Services.AddHostedService<RoomCleanupService>();
 
 var app = builder.Build();
 
+// ── Middleware Pipeline ───────────────────────────────────────────────────────
 if (!app.Environment.IsDevelopment())
 {
     app.UseDefaultFiles();
@@ -44,7 +94,9 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseCors("Frontend");
+app.UseRateLimiter();
 
+// ── Endpoints ─────────────────────────────────────────────────────────────────
 if (app.Environment.IsDevelopment())
 {
     app.MapGet("/", () => Results.Ok(new
@@ -84,7 +136,7 @@ app.MapPost("/api/rooms", (CreateRoomRequest request, IRoomStore roomStore) =>
             : null));
 
     return Results.Ok(RoomResponse.FromRoom(room));
-});
+}).RequireRateLimiting("create-room");
 
 app.MapGet("/api/rooms/{roomCode}", (string roomCode, IRoomStore roomStore) =>
 {
@@ -171,7 +223,7 @@ app.MapPost("/api/rooms/{roomCode}/moves", async (
         }),
         _ => Results.Problem("Unexpected move room result.")
     };
-});
+}).RequireRateLimiting("move");
 
 app.MapPost("/api/rooms/{roomCode}/powers", async (
     string roomCode,
@@ -207,7 +259,7 @@ app.MapPost("/api/rooms/{roomCode}/powers", async (
         PowerRoomStatus.Conflict => Results.Conflict(new { error = result.ErrorMessage }),
         _ => Results.Problem("Unexpected power room result.")
     };
-});
+}).RequireRateLimiting("move");
 
 app.MapPost("/api/rooms/{roomCode}/start", async (
     string roomCode,

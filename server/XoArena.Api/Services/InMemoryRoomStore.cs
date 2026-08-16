@@ -890,9 +890,10 @@ public sealed class InMemoryRoomStore : IRoomStore
             ? null
             : roomCode.Trim().ToUpperInvariant();
 
-    private void CleanupExpiredRooms()
+    public int CleanupExpiredRooms()
     {
         var now = DateTimeOffset.UtcNow;
+        var removed = 0;
 
         foreach (var (roomCode, room) in rooms)
         {
@@ -903,9 +904,14 @@ public sealed class InMemoryRoomStore : IRoomStore
 
             if (now - room.UpdatedAt >= expirationTime)
             {
-                ((ICollection<KeyValuePair<string, Room>>)rooms).Remove(
-                    new KeyValuePair<string, Room>(roomCode, room));
+                if (((ICollection<KeyValuePair<string, Room>>)rooms).Remove(
+                        new KeyValuePair<string, Room>(roomCode, room)))
+                {
+                    removed++;
+                }
             }
         }
+
+        return removed;
     }
 }

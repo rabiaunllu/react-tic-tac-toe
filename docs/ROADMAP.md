@@ -82,22 +82,30 @@ Canlıdaki sunucunun dayanıklılığı için minimum güvenlik önlemleri.
 - **Dosya:** `server/XoArena.Api/Services/InMemoryRoomStore.cs` (912 satır)
 - **Sorun:** Oda temizliği yalnızca yeni oda oluşturulurken tetikleniyor → bellek sızıntısı riski
 - **Yapılacaklar:**
-  - [ ] `IHostedService` / `BackgroundService` ile periyodik temizleme (ör. her 5 dk)
-  - [ ] Durum bazlı zaman aşımı süreleri: waiting 30dk, ready 45dk, playing 2sa, completed 15dk
+  - [x] `IHostedService` / `BackgroundService` ile periyodik temizleme: `RoomCleanupService.cs` oluşturuldu
+  - [x] `IRoomStore.CleanupExpiredRooms()` public metod olarak eklendi (int döndürür, kaç oda silindi loglanır)
+  - [x] Durum bazlı zaman aşımı süreleri korundu: waiting 30dk, ready 45dk, playing 2sa, completed 15dk
+  - [x] Başlangıçta 30 saniye gecikme — uygulama tam ayağa kalksın
+  - [x] Temizleme aralığı `appsettings.json` üzerinden yapılandırılabilir (varsayılan: 5 dk)
 
 ### 3.2 — Rate Limiting
 - **Dosya:** `server/XoArena.Api/Program.cs` (331 satır)
 - **Sorun:** IP/Session bazlı istek sınırlaması yok
 - **Yapılacaklar:**
-  - [ ] `AddRateLimiter` ile ASP.NET Core built-in rate limiting ekle
-  - [ ] Oda oluşturma ve hamle endpoint'lerine ayrı limitler koy
+  - [x] `AddRateLimiter` ile ASP.NET Core built-in rate limiting eklendi
+  - [x] Global IP bazlı limiter: 300 istek/dk (tüm endpoint'ler, polling uyumlu)
+  - [x] Oda oluşturma (`POST /api/rooms`): 20 istek/dk — spam koruması
+  - [x] Hamle ve güç endpoint'leri (`/moves`, `/powers`): 240 istek/dk
+  - [x] Tüm limitler `appsettings.json` üzerinden yapılandırılabilir
+  - [x] Limit aşımında 429 Too Many Requests döndürülür
 
 ### 3.3 — CORS Yapılandırması (Production)
 - **Dosya:** `server/XoArena.Api/Program.cs`
-- **Mevcut Durum:** Development'ta localhost kısıtlı, production yapılandırması eksik
+- **Mevcut Durum:** Development'ta localhost kısıtlı, production yapılandırması eksikti
 - **Yapılacaklar:**
-  - [ ] Production ortamı için izin verilen origin'leri yapılandır
-  - [ ] Environment bazlı CORS politikası uygula
+  - [x] `appsettings.json`'a `Cors:AllowedOrigins` boş dizi eklendi (production'da override edilecek)
+  - [x] `appsettings.Development.json` localhost origin'lerini korur
+  - [x] Environment bazlı override: `CORS__ALLOWEDORIGINS__0=https://example.com` şeklinde env var ile production origin ayarlanabilir
 
 ---
 
@@ -111,6 +119,50 @@ Canlıdaki sunucunun dayanıklılığı için minimum güvenlik önlemleri.
 - 5sn AI fallback (otomatik bot eşleşme)
 - Responsive iframe uyumlaştırma (100vw × 100vh)
 - Ödüllü reklam → ekstra güç mekaniği
+
+---
+
+## Faz 5 · İleri Düzey Güvenlik & Canlıya Hazırlık 🛡️ KRİTİK
+
+Oyunu internet ortamına (Production) deploy ederken oluşabilecek kötü niyetli müdahaleleri, kimlik sahteciliğini ve bağlantı açıklarını engelleme adımları.
+
+### 5.1 — Oyuncu Kimlik Doğrulaması (Player Secret / Session Token) 🔴
+- **İlgili Dosyalar:** `server/XoArena.Api/Models/Player.cs`, `InMemoryRoomStore.cs`, `Contracts/PlayerResponse.cs`, `src/components/OnlineGame.jsx`
+- **Mevcut Açık (Player Impersonation / Forfeit Exploit):** 
+  - `GET /api/rooms/{code}` yanıtında her iki oyuncunun `PlayerId` değeri açıkça döner.
+  - Kötü niyetli bir oyuncu, rakibin `PlayerId`sini kullanarak `POST /leave` (teslim olma hilesi) veya rakibin sırasındayken onun yerine sahte `/moves` ve `/powers` istekleri atabilir.
+- **Çözüm Planı:**
+  - [ ] Oda oluşturma (`Create`) veya odaya katılma (`Join`) anında sunucu tarafında her oyuncu için gizli bir `PlayerSecret` (kriptografik GUID token) üretilecek.
+  - [ ] `PlayerSecret` sadece odayı oluşturan/katılan oyuncunun yanıtında tek seferlik döndürülecek; genel `RoomResponse` veya `PlayerResponse` içinde **asla yayınlanmayacak** (rakip göremeyecek).
+  - [ ] `Move`, `UsePower`, `Start`, `NextRound` ve `Leave` endpoint'lerinde `PlayerId` yerine veya yanında bu `PlayerSecret` doğrulanacak. Secret uyuşmazsa `403 Forbidden` dönecek.
+  - [ ] Frontend tarafında `sessionStorage` içine bu `playerSecret` güvenli bir şekilde kaydedilip isteklere eklenecek.
+
+### 5.2 — Güvenli İletişim (HTTPS & HSTS & WSS) 🔒
+- **İlgili Dosyalar:** `server/XoArena.Api/Program.cs`, Azure / Cloud App Service Config
+- **Risk:** HTTP üzerinden taşınan oda kodları ve oyuncu token'ları Man-in-the-Middle (aradaki adam) saldırılarıyla dinlenebilir.
+- **Çözüm Planı:**
+  - [ ] Canlı ortamda `app.UseHttpsRedirection()` ve `app.UseHsts()` middleware'lerinin zorunlu kılınması.
+  - [ ] SSL sertifikası (TLS 1.3) ile tüm trafiğin ve SignalR/WebSocket bağlantılarının (WSS) şifrelenmesi.
+
+### 5.3 — Oda Kodu Taraması & Kaba Kuvvet Koruması (Anti-Brute Force) 🛑
+- **İlgili Dosyalar:** `server/XoArena.Api/Program.cs`, `Services/InMemoryRoomStore.cs`
+- **Risk:** Botlar veya kötü niyetli kullanıcılar 6 haneli rastgele kodlar üreterek aktif özel maçlara izinsiz sızabilir veya odaları kilitleyebilir.
+- **Çözüm Planı:**
+  - [ ] `POST /api/rooms/{code}/join` endpoint'ine başarısız katılım denemeleri için rate limiting uygulanması (Örn: 1 dakikada 5 hatalı kod denemesi yapan IP'ye geçici blokaj).
+  - [ ] İsteğe bağlı olarak özel odalar için 4 haneli PIN/Parola desteği eklenmesi.
+
+### 5.4 — Production CORS & Domain Whitelist Kısıtlaması 🌐
+- **İlgili Dosyalar:** `server/XoArena.Api/appsettings.json`, Ortam Değişkenleri
+- **Risk:** API'nin başka yabancı web sitelerinden yetkisiz çağrılması (Cross-Origin Abuse).
+- **Çözüm Planı:**
+  - [ ] Production ortamında `Cors:AllowedOrigins` dizisine yalnızca oyunun barındırıldığı resmi alan adlarının (örn: `https://xoarena.com`) eklenmesi.
+  - [ ] Ortam değişkeni üzerinden (`CORS__ALLOWEDORIGINS__0=https://...`) dinamik origin yönetimi.
+
+### 5.5 — Bellek Dayanıklılığı ve Sıfır Kesinti (State Resilience) 💾
+- **İlgili Dosyalar:** `server/XoArena.Api/Services/`
+- **Risk:** In-Memory yapı nedeniyle sunucu deploy veya yeniden başlatma anında tüm aktif maçlar anında silinir.
+- **Çözüm Planı:**
+  - [ ] İlerleyen aşamada odaların geçici durumunun Redis veya hafif bir önbellek servisi (Redis Backplane / Distributed Cache) ile izole edilmesi; böylece sunucu güncellense bile oyuncuların maçları kopmaz.
 
 ---
 
