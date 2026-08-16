@@ -128,16 +128,16 @@ export async function requestRoomJson(path, options = {}) {
   return response.json()
 }
 
-export function startRoom(roomCode, playerId) {
+export function startRoom(roomCode, playerId, playerSecret) {
   return requestRoomJson(`/api/rooms/${roomCode}/start`, {
     method: 'POST',
-    body: JSON.stringify({ playerId }),
+    body: JSON.stringify({ playerId, playerSecret }),
   })
 }
 
-export function leaveRoom(roomCode, playerId, options = {}) {
+export function leaveRoom(roomCode, playerId, playerSecret, options = {}) {
   return requestRoomJson(`/api/rooms/${roomCode}/leave`, {
     method: 'POST',
-    body: JSON.stringify({ playerId, isSurrender: Boolean(options.isSurrender) }),
+    body: JSON.stringify({ playerId, playerSecret, isSurrender: Boolean(options.isSurrender) }),
   })
 }

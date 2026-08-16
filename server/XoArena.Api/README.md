@@ -82,7 +82,7 @@ ASPNETCORE_URLS=http://0.0.0.0:${PORT}
 
 Some providers expose only `PORT`; in that case configure the provider start command or environment so Kestrel binds to that port. Locally, `--urls http://localhost:5243` is enough.
 
-`UseHttpsRedirection` is not enabled in `Program.cs`. This is intentional for hosted environments where TLS is usually terminated by the platform or reverse proxy. HTTPS should be enforced at the hosting/provider layer for production traffic.
+Production enables both `UseHttpsRedirection` and HSTS. Keep HTTPS-only enforcement enabled at the hosting/provider layer as well, and terminate TLS with a valid certificate there so browser and WebSocket traffic use HTTPS/WSS end to end.
 
 `AllowedHosts` is still provider-dependent because the backend hostname is not selected in this branch. Before the first live deploy, set it to the deployed backend host through production configuration or the hosting provider environment instead of guessing a hostname in source.
 
@@ -204,6 +204,8 @@ GET /api/rooms/{roomCode}
 
 Room responses include the current game state with `squares`, `xIsNext`, `scores`, `roundNumber`, `winner`, `isDraw`, and `winningLine`.
 
+Creating or joining a room returns `{ room, playerSecret }`. Store `playerSecret` only in browser `sessionStorage`; it is never included in subsequent room reads or broadcasts. Every state-changing request must include both the public `playerId` and that secret.
+
 Join an in-memory room:
 
 ```text
@@ -225,6 +227,7 @@ POST /api/rooms/{roomCode}/moves
 ```json
 {
   "playerId": "46ece7a1f7714a0fbe114bec814b18b9",
+  "playerSecret": "issued-secret-from-create-or-join-response",
   "index": 4
 }
 ```
@@ -240,6 +243,7 @@ POST /api/rooms/{roomCode}/powers
 ```json
 {
   "playerId": "46ece7a1f7714a0fbe114bec814b18b9",
+  "playerSecret": "issued-secret-from-create-or-join-response",
   "powerId": "boost",
   "targetIndex": 4
 }
@@ -255,6 +259,7 @@ POST /api/rooms/{roomCode}/next-round
 
 ```json
 {
-  "playerId": "46ece7a1f7714a0fbe114bec814b18b9"
+  "playerId": "46ece7a1f7714a0fbe114bec814b18b9",
+  "playerSecret": "issued-secret-from-create-or-join-response"
 }
 ```

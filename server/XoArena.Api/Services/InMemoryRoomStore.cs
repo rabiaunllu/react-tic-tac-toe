@@ -31,7 +31,8 @@ public sealed class InMemoryRoomStore : IRoomStore
             var owner = new Player(
                 Guid.NewGuid().ToString("N"),
                 options.PlayerName,
-                "X");
+                "X",
+                GeneratePlayerSecret());
             var room = new Room(
                 roomCode,
                 RoomStatuses.Waiting,
@@ -130,22 +131,7 @@ public sealed class InMemoryRoomStore : IRoomStore
 
             if (existingPlayer is not null)
             {
-                var reconnectedStatus = string.Equals(room.Status, RoomStatuses.Reconnecting, StringComparison.OrdinalIgnoreCase)
-                    ? RoomStatuses.Playing
-                    : room.Status;
-
-                var reconnectedRoom = room with
-                {
-                    Status = reconnectedStatus,
-                    UpdatedAt = DateTimeOffset.UtcNow
-                };
-
-                if (rooms.TryUpdate(normalizedRoomCode, reconnectedRoom, room))
-                {
-                    return JoinRoomResult.Joined(reconnectedRoom);
-                }
-
-                continue;
+                return JoinRoomResult.Conflict("Bu oyuncu adı zaten kullanılıyor.");
             }
 
             if (room.Players.Count >= 2)
@@ -161,7 +147,8 @@ public sealed class InMemoryRoomStore : IRoomStore
             var guest = new Player(
                 Guid.NewGuid().ToString("N"),
                 normalizedPlayerName,
-                "O");
+                "O",
+                GeneratePlayerSecret());
             var joinedPowers = room.Game.PlayerPowers.ToDictionary(entry => entry.Key, entry => entry.Value);
 
             if (room.GameMode is GameModes.Arena)
@@ -183,12 +170,12 @@ public sealed class InMemoryRoomStore : IRoomStore
 
             if (rooms.TryUpdate(normalizedRoomCode, joinedRoom, room))
             {
-                return JoinRoomResult.Joined(joinedRoom);
+                return JoinRoomResult.Joined(joinedRoom, guest.PlayerSecret);
             }
         }
     }
 
-    public StartRoomResult Start(string roomCode, Guid playerId)
+    public StartRoomResult Start(string roomCode, Guid playerId, string playerSecret)
     {
         CleanupExpiredRooms();
 
@@ -210,7 +197,7 @@ public sealed class InMemoryRoomStore : IRoomStore
                 Guid.TryParse(currentPlayer.Id, out var currentPlayerId)
                 && currentPlayerId == playerId);
 
-            if (player is null)
+            if (player is null || !HasMatchingSecret(player, playerSecret))
             {
                 return StartRoomResult.Forbidden();
             }
@@ -243,7 +230,7 @@ public sealed class InMemoryRoomStore : IRoomStore
         }
     }
 
-    public MoveRoomResult Move(string roomCode, Guid playerId, int index)
+    public MoveRoomResult Move(string roomCode, Guid playerId, string playerSecret, int index)
     {
         CleanupExpiredRooms();
 
@@ -261,7 +248,7 @@ public sealed class InMemoryRoomStore : IRoomStore
                 return MoveRoomResult.NotFound();
             }
 
-            var playerIndex = FindPlayerIndex(room, playerId);
+            var playerIndex = FindPlayerIndex(room, playerId, playerSecret);
 
             if (playerIndex < 0)
             {
@@ -366,7 +353,7 @@ public sealed class InMemoryRoomStore : IRoomStore
         }
     }
 
-    public PowerRoomResult UsePower(string roomCode, Guid playerId, string powerId, int targetIndex)
+    public PowerRoomResult UsePower(string roomCode, Guid playerId, string playerSecret, string powerId, int targetIndex)
     {
         CleanupExpiredRooms();
         var normalizedRoomCode = NormalizeRoomCode(roomCode);
@@ -390,7 +377,7 @@ public sealed class InMemoryRoomStore : IRoomStore
                 return PowerRoomResult.BadRequest("powerId", "Power is not supported in Online Arena.");
             }
 
-            var playerIndex = FindPlayerIndex(room, playerId);
+            var playerIndex = FindPlayerIndex(room, playerId, playerSecret);
 
             if (playerIndex < 0)
             {
@@ -498,7 +485,7 @@ public sealed class InMemoryRoomStore : IRoomStore
         }
     }
 
-    public NextRoundResult NextRound(string roomCode, Guid playerId)
+    public NextRoundResult NextRound(string roomCode, Guid playerId, string playerSecret)
     {
         CleanupExpiredRooms();
 
@@ -520,7 +507,7 @@ public sealed class InMemoryRoomStore : IRoomStore
                 Guid.TryParse(currentPlayer.Id, out var currentPlayerId)
                 && currentPlayerId == playerId);
 
-            if (player is null)
+            if (player is null || !HasMatchingSecret(player, playerSecret))
             {
                 return NextRoundResult.Forbidden();
             }
@@ -603,6 +590,12 @@ public sealed class InMemoryRoomStore : IRoomStore
         return new string(characters);
     }
 
+    private static string GeneratePlayerSecret()
+        => Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
+            .TrimEnd('=')
+            .Replace('+', '-')
+            .Replace('/', '_');
+
     private static GameState CreateInitialGameState(
         int boardSize,
         string gameMode,
@@ -630,18 +623,31 @@ public sealed class InMemoryRoomStore : IRoomStore
     private static IReadOnlyList<string?> CreateEmptySquares(int boardSize)
         => Enumerable.Repeat<string?>(null, boardSize * boardSize).ToArray();
 
-    private static int FindPlayerIndex(Room room, Guid playerId)
+    private static int FindPlayerIndex(Room room, Guid playerId, string playerSecret)
     {
         for (var index = 0; index < room.Players.Count; index++)
         {
             if (Guid.TryParse(room.Players[index].Id, out var currentPlayerId)
-                && currentPlayerId == playerId)
+                && currentPlayerId == playerId
+                && HasMatchingSecret(room.Players[index], playerSecret))
             {
                 return index;
             }
         }
 
         return -1;
+    }
+
+    private static bool HasMatchingSecret(Player player, string? playerSecret)
+    {
+        if (string.IsNullOrWhiteSpace(playerSecret))
+        {
+            return false;
+        }
+
+        return CryptographicOperations.FixedTimeEquals(
+            System.Text.Encoding.UTF8.GetBytes(player.PlayerSecret),
+            System.Text.Encoding.UTF8.GetBytes(playerSecret));
     }
 
     private static string GetPlayerSymbol(int roundNumber, int playerIndex)
@@ -802,7 +808,7 @@ public sealed class InMemoryRoomStore : IRoomStore
         return line;
     }
 
-    public bool Leave(string roomCode, Guid playerId, bool isSurrender = false)
+    public bool Leave(string roomCode, Guid playerId, string playerSecret, bool isSurrender = false)
     {
         var normalizedRoomCode = NormalizeRoomCode(roomCode);
 
@@ -814,7 +820,7 @@ public sealed class InMemoryRoomStore : IRoomStore
         var playerStr = playerId.ToString("N");
         var player = room.Players.FirstOrDefault(p => string.Equals(p.Id, playerStr, StringComparison.OrdinalIgnoreCase));
 
-        if (player is null)
+        if (player is null || !HasMatchingSecret(player, playerSecret))
         {
             return false;
         }
@@ -890,9 +896,10 @@ public sealed class InMemoryRoomStore : IRoomStore
             ? null
             : roomCode.Trim().ToUpperInvariant();
 
-    private void CleanupExpiredRooms()
+    public int CleanupExpiredRooms()
     {
         var now = DateTimeOffset.UtcNow;
+        var removed = 0;
 
         foreach (var (roomCode, room) in rooms)
         {
@@ -903,9 +910,14 @@ public sealed class InMemoryRoomStore : IRoomStore
 
             if (now - room.UpdatedAt >= expirationTime)
             {
-                ((ICollection<KeyValuePair<string, Room>>)rooms).Remove(
-                    new KeyValuePair<string, Room>(roomCode, room));
+                if (((ICollection<KeyValuePair<string, Room>>)rooms).Remove(
+                        new KeyValuePair<string, Room>(roomCode, room)))
+                {
+                    removed++;
+                }
             }
         }
+
+        return removed;
     }
 }

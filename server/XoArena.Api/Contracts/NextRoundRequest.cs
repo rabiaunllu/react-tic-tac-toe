@@ -1,3 +1,3 @@
 namespace XoArena.Api.Contracts;
 
-public sealed record NextRoundRequest(string PlayerId);
+public sealed record NextRoundRequest(string PlayerId, string PlayerSecret);

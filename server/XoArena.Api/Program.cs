@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
+using System.Threading.RateLimiting;
 using XoArena.Api.Hubs;
 using XoArena.Api.Contracts;
 using XoArena.Api.Models;
@@ -6,6 +8,7 @@ using XoArena.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ── CORS ──────────────────────────────────────────────────────────────────────
 var configuredAllowedOrigins = builder.Configuration
     .GetSection("Cors:AllowedOrigins")
     .Get<string[]>()
@@ -32,19 +35,84 @@ builder.Services.AddCors(options =>
     });
 });
 
+// ── Rate Limiting ─────────────────────────────────────────────────────────────
+// Yapılandırma: appsettings.json > RateLimiting bölümü
+// Varsayılanlar: Genel: 300 req/dk (polling uyumlu), Oda oluşturma: 20 req/dk, Hamle: 240 req/dk
+var rlConfig = builder.Configuration.GetSection("RateLimiting");
+var globalPermits     = rlConfig.GetValue<int>("Global:PermitsPerMinute",   300);
+var createRoomPermits = rlConfig.GetValue<int>("CreateRoom:PermitsPerMinute", 20);
+var movePermits       = rlConfig.GetValue<int>("Move:PermitsPerMinute",     240);
+var joinRoomPermits   = rlConfig.GetValue<int>("JoinRoom:PermitsPerMinute",   5);
+
+builder.Services.AddRateLimiter(options =>
+{
+    // Limit aşımında 429 Too Many Requests döndür
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    // Global limiter: tüm endpoint'lere uygulanır (fallback)
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = globalPermits,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }));
+
+    // Oda oluşturma: daha sıkı (spam ile yüzlerce oda açılmasın)
+    options.AddFixedWindowLimiter("create-room", opt =>
+    {
+        opt.PermitLimit = createRoomPermits;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        opt.QueueLimit = 0;
+    });
+
+    // Hamle endpoint'i: daha geniş (aktif oyun sırasında yoğun trafik normal)
+    options.AddFixedWindowLimiter("move", opt =>
+    {
+        opt.PermitLimit = movePermits;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        opt.QueueLimit = 0;
+    });
+
+    // Oda kodu denemeleri IP bazında sınırlandırılır. Bu, kod tarayan botların
+    // özel odaları kaba kuvvetle bulmasını engeller.
+    options.AddPolicy("join-room", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = joinRoomPermits,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }));
+});
+
+// ── Services ──────────────────────────────────────────────────────────────────
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<IRoomStore, InMemoryRoomStore>();
+builder.Services.AddHostedService<RoomCleanupService>();
 
 var app = builder.Build();
 
+// ── Middleware Pipeline ───────────────────────────────────────────────────────
 if (!app.Environment.IsDevelopment())
 {
+    app.UseHsts();
+    app.UseHttpsRedirection();
     app.UseDefaultFiles();
     app.UseStaticFiles();
 }
 
 app.UseCors("Frontend");
+app.UseRateLimiter();
 
+// ── Endpoints ─────────────────────────────────────────────────────────────────
 if (app.Environment.IsDevelopment())
 {
     app.MapGet("/", () => Results.Ok(new
@@ -83,8 +151,10 @@ app.MapPost("/api/rooms", (CreateRoomRequest request, IRoomStore roomStore) =>
             ? request.BoostMode?.Trim().ToLowerInvariant() ?? "manual"
             : null));
 
-    return Results.Ok(RoomResponse.FromRoom(room));
-});
+    return Results.Ok(new RoomAccessResponse(
+        RoomResponse.FromRoom(room),
+        room.Players[0].PlayerSecret));
+}).RequireRateLimiting("create-room");
 
 app.MapGet("/api/rooms/{roomCode}", (string roomCode, IRoomStore roomStore) =>
 {
@@ -109,7 +179,9 @@ app.MapPost("/api/rooms/{roomCode}/join", (string roomCode, JoinRoomRequest requ
 
     return result.Status switch
     {
-        JoinRoomStatus.Joined => Results.Ok(RoomResponse.FromRoom(result.Room!)),
+        JoinRoomStatus.Joined => Results.Ok(new RoomAccessResponse(
+            RoomResponse.FromRoom(result.Room!),
+            result.PlayerSecret!)),
         JoinRoomStatus.NotFound => Results.NotFound(),
         JoinRoomStatus.Conflict => Results.Conflict(new
         {
@@ -117,7 +189,7 @@ app.MapPost("/api/rooms/{roomCode}/join", (string roomCode, JoinRoomRequest requ
         }),
         _ => Results.Problem("Unexpected join room result.")
     };
-});
+}).RequireRateLimiting("join-room");
 
 app.MapPost("/api/rooms/{roomCode}/leave", (string roomCode, LeaveRoomRequest request, IRoomStore roomStore) =>
 {
@@ -129,8 +201,8 @@ app.MapPost("/api/rooms/{roomCode}/leave", (string roomCode, LeaveRoomRequest re
         });
     }
 
-    var success = roomStore.Leave(roomCode, playerId, request.IsSurrender);
-    return success ? Results.Ok() : Results.NotFound();
+    var success = roomStore.Leave(roomCode, playerId, request.PlayerSecret, request.IsSurrender);
+    return success ? Results.Ok() : Results.StatusCode(StatusCodes.Status403Forbidden);
 });
 
 app.MapPost("/api/rooms/{roomCode}/moves", async (
@@ -147,7 +219,7 @@ app.MapPost("/api/rooms/{roomCode}/moves", async (
         });
     }
 
-    var result = roomStore.Move(roomCode, playerId, request.Index);
+    var result = roomStore.Move(roomCode, playerId, request.PlayerSecret, request.Index);
 
     if (result.Status is MoveRoomStatus.Moved)
     {
@@ -171,7 +243,7 @@ app.MapPost("/api/rooms/{roomCode}/moves", async (
         }),
         _ => Results.Problem("Unexpected move room result.")
     };
-});
+}).RequireRateLimiting("move");
 
 app.MapPost("/api/rooms/{roomCode}/powers", async (
     string roomCode,
@@ -187,7 +259,7 @@ app.MapPost("/api/rooms/{roomCode}/powers", async (
         });
     }
 
-    var result = roomStore.UsePower(roomCode, playerId, request.PowerId, request.TargetIndex);
+    var result = roomStore.UsePower(roomCode, playerId, request.PlayerSecret, request.PowerId, request.TargetIndex);
 
     if (result.Status is PowerRoomStatus.Used)
     {
@@ -207,7 +279,7 @@ app.MapPost("/api/rooms/{roomCode}/powers", async (
         PowerRoomStatus.Conflict => Results.Conflict(new { error = result.ErrorMessage }),
         _ => Results.Problem("Unexpected power room result.")
     };
-});
+}).RequireRateLimiting("move");
 
 app.MapPost("/api/rooms/{roomCode}/start", async (
     string roomCode,
@@ -223,7 +295,7 @@ app.MapPost("/api/rooms/{roomCode}/start", async (
         });
     }
 
-    var result = roomStore.Start(roomCode, playerId);
+    var result = roomStore.Start(roomCode, playerId, request.PlayerSecret);
 
     if (result.Status is StartRoomStatus.Started)
     {
@@ -259,7 +331,7 @@ app.MapPost("/api/rooms/{roomCode}/next-round", async (
         });
     }
 
-    var result = roomStore.NextRound(roomCode, playerId);
+    var result = roomStore.NextRound(roomCode, playerId, request.PlayerSecret);
 
     if (result.Status is NextRoundStatus.Pending or NextRoundStatus.Started)
     {

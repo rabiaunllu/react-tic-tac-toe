@@ -1,3 +1,3 @@
 namespace XoArena.Api.Contracts;
 
-public sealed record StartRoomRequest(string PlayerId);
+public sealed record StartRoomRequest(string PlayerId, string PlayerSecret);
