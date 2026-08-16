@@ -5,6 +5,7 @@ export default function GameStatus({
   resultMessage,
   loserMessage,
   matchWinner,
+  isAiThinking,
 }) {
   if (matchWinner) {
     return null
@@ -41,6 +42,17 @@ export default function GameStatus({
 
   if (isDraw) {
     return <div className="status draw">Berabere.</div>
+  }
+
+  if (isAiThinking) {
+    return (
+      <div className="status ai-thinking" aria-live="polite" aria-label="Yapay zeka düşünüyor">
+        <span className="ai-thinking-dots" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </span>
+        AI düşünüyor…
+      </div>
+    )
   }
 
   return null

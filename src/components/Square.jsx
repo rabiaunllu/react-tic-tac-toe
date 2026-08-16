@@ -1,4 +1,6 @@
-export default function Square({
+import { memo } from 'react'
+
+const Square = memo(function Square({
   value,
   multiplier,
   isWinningSquare,
@@ -61,4 +63,6 @@ export default function Square({
       <span className="square-value">{value}</span>
     </button>
   )
-}
+})
+
+export default Square
