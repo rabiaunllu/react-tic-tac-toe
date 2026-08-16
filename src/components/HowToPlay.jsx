@@ -325,13 +325,13 @@ export default function HowToPlay({
             <h3>Hızlı Başvuru</h3>
             <div className="quick-reference-list">
               <QuickReferencePower icon="💣" title="Bomba" description="Korumasız bir taşı kaldırır." />
-              <QuickReferencePower icon="🛡️" title="Kalkan" description="Kendi taşını saldırılardan korur." />
-              <QuickReferencePower icon="⚡" title="Boost" description="Hücre puanını iki katına çıkarır." />
+              <QuickReferencePower icon="🛡️" title="Kalkan" description="Kendi taşını korur. (Hamle hakkın devam eder)" />
+              <QuickReferencePower icon="⚡" title="Boost" description="Hücre puanını iki katına çıkarır. (Hamle hakkın devam eder)" />
               <QuickReferencePower icon="🕳️" title="Kara Delik" description="Rakibin taşı koyunca kaybolur ve sırası geçer." />
               <span className="quick-reference-break" aria-hidden="true" />
               <QuickReferencePower icon="🃏" title="Joker" description="Rakibin taşını kendi taşına çevirir." />
-              <QuickReferencePower icon="❄️" title="Freeze" description="Boş kareyi bir hamle boyunca kilitler." />
-              <QuickReferencePower icon="🧛" title="Vampir" description="Rakibin çarpanını kendi taşına taşır." />
+              <QuickReferencePower icon="❄️" title="Freeze" description="Boş kareyi kilitler. (Hamle hakkın devam eder)" />
+              <QuickReferencePower icon="🧛" title="Vampir" description="Rakibin çarpanını aktarır. (Hamle hakkın devam eder)" />
             </div>
           </section>
         </div>
