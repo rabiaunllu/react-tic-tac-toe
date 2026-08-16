@@ -132,31 +132,31 @@ Oyunu internet ortamına (Production) deploy ederken oluşabilecek kötü niyetl
   - `GET /api/rooms/{code}` yanıtında her iki oyuncunun `PlayerId` değeri açıkça döner.
   - Kötü niyetli bir oyuncu, rakibin `PlayerId`sini kullanarak `POST /leave` (teslim olma hilesi) veya rakibin sırasındayken onun yerine sahte `/moves` ve `/powers` istekleri atabilir.
 - **Çözüm Planı:**
-  - [ ] Oda oluşturma (`Create`) veya odaya katılma (`Join`) anında sunucu tarafında her oyuncu için gizli bir `PlayerSecret` (kriptografik GUID token) üretilecek.
-  - [ ] `PlayerSecret` sadece odayı oluşturan/katılan oyuncunun yanıtında tek seferlik döndürülecek; genel `RoomResponse` veya `PlayerResponse` içinde **asla yayınlanmayacak** (rakip göremeyecek).
-  - [ ] `Move`, `UsePower`, `Start`, `NextRound` ve `Leave` endpoint'lerinde `PlayerId` yerine veya yanında bu `PlayerSecret` doğrulanacak. Secret uyuşmazsa `403 Forbidden` dönecek.
-  - [ ] Frontend tarafında `sessionStorage` içine bu `playerSecret` güvenli bir şekilde kaydedilip isteklere eklenecek.
+  - [x] Oda oluşturma (`Create`) veya odaya katılma (`Join`) anında sunucu tarafında her oyuncu için gizli bir `PlayerSecret` (kriptografik token) üretiliyor.
+  - [x] `PlayerSecret` sadece odayı oluşturan/katılan oyuncunun yanıtında döndürülüyor; genel `RoomResponse` veya `PlayerResponse` içinde **asla yayınlanmıyor**.
+  - [x] `Move`, `UsePower`, `Start`, `NextRound` ve `Leave` endpoint'leri `PlayerSecret` doğruluyor; uyuşmazlıkta `403 Forbidden` dönüyor.
+  - [x] Frontend `playerSecret` değerini `sessionStorage` içinde saklayıp işlem isteklerine ekliyor.
 
 ### 5.2 — Güvenli İletişim (HTTPS & HSTS & WSS) 🔒
 - **İlgili Dosyalar:** `server/XoArena.Api/Program.cs`, Azure / Cloud App Service Config
 - **Risk:** HTTP üzerinden taşınan oda kodları ve oyuncu token'ları Man-in-the-Middle (aradaki adam) saldırılarıyla dinlenebilir.
 - **Çözüm Planı:**
-  - [ ] Canlı ortamda `app.UseHttpsRedirection()` ve `app.UseHsts()` middleware'lerinin zorunlu kılınması.
-  - [ ] SSL sertifikası (TLS 1.3) ile tüm trafiğin ve SignalR/WebSocket bağlantılarının (WSS) şifrelenmesi.
+  - [x] Canlı ortamda `app.UseHttpsRedirection()` ve `app.UseHsts()` middleware'leri zorunlu kılındı.
+  - [x] Azure App Service dağıtım notlarına HTTPS Only ve platform sertifikası doğrulaması eklendi; canlıda geçerli sertifika/TLS yapılandırması platformda etkin tutulmalı.
 
 ### 5.3 — Oda Kodu Taraması & Kaba Kuvvet Koruması (Anti-Brute Force) 🛑
 - **İlgili Dosyalar:** `server/XoArena.Api/Program.cs`, `Services/InMemoryRoomStore.cs`
 - **Risk:** Botlar veya kötü niyetli kullanıcılar 6 haneli rastgele kodlar üreterek aktif özel maçlara izinsiz sızabilir veya odaları kilitleyebilir.
 - **Çözüm Planı:**
-  - [ ] `POST /api/rooms/{code}/join` endpoint'ine başarısız katılım denemeleri için rate limiting uygulanması (Örn: 1 dakikada 5 hatalı kod denemesi yapan IP'ye geçici blokaj).
+  - [x] `POST /api/rooms/{code}/join` endpoint'i IP başına dakikada 5 deneme ile sınırlandı (başarılı denemeler de sayılır).
   - [ ] İsteğe bağlı olarak özel odalar için 4 haneli PIN/Parola desteği eklenmesi.
 
 ### 5.4 — Production CORS & Domain Whitelist Kısıtlaması 🌐
 - **İlgili Dosyalar:** `server/XoArena.Api/appsettings.json`, Ortam Değişkenleri
 - **Risk:** API'nin başka yabancı web sitelerinden yetkisiz çağrılması (Cross-Origin Abuse).
 - **Çözüm Planı:**
-  - [ ] Production ortamında `Cors:AllowedOrigins` dizisine yalnızca oyunun barındırıldığı resmi alan adlarının (örn: `https://xoarena.com`) eklenmesi.
-  - [ ] Ortam değişkeni üzerinden (`CORS__ALLOWEDORIGINS__0=https://...`) dinamik origin yönetimi.
+  - [x] Production'da aynı-origin App Service dağıtımı için `Cors:AllowedOrigins` boş bırakılarak çapraz-origin çağrılar varsayılan olarak reddediliyor; ayrı frontend için yalnızca resmi origin eklenmeli.
+  - [x] Ortam değişkeni üzerinden (`CORS__ALLOWEDORIGINS__0=https://...`) dinamik origin yönetimi mevcut; aynı-origin dağıtımda ek origin gerekmez.
 
 ### 5.5 — Bellek Dayanıklılığı ve Sıfır Kesinti (State Resilience) 💾
 - **İlgili Dosyalar:** `server/XoArena.Api/Services/`

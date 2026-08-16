@@ -641,6 +641,7 @@ const hasGameStarted =
           setOnlineGame({
             roomCode: room.roomCode,
             playerId: onlineSession.playerId,
+            playerSecret: onlineSession.playerSecret,
             symbol: onlineSession.symbol,
             playerName: onlineSession.playerName,
             room,
@@ -1202,6 +1203,7 @@ const hasGameStarted =
     handleSaveOnlineSession({
       roomCode: nextOnlineGame.roomCode,
       playerId: nextOnlineGame.playerId,
+      playerSecret: nextOnlineGame.playerSecret,
       symbol: nextOnlineGame.symbol,
       playerName: nextOnlineGame.playerName,
     })

@@ -10,15 +10,15 @@ public interface IRoomStore
 
     JoinRoomResult Join(string roomCode, string playerName);
 
-    MoveRoomResult Move(string roomCode, Guid playerId, int index);
+    MoveRoomResult Move(string roomCode, Guid playerId, string playerSecret, int index);
 
-    PowerRoomResult UsePower(string roomCode, Guid playerId, string powerId, int targetIndex);
+    PowerRoomResult UsePower(string roomCode, Guid playerId, string playerSecret, string powerId, int targetIndex);
 
-    StartRoomResult Start(string roomCode, Guid playerId);
+    StartRoomResult Start(string roomCode, Guid playerId, string playerSecret);
 
-    NextRoundResult NextRound(string roomCode, Guid playerId);
+    NextRoundResult NextRound(string roomCode, Guid playerId, string playerSecret);
 
-    bool Leave(string roomCode, Guid playerId, bool isSurrender = false);
+    bool Leave(string roomCode, Guid playerId, string playerSecret, bool isSurrender = false);
 
     /// <summary>
     /// Süresi dolmuş odaları temizler. Silinen oda sayısını döndürür.

@@ -69,7 +69,7 @@ For a future separate frontend (including GitHub Pages), set `VITE_API_BASE_URL=
 ## Deploy to the existing Windows App Service
 
 1. In Azure Portal, confirm the existing Web App is **Windows**, **.NET 8**, **Free F1**, and is running as a single instance. Use an allowed region such as France Central if the resource must be recreated.
-2. In **Settings** > **Environment variables** > **App settings**, set `ASPNETCORE_ENVIRONMENT=Production` and `AllowedHosts=xo-arena.azurewebsites.net` (replace with the actual App Service hostname). No `Cors__AllowedOrigins__0` setting is required for same-origin hosting.
+2. In **Settings** > **Environment variables** > **App settings**, set `ASPNETCORE_ENVIRONMENT=Production` and `AllowedHosts=xo-arena.azurewebsites.net` (replace with the actual App Service hostname). No `Cors__AllowedOrigins__0` setting is required for same-origin hosting. In **Settings** > **Configuration**, keep **HTTPS Only** enabled; App Service's managed certificate protects the `azurewebsites.net` hostname and the application additionally redirects HTTP and sends HSTS.
 3. In **Monitoring** > **Health check**, set the path to `/health`.
 4. Run `.\scripts\Publish-AppService.ps1` locally. It creates `server\XoArena.Api\publish` with both API files and `wwwroot\index.html`.
 5. In VS Code, use the Azure App Service extension's **Deploy to Web App** command and choose the `server\XoArena.Api\publish` folder. Confirm the target Web App before accepting the deployment.

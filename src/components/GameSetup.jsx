@@ -245,7 +245,7 @@ export default function GameSetup({
 
     if (onlineLobby?.room?.roomCode && onlineLobby?.playerId) {
       try {
-        await leaveRoom(onlineLobby.room.roomCode, onlineLobby.playerId)
+        await leaveRoom(onlineLobby.room.roomCode, onlineLobby.playerId, onlineLobby.playerSecret)
       } catch {
         // Proceed with local cleanup even if request fails
       }
@@ -281,10 +281,11 @@ export default function GameSetup({
     })
   }
 
-  function saveOnlineLobby(room, player, playerName) {
+  function saveOnlineLobby(room, player, playerName, playerSecret) {
     const nextLobby = {
       room,
       playerId: player.id,
+      playerSecret,
       symbol: player.symbol,
       playerName,
     }
@@ -295,6 +296,7 @@ export default function GameSetup({
     onSaveOnlineSession({
       roomCode: room.roomCode,
       playerId: player.id,
+      playerSecret,
       symbol: player.symbol,
       playerName,
     })
@@ -315,7 +317,7 @@ export default function GameSetup({
     setOnlineLoadingAction('create')
 
     try {
-      const room = await requestRoomJson('/api/rooms', {
+      const access = await requestRoomJson('/api/rooms', {
         method: 'POST',
         body: JSON.stringify({
           playerName,
@@ -326,9 +328,10 @@ export default function GameSetup({
           boostMode: gameMode === 'arena' ? onlineBoostMode : null,
         }),
       })
+      const room = access.room
       const player = getCurrentOnlinePlayer(room, playerName, 'X')
 
-      saveOnlineLobby(room, player, playerName)
+      saveOnlineLobby(room, player, playerName, access.playerSecret)
       setJoinRoomCode(room.roomCode)
     } catch (error) {
       setOnlineError(error.message)
@@ -358,13 +361,14 @@ export default function GameSetup({
     setOnlineLoadingAction('join')
 
     try {
-      const room = await requestRoomJson(`/api/rooms/${roomCode}/join`, {
+      const access = await requestRoomJson(`/api/rooms/${roomCode}/join`, {
         method: 'POST',
         body: JSON.stringify({ playerName }),
       })
+      const room = access.room
       const player = getCurrentOnlinePlayer(room, playerName, 'O')
 
-      saveOnlineLobby(room, player, playerName)
+      saveOnlineLobby(room, player, playerName, access.playerSecret)
       setJoinRoomCode(room.roomCode)
     } catch (error) {
       setOnlineError(error.message)
@@ -406,7 +410,11 @@ export default function GameSetup({
     setOnlineLoadingAction('start')
 
     try {
-      const room = await startRoom(onlineLobby.room.roomCode, onlineLobby.playerId)
+      const room = await startRoom(
+        onlineLobby.room.roomCode,
+        onlineLobby.playerId,
+        onlineLobby.playerSecret
+      )
 
       setOnlineLobby((currentLobby) => {
         if (!currentLobby) {
@@ -507,6 +515,7 @@ export default function GameSetup({
     onStartOnlineGame({
       roomCode: activeRoomCode,
       playerId: onlineLobby.playerId,
+      playerSecret: onlineLobby.playerSecret,
       symbol: onlineLobby.symbol,
       playerName: onlineLobby.playerName,
       room: onlineLobby.room,
@@ -622,7 +631,7 @@ export default function GameSetup({
             className="viral-footer-btn viral-footer-btn--prominent"
             onClick={() => setIsHowToPlayOpen(true)}
           >
-            <span>📖 Nasıl Oynanır?</span>
+            <span> Nasıl Oynanır?</span>
           </button>
         </footer>
       </section>

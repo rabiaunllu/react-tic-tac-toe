@@ -42,6 +42,7 @@ var rlConfig = builder.Configuration.GetSection("RateLimiting");
 var globalPermits     = rlConfig.GetValue<int>("Global:PermitsPerMinute",   300);
 var createRoomPermits = rlConfig.GetValue<int>("CreateRoom:PermitsPerMinute", 20);
 var movePermits       = rlConfig.GetValue<int>("Move:PermitsPerMinute",     240);
+var joinRoomPermits   = rlConfig.GetValue<int>("JoinRoom:PermitsPerMinute",   5);
 
 builder.Services.AddRateLimiter(options =>
 {
@@ -77,6 +78,19 @@ builder.Services.AddRateLimiter(options =>
         opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
         opt.QueueLimit = 0;
     });
+
+    // Oda kodu denemeleri IP bazında sınırlandırılır. Bu, kod tarayan botların
+    // özel odaları kaba kuvvetle bulmasını engeller.
+    options.AddPolicy("join-room", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = joinRoomPermits,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }));
 });
 
 // ── Services ──────────────────────────────────────────────────────────────────
@@ -89,6 +103,8 @@ var app = builder.Build();
 // ── Middleware Pipeline ───────────────────────────────────────────────────────
 if (!app.Environment.IsDevelopment())
 {
+    app.UseHsts();
+    app.UseHttpsRedirection();
     app.UseDefaultFiles();
     app.UseStaticFiles();
 }
@@ -135,7 +151,9 @@ app.MapPost("/api/rooms", (CreateRoomRequest request, IRoomStore roomStore) =>
             ? request.BoostMode?.Trim().ToLowerInvariant() ?? "manual"
             : null));
 
-    return Results.Ok(RoomResponse.FromRoom(room));
+    return Results.Ok(new RoomAccessResponse(
+        RoomResponse.FromRoom(room),
+        room.Players[0].PlayerSecret));
 }).RequireRateLimiting("create-room");
 
 app.MapGet("/api/rooms/{roomCode}", (string roomCode, IRoomStore roomStore) =>
@@ -161,7 +179,9 @@ app.MapPost("/api/rooms/{roomCode}/join", (string roomCode, JoinRoomRequest requ
 
     return result.Status switch
     {
-        JoinRoomStatus.Joined => Results.Ok(RoomResponse.FromRoom(result.Room!)),
+        JoinRoomStatus.Joined => Results.Ok(new RoomAccessResponse(
+            RoomResponse.FromRoom(result.Room!),
+            result.PlayerSecret!)),
         JoinRoomStatus.NotFound => Results.NotFound(),
         JoinRoomStatus.Conflict => Results.Conflict(new
         {
@@ -169,7 +189,7 @@ app.MapPost("/api/rooms/{roomCode}/join", (string roomCode, JoinRoomRequest requ
         }),
         _ => Results.Problem("Unexpected join room result.")
     };
-});
+}).RequireRateLimiting("join-room");
 
 app.MapPost("/api/rooms/{roomCode}/leave", (string roomCode, LeaveRoomRequest request, IRoomStore roomStore) =>
 {
@@ -181,8 +201,8 @@ app.MapPost("/api/rooms/{roomCode}/leave", (string roomCode, LeaveRoomRequest re
         });
     }
 
-    var success = roomStore.Leave(roomCode, playerId, request.IsSurrender);
-    return success ? Results.Ok() : Results.NotFound();
+    var success = roomStore.Leave(roomCode, playerId, request.PlayerSecret, request.IsSurrender);
+    return success ? Results.Ok() : Results.StatusCode(StatusCodes.Status403Forbidden);
 });
 
 app.MapPost("/api/rooms/{roomCode}/moves", async (
@@ -199,7 +219,7 @@ app.MapPost("/api/rooms/{roomCode}/moves", async (
         });
     }
 
-    var result = roomStore.Move(roomCode, playerId, request.Index);
+    var result = roomStore.Move(roomCode, playerId, request.PlayerSecret, request.Index);
 
     if (result.Status is MoveRoomStatus.Moved)
     {
@@ -239,7 +259,7 @@ app.MapPost("/api/rooms/{roomCode}/powers", async (
         });
     }
 
-    var result = roomStore.UsePower(roomCode, playerId, request.PowerId, request.TargetIndex);
+    var result = roomStore.UsePower(roomCode, playerId, request.PlayerSecret, request.PowerId, request.TargetIndex);
 
     if (result.Status is PowerRoomStatus.Used)
     {
@@ -275,7 +295,7 @@ app.MapPost("/api/rooms/{roomCode}/start", async (
         });
     }
 
-    var result = roomStore.Start(roomCode, playerId);
+    var result = roomStore.Start(roomCode, playerId, request.PlayerSecret);
 
     if (result.Status is StartRoomStatus.Started)
     {
@@ -311,7 +331,7 @@ app.MapPost("/api/rooms/{roomCode}/next-round", async (
         });
     }
 
-    var result = roomStore.NextRound(roomCode, playerId);
+    var result = roomStore.NextRound(roomCode, playerId, request.PlayerSecret);
 
     if (result.Status is NextRoundStatus.Pending or NextRoundStatus.Started)
     {

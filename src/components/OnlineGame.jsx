@@ -206,6 +206,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
 
   const roomCode = initialOnlineGame.roomCode || room.code || room.roomCode || initialOnlineGame.room?.code || ''
   const playerId = initialOnlineGame.playerId
+  const playerSecret = initialOnlineGame.playerSecret
   const ownerPlayer = room.players[0]
   const guestPlayer = room.players[1]
   const myPlayer = room.players.find((player) => player.id === playerId)
@@ -314,6 +315,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
         method: 'POST',
         body: JSON.stringify({
           playerId,
+          playerSecret,
           powerId,
           targetIndex,
         }),
@@ -407,6 +409,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
         method: 'POST',
         body: JSON.stringify({
           playerId,
+          playerSecret,
           index,
         }),
       })
@@ -444,7 +447,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
     try {
       const nextRoom = await requestRoomJson(`/api/rooms/${roomCode}/next-round`, {
         method: 'POST',
-        body: JSON.stringify({ playerId }),
+        body: JSON.stringify({ playerId, playerSecret }),
       })
 
       applyRoom(nextRoom)
@@ -468,7 +471,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
     setIsStartPending(true)
 
     try {
-      const nextRoom = await startRoom(roomCode, playerId)
+      const nextRoom = await startRoom(roomCode, playerId, playerSecret)
       applyRoom(nextRoom)
     } catch (error) {
       handleRoomError(error, setActionError)
@@ -610,11 +613,12 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
       writeOnlineSession({
         roomCode,
         playerId,
+        playerSecret,
         symbol: mySymbol,
         playerName: myPlayer?.name ?? '',
       })
     }
-  }, [roomCode, playerId, mySymbol, myPlayer?.name, room.status])
+  }, [roomCode, playerId, playerSecret, mySymbol, myPlayer?.name, room.status])
 
   return (
     <main className="app-shell">
@@ -667,7 +671,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
                   registerUserGesture()
                   playSound('click')
                   try {
-                    await leaveRoom(roomCode, playerId, { isSurrender: true })
+                    await leaveRoom(roomCode, playerId, playerSecret, { isSurrender: true })
                   } catch {
                     // Proceed with local menu navigation
                   }
