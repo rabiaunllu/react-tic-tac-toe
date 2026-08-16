@@ -166,6 +166,61 @@ Oyunu internet ortamına (Production) deploy ederken oluşabilecek kötü niyetl
 
 ---
 
+## Faz 6 · Özel Güç Destesi & Dengeleme Sistemi (Custom Loadout Engine) ⚡ YENİ
+
+Oyuncuların maça girmeden önce stratejilerine göre kendi 10 Puanlık Güç Destelerini (Loadout) oluşturabilmesini sağlayan rekabetçi dengeleme ve altyapı mimarisi.
+
+### 6.1 — Güç Ekonomisi & Bütçe Sistemi (10 Enerji / Power Budget)
+- **Temel Matematik:** Her oyuncuya maç başında **10 Seçim Puanı (Power Budget)** tahsis edilir.
+- **Aksiyon Değeri (Action Economy):** Hamle tüketen (Turn Consuming) ile ekstra hak sağlayan (0-Turn Cost / Cantrip) güçler arasındaki tempo farkı fiyatlandırılmıştır.
+
+| Güç (Power) | İkon | Eylem Sınıfı (Archetype) | Tur Tüketimi (Tempo) | Puan (Cost) | Max Adet | Stratejik Rolü |
+| :--- | :---: | :--- | :--- | :---: | :---: | :--- |
+| **Joker** | 🃏 | Transmutation / Swing | Tur Tüketir (Turn End) | **5 Puan** | 1 (Legendary) | Rakip taşını kendine çevirir (+2 Hamle Swing). |
+| **Bomba** | 💣 | Destructive / Hard Removal | Tur Tüketir (Turn End) | **4 Puan** | 2 | Korumasız rakip taşını siler (Tempo kırıcı). |
+| **Kalkan** | 🛡️ | Defensive / Protection | Hamle Devam Eder (+0 Tur) | **3 Puan** | 2 | Taşı kilitler ve saldırılardan korur. |
+| **Kara Delik** | 🕳️ | Tactical / Area Denial | Tur Tüketir (Turn End) | **3 Puan** | 2 | Gizli tuzak kurar, psikolojik baskı yaratır. |
+| **Freeze** | ❄️ | Disruption / Zone Lock | Hamle Devam Eder (+0 Tur) | **2 Puan** | 2 | Kareyi 1 tur kilitler, rakip hattını geciktirir. |
+| **Boost** | ⚡ | Multiplier / Value Burst | Hamle Devam Eder (+0 Tur) | **2 Puan** | 3 | Hücre çarpanını katlar, skor patlaması sağlar. |
+| **Vampir** | 🧛 | Value Steal / Counter | Hamle Devam Eder (+0 Tur) | **2 Puan** | 2 | Rakip çarpanını çalarak kendi taşını güçlendirir. |
+
+### 6.2 — Deste Sınırlandırmaları (Deck Restrictions & Anti-Degeneracy Rules)
+Oyunun "sonsuz yıkım ve şans kaosuna" dönüşmesini engellemek için kurallar:
+1. **Yıkım & Dönüşüm Tavanı (Destruction Cap):** Destede `Bomba + Joker` toplam adedi en fazla **2** olabilir. (3 Bomba alıp rakibin hiç taş koyamadığı toksik döngü engellenir).
+2. **Unique / Efsanevi Kuralı (Legendary Limit):** Joker maça en fazla **1 adet** alınabilir.
+3. **Kart Adedi Sınırı:** Bir deste toplamda **en az 2, en fazla 5** adet güç kartından oluşmalıdır.
+4. **Bütçe Uyumu Formülü:** 
+   $$\sum_{i} (\text{Count}_i \times \text{Cost}_i) \le 10$$
+
+### 6.3 — Örnek Meta Arketipleri (Pre-set Loadout Archetypes)
+- 🏰 **Control / Fortress (Kale):** 2x Kalkan (6p) + 1x Bomba (4p) = 10 Puan.
+- 🕳️ **Trapmaster / Mindgames (Tuzakçı):** 2x Kara Delik (6p) + 1x Freeze (2p) + 1x Boost (2p) = 10 Puan.
+- 👑 **High-Roller (Büyük Oynayan):** 1x Joker (5p) + 1x Kalkan (3p) + 1x Boost (2p) = 10 Puan.
+- ⚡ **Tempo / Score Burst (Skor Fırtınası):** 3x Boost (6p) + 2x Freeze (4p) = 10 Puan.
+- ⚔️ **Aggro / Disruptor (Baskıcı):** 1x Bomba (4p) + 1x Kalkan (3p) + 1x Freeze (2p) = 9 Puan (1p yedek/esnek).
+
+### 6.4 — Backend & Online (HTTP/SignalR) Entegrasyonu
+- **İlgili Dosyalar:** `server/XoArena.Api/Models/`, `InMemoryRoomStore.cs`, `src/components/OnlineGame.jsx`, `src/components/PowerDeckBuilder.jsx`
+- **İstek Formatı (Create / Join Payload):**
+  ```json
+  {
+    "playerName": "Oyuncu_1",
+    "loadout": {
+      "bomb": 1,
+      "shield": 1,
+      "boost": 1
+    }
+  }
+  ```
+- **Sunucu Doğrulama Motoru (`ValidateLoadout`):**
+  - [ ] Toplam maliyetin $\le 10$ olduğunu sunucu tarafında teyit et (Client manipülasyonu engeli).
+  - [ ] Arketip sınırlarını doğrula (Bomba + Joker $\le 2$).
+  - [ ] Geçersiz destelerde `400 Bad Request ("Geçersiz deste bütçesi veya kural aşımı")` döndür.
+  - [ ] `Room.Game.PlayerInitialPowers` ve `PlayerPowers` sözlüklerinde her iki oyuncunun kişiselleştirilmiş destelerini ayrı ayrı sakla.
+  - [ ] `NextRound` çağrısında desteleri oyuncunun onaylanan başlangıç destesine sıfırla.
+
+---
+
 ## 📌 Teknik Notlar
 
 | Bilgi | Değer |
