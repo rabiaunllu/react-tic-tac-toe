@@ -48,29 +48,29 @@ Kullanıcı deneyimini mobil ve masaüstünde cilalama.
 - **Dosyalar:** `src/App.css`, `src/components/Square.jsx`
 - **Sorun:** 4x4 ve 5x5 tahtalarda çarpan sayıları ve güç ikonları taşıyor
 - **Yapılacaklar:**
-  - [ ] Tahta boyutuna göre hücre, ikon ve font boyutlarını dinamik ölçekle
-  - [ ] Çarpan rozetleri (2x, 3x) mobilde üst üste binme sorununu çöz
-  - [ ] Güç paneli ikonlarının küçük ekranlarda okunabilirliğini artır
+  - [x] Tahta boyutuna göre hücre, ikon ve font boyutlarını dinamik ölçekle (`--square-font-size`, `--badge-scale`)
+  - [x] Çarpan rozetleri (2x, 3x) ve güç rozetlerinin mobilde üst üste binme sorununu çöz
+  - [x] Güç paneli ikonlarının küçük ekranlarda okunabilirliğini artır
 
 ### 2.2 — Aktif Güç Seçim Göstergesi
 - **Dosya:** `src/components/PowerPanel.jsx`
 - **Sorun:** Dokunmatik ekranlarda hangi gücün aktif olduğu belirsiz
 - **Yapılacaklar:**
-  - [ ] Aktif güç için belirgin görsel vurgu (border, scale, renk değişimi)
-  - [ ] Dokunmatik geri bildirim (haptic + görsel pulse) ekle
+  - [x] Aktif güç için belirgin görsel vurgu (border, scale, renk değişimi ve `@keyframes power-select-pulse`)
+  - [x] Dokunmatik geri bildirim (haptic titreşim + görsel pulse + ses efekti) eklendi
 
 ### 2.3 — Bağlantı Kopması HUD İyileştirmesi
-- **Dosya:** `src/components/OnlineGame.jsx` (863 satır)
-- **Mevcut Durum:** 30 sn geri sayım var ama düz metin banner olarak gösteriliyor
+- **Dosya:** `src/components/OnlineGame.jsx` (863 satır), `src/App.css`
+- **Mevcut Durum:** 30 sn geri sayım var ama düz metin banner olarak gösteriliyordu
 - **Yapılacaklar:**
-  - [ ] Tahta üzerinde overlay geri sayım HUD'u (dairesel countdown veya progress bar)
-  - [ ] Görsel olarak dikkat çekici hale getir (animasyonlu, kontrast renk)
+  - [x] Tahta üzerinde radar dalgalı ve dairesel SVG progress bar geri sayım HUD'u (`online-reconnecting-hud`)
+  - [x] Görsel olarak dikkat çekici ve animasyonlu hale getirildi
 
 ### 2.4 — Genel UX Polisajı
 - **Yapılacaklar:**
-  - [ ] Kazanma/kaybetme ekran geçişlerini incele ve iyileştir
-  - [ ] Ses efektlerinin tutarlılığını kontrol et
-  - [ ] Hata durumlarında (bağlantı hatası, oda bulunamadı vb.) kullanıcı bilgilendirmesini iyileştir
+  - [x] Kazanma/kaybetme ekran geçişleri ve pürüzsüz buton odak durumları
+  - [x] Ses efektleri ve dokunmatik geri bildirimler (haptic) güç seçimlerine entegre edildi
+  - [x] Hata durumlarında kullanıcı bilgilendirmesi ve anlaşılır mesajlar sağlandı
 
 ---
 
