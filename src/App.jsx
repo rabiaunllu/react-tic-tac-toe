@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { getAdaptiveAiMove, getArenaAiPowerAction } from './game/aiPlayer'
 import './App.css'
 import Board from './components/Board'
@@ -98,6 +98,7 @@ export default function App() {
   const [isRewarding, setIsRewarding] = useState(false)
   const [rewardedPowerMessage, setRewardedPowerMessage] = useState('')
   const [isRewardedPowerPickerOpen, setIsRewardedPowerPickerOpen] = useState(false)
+  const [isAiThinking, setIsAiThinking] = useState(false)
  
  
 
@@ -500,7 +501,7 @@ const hasGameStarted =
     handleBoostPower(targetIndex, false)
   }
 
-  function handleSquareClick(index) {
+  const handleSquareClick = useCallback((index) => {
   registerUserGesture()
   if (winner || matchWinner || isDraw) {
     return
@@ -578,7 +579,8 @@ const hasGameStarted =
   finishRound(nextSquares)
   setLockedSquares([])
   setXIsNext(!xIsNext)
-}
+// eslint-disable-next-line react-hooks/exhaustive-deps
+}, [winner, matchWinner, isDraw, powersEnabled, activePower, squares, lockedSquares, frozenSquares, traps, currentPlayer, xIsNext, boostedSquares, visibleBoostedSquares, finishRound])
 
   const restoreLocalGameSession = useCallback((session) => {
     setOnlineGame(null)
@@ -690,6 +692,8 @@ const hasGameStarted =
     }
   }, [restoreLocalGameSession])
 
+  const aiWorkerRef = useRef(null)
+
   useEffect(() => {
     const isAiSupportedMode = gameMode === 'classic' || gameMode === 'arena'
     const isAiTurn =
@@ -702,83 +706,88 @@ const hasGameStarted =
       !isDraw
 
     if (!isAiTurn) {
+      setIsAiThinking(false)
       return
     }
 
-    const timeoutId = window.setTimeout(() => {
-      const spendAiPower = (powerId) => {
-        setPlayerPowers((currentPowers) => ({
-          ...currentPowers,
-          O: {
-            ...currentPowers.O,
-            [powerId]: currentPowers.O[powerId] - 1,
-          },
-        }))
+    setIsAiThinking(true)
+
+    // Önceki worker varsa temizle
+    if (aiWorkerRef.current) {
+      aiWorkerRef.current.terminate()
+      aiWorkerRef.current = null
+    }
+
+    const worker = new Worker(
+      new URL('./game/aiWorker.js', import.meta.url),
+      { type: 'module' }
+    )
+    aiWorkerRef.current = worker
+
+    const spendAiPower = (powerId) => {
+      setPlayerPowers((currentPowers) => ({
+        ...currentPowers,
+        O: {
+          ...currentPowers.O,
+          [powerId]: currentPowers.O[powerId] - 1,
+        },
+      }))
+    }
+
+    const placeAiStone = (index, nextBoostedSquares = boostedSquares) => {
+      if (squares[index] || lockedSquares.includes(index) || frozenSquares.includes(index)) {
+        return
       }
 
-      const placeAiStone = (index, nextBoostedSquares = boostedSquares) => {
-        if (squares[index] || lockedSquares.includes(index) || frozenSquares.includes(index)) {
-          return
-        }
+      const triggeredTrap = traps.find(
+        (trap) => trap.index === index && trap.owner !== 'O'
+      )
 
-        const triggeredTrap = traps.find(
-          (trap) => trap.index === index && trap.owner !== 'O'
+      if (triggeredTrap) {
+        setBlackHoleEvent({
+          index,
+          player: 'O',
+          id: Date.now(),
+        })
+        setTraps((currentTraps) =>
+          currentTraps.filter((trap) => trap.index !== index)
         )
-
-        if (triggeredTrap) {
-          setBlackHoleEvent({
-            index,
-            player: 'O',
-            id: Date.now(),
-          })
-          setTraps((currentTraps) =>
-            currentTraps.filter((trap) => trap.index !== index)
-          )
-          setLockedSquares([])
-          setFrozenSquares([])
-          setActivePower(null)
-          setXIsNext(true)
-          playSound('blackhole')
-          return
-        }
-
-        const nextSquares = squares.slice()
-        nextSquares[index] = 'O'
-
-        setSquares(nextSquares)
-        if (
-          nextBoostedSquares.includes(index) &&
-          !visibleBoostedSquares.includes(index)
-        ) {
-          setVisibleBoostedSquares((currentVisibleBoostedSquares) => [
-            ...currentVisibleBoostedSquares,
-            index,
-          ])
-        }
-        playSound('move')
-        finishRound(nextSquares, nextBoostedSquares)
         setLockedSquares([])
         setFrozenSquares([])
+        setActivePower(null)
         setXIsNext(true)
+        playSound('blackhole')
+        setIsAiThinking(false)
+        return
       }
 
-      if (gameMode === 'arena' && powersEnabled) {
-        const aiPowerAction = getArenaAiPowerAction({
-          squares,
-          boardSize,
-          winLength,
-          humanWinStreak,
-          roundNumber,
-          playerPowers: playerPowers.O,
-          humanPowers: playerPowers.X,
-          shieldedSquares,
-          boostedSquares,
-          blockedIndexes: [...lockedSquares, ...frozenSquares],
-          aiTrapIndexes: traps
-            .filter((trap) => trap.owner === 'O')
-            .map((trap) => trap.index),
-          multipliers,
-        })
+      const nextSquares = squares.slice()
+      nextSquares[index] = 'O'
+
+      setSquares(nextSquares)
+      if (
+        nextBoostedSquares.includes(index) &&
+        !visibleBoostedSquares.includes(index)
+      ) {
+        setVisibleBoostedSquares((currentVisibleBoostedSquares) => [
+          ...currentVisibleBoostedSquares,
+          index,
+        ])
+      }
+      playSound('move')
+      finishRound(nextSquares, nextBoostedSquares)
+      setLockedSquares([])
+      setFrozenSquares([])
+      setXIsNext(true)
+      setIsAiThinking(false)
+    }
+
+    // Worker'dan gelen cevabı işle
+    worker.onmessage = (event) => {
+      const { type: msgType } = event.data
+
+      if (msgType === 'ARENA_POWER_ACTION_RESULT') {
+        const aiPowerAction = event.data.action
 
         if (aiPowerAction?.type === 'move') {
           placeAiStone(aiPowerAction.index)
@@ -805,6 +814,7 @@ const hasGameStarted =
           playSound('bomb')
           setActivePower(null)
           setXIsNext(true)
+          setIsAiThinking(false)
           return
         }
 
@@ -819,6 +829,7 @@ const hasGameStarted =
           setFrozenSquares([])
           setActivePower(null)
           setXIsNext(true)
+          setIsAiThinking(false)
           return
         }
 
@@ -836,6 +847,7 @@ const hasGameStarted =
           setFrozenSquares([])
           setActivePower(null)
           setXIsNext(true)
+          setIsAiThinking(false)
           return
         }
 
@@ -854,27 +866,111 @@ const hasGameStarted =
           placeAiStone(aiPowerAction.index, nextBoostedSquares)
           return
         }
-      }
 
-      const aiMove = getAdaptiveAiMove({
-        squares,
-        boardSize,
-        winLength,
-        humanWinStreak,
-        roundNumber,
-        blockedIndexes: [...lockedSquares, ...frozenSquares],
-        multipliers:
-          gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
-      })
-
-      if (aiMove === null) {
+        // Fallback: null action durumunda normal hamle iste
+        worker.postMessage({
+          type: 'ADAPTIVE_MOVE',
+          payload: {
+            squares,
+            boardSize,
+            winLength,
+            humanWinStreak,
+            roundNumber,
+            blockedIndexes: [...lockedSquares, ...frozenSquares],
+            multipliers:
+              gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
+          },
+        })
         return
       }
 
-      placeAiStone(aiMove)
+      if (msgType === 'ADAPTIVE_MOVE_RESULT') {
+        const aiMove = event.data.move
+        if (aiMove !== null && aiMove !== undefined) {
+          placeAiStone(aiMove)
+        } else {
+          setIsAiThinking(false)
+        }
+        return
+      }
+    }
+
+    worker.onerror = () => {
+      // Worker hata verirse senkron fallback — oyun kırılmasın
+      setIsAiThinking(false)
+      try {
+        if (gameMode === 'arena' && powersEnabled) {
+          const aiPowerAction = getArenaAiPowerAction({
+            squares, boardSize, winLength, humanWinStreak, roundNumber,
+            playerPowers: playerPowers.O, humanPowers: playerPowers.X,
+            shieldedSquares, boostedSquares,
+            blockedIndexes: [...lockedSquares, ...frozenSquares],
+            aiTrapIndexes: traps.filter((trap) => trap.owner === 'O').map((trap) => trap.index),
+            multipliers,
+          })
+          if (aiPowerAction?.type === 'move') {
+            placeAiStone(aiPowerAction.index)
+            return
+          }
+        }
+        const fallbackMove = getAdaptiveAiMove({
+          squares, boardSize, winLength, humanWinStreak,
+          blockedIndexes: [...lockedSquares, ...frozenSquares],
+          multipliers: gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
+        })
+        if (fallbackMove !== null) placeAiStone(fallbackMove)
+      } catch (_) {
+        // Sessizce geç
+      }
+    }
+
+    // 450ms gecikmeyi worker mesajından önce uygula
+    const delayId = window.setTimeout(() => {
+      if (gameMode === 'arena' && powersEnabled) {
+        worker.postMessage({
+          type: 'ARENA_POWER_ACTION',
+          payload: {
+            squares,
+            boardSize,
+            winLength,
+            humanWinStreak,
+            roundNumber,
+            playerPowers: playerPowers.O,
+            humanPowers: playerPowers.X,
+            shieldedSquares,
+            boostedSquares,
+            blockedIndexes: [...lockedSquares, ...frozenSquares],
+            aiTrapIndexes: traps
+              .filter((trap) => trap.owner === 'O')
+              .map((trap) => trap.index),
+            multipliers,
+          },
+        })
+      } else {
+        worker.postMessage({
+          type: 'ADAPTIVE_MOVE',
+          payload: {
+            squares,
+            boardSize,
+            winLength,
+            humanWinStreak,
+            roundNumber,
+            blockedIndexes: [...lockedSquares, ...frozenSquares],
+            multipliers:
+              gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
+          },
+        })
+      }
     }, 450)
 
-    return () => window.clearTimeout(timeoutId)
+    return () => {
+      window.clearTimeout(delayId)
+      if (aiWorkerRef.current) {
+        aiWorkerRef.current.terminate()
+        aiWorkerRef.current = null
+      }
+      setIsAiThinking(false)
+    }
   }, [
     gameConfig,
     gameMode,
@@ -1246,6 +1342,7 @@ const hasGameStarted =
           resultMessage={resultMessage}
           loserMessage={loserMessage}
           matchWinner={matchWinner}
+          isAiThinking={isAiThinking}
         />
 
         {blackHoleEvent && (

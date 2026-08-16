@@ -1,6 +1,7 @@
+import { memo } from 'react'
 import Square from './Square'
 
-export default function Board({
+const Board = memo(function Board({
   boardSize,
   squares,
   multipliers,
@@ -51,4 +52,6 @@ export default function Board({
       })}
     </div>
   )
-}
+})
+
+export default Board
