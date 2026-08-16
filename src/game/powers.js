@@ -10,14 +10,14 @@ export const powerDefinitions = [
     id: 'shield',
     name: 'Kalkan',
     icon: '🛡️',
-    description: 'Kendi taşını saldırılara karşı korur.',
+    description: 'Kendi taşını saldırılara karşı korur. (Hamle hakkın devam eder)',
     initialCount: 1,
   },
   {
     id: 'boost',
     name: 'Boost',
     icon: '⚡',
-    description: 'Sonraki hamlenin hücre puanını artırır.',
+    description: 'Sonraki hamlenin hücre puanını artırır. (Hamle hakkın devam eder)',
     initialCount: 1,
   },
   {
@@ -38,14 +38,14 @@ export const powerDefinitions = [
     id: 'freeze',
     name: 'Freeze',
     icon: '❄️',
-    description: 'Boş bir kareyi rakibin bir sonraki hamlesi boyunca kilitler.',
+    description: 'Boş bir kareyi rakibin bir sonraki hamlesi boyunca kilitler. (Hamle hakkın devam eder)',
     initialCount: 0,
   },
   {
     id: 'vampire',
     name: 'Vampir',
     icon: '🧛',
-    description: 'Rakibin çarpanını uygun kendi taşına aktarır.',
+    description: 'Rakibin çarpanını uygun kendi taşına aktarır. (Hamle hakkın devam eder)',
     initialCount: 0,
   },
 ]

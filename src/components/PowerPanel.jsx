@@ -1,5 +1,8 @@
 import { getAvailablePowerDefinitions, getPowerDefinitions } from '../game/powers'
 import { playSound, registerUserGesture } from '../game/soundManager'
+import ArcadeBomb from './ArcadeBomb'
+import CrystalSnowflake from './CrystalSnowflake'
+import EnergyShieldIcon from './EnergyShieldIcon'
 
 export default function PowerPanel({
   currentPlayer,
@@ -24,6 +27,17 @@ export default function PowerPanel({
   const extraPowers = getPowerDefinitions(extraPowerIds)
   const availablePowers = [...basePowers, ...extraPowers]
   const selectedPower = availablePowers.find((power) => power.id === activePower)
+
+  function renderPowerIcon(power) {
+    if (power.id === 'freeze') {
+      return <CrystalSnowflake className="power-crystal-icon" />
+    }
+    if (power.id === 'shield') {
+      return <EnergyShieldIcon className="power-shield-icon" size={19} />
+    }
+    return power.icon
+  }
+
   function handlePowerClick(powerId, isActive) {
     registerUserGesture()
     if (!canInteract || !isPowersEnabled) {
@@ -87,7 +101,7 @@ export default function PowerPanel({
 
       {isPowersEnabled && canInteract && selectedPower && (
         <div className="active-power-hint">
-          {selectedPower.icon} {selectedPower.name} hazır: {selectedPower.description}
+          {renderPowerIcon(selectedPower)} {selectedPower.name} hazır: {selectedPower.description}
         </div>
       )}
 
@@ -99,7 +113,7 @@ export default function PowerPanel({
               <span></span>
               {rewardedPack.powerIds.map((powerId) => (
                 <button key={powerId} type="button" onClick={() => rewardedPack.onClaim(powerId)}>
-                  {powerId === 'joker' ? '🃏 Joker' : powerId === 'freeze' ? '❄️ Freeze' : '🧛 Vampir'}
+                  {powerId === 'joker' ? '🃏 Joker' : powerId === 'freeze' ? <span className="reward-freeze-opt"><CrystalSnowflake className="reward-crystal-icon" /> Freeze</span> : '🧛 Vampir'}
                 </button>
               ))}
             </div>
@@ -130,7 +144,7 @@ export default function PowerPanel({
                 }
                 onClick={() => handlePowerClick(power.id, isActive)}
               >
-                <span className="power-icon">{power.icon}</span>
+                <span className="power-icon">{renderPowerIcon(power)}</span>
                 <span className="power-name">{power.name}</span>
                 <span className="power-count">{count}</span>
               </button>
@@ -156,7 +170,7 @@ export default function PowerPanel({
                 title={count === 0 ? 'Bu güç bitti.' : power.description}
                 onClick={() => handlePowerClick(power.id, isActive)}
               >
-                <span className="power-icon">{power.icon}</span>
+                <span className="power-icon">{renderPowerIcon(power)}</span>
                 <span className="power-name">{power.name}</span>
                 <span className="power-count">{count}</span>
               </button>

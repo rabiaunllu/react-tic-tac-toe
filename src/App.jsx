@@ -81,6 +81,8 @@ export default function App() {
   const [visibleBoostedSquares, setVisibleBoostedSquares] = useState([])
   const [traps, setTraps] = useState([])
   const [blackHoleEvent, setBlackHoleEvent] = useState(null)
+  const [bombEvent, setBombEvent] = useState(null)
+  const [vampireTransferEvent, setVampireTransferEvent] = useState(null)
   const [resultMessage, setResultMessage] = useState(null)
   const [loserMessage, setLoserMessage] = useState(null)
   const [gameConfig, setGameConfig] = useState(null)
@@ -363,6 +365,10 @@ const hasGameStarted =
     spendPlayerPower(currentPlayer, 'bomb')
     playSound('bomb')
     setActivePower(null)
+    setBombEvent({ index, id: Date.now() })
+    window.setTimeout(() => {
+      setBombEvent(null)
+    }, 650)
     setXIsNext(!xIsNext)
   }
 
@@ -386,7 +392,6 @@ const hasGameStarted =
     playSound('power')
     setLockedSquares([])
     setActivePower(null)
-    setXIsNext(!xIsNext)
   }
   function handleTrapPower(index) {
     if (
@@ -445,7 +450,6 @@ const hasGameStarted =
     spendPlayerPower(currentPlayer, 'freeze')
     playSound('power')
     setActivePower(null)
-    setXIsNext(!xIsNext)
   }
 
   function handleVampirePower() {
@@ -459,16 +463,29 @@ const hasGameStarted =
     }
 
     const transferredMultiplier = multipliers[sourceIndex]
-    setMultipliers((currentMultipliers) => {
-      const nextMultipliers = { ...currentMultipliers, [targetIndex]: transferredMultiplier }
-      delete nextMultipliers[sourceIndex]
-      return nextMultipliers
-    })
     spendPlayerPower(currentPlayer, 'vampire')
     playSound('power')
-    setRewardedPowerMessage(`Vampir ${transferredMultiplier}x çarpanı kendi taşına aktardı.`)
     setActivePower(null)
-    setXIsNext(!xIsNext)
+    setRewardedPowerMessage(`Vampir ${transferredMultiplier}x çarpanı çekiyor...`)
+
+    setVampireTransferEvent({
+      sourceIndex,
+      targetIndex,
+      multiplier: transferredMultiplier,
+      id: Date.now(),
+    })
+
+    window.setTimeout(() => {
+      setMultipliers((currentMultipliers) => {
+        const nextMultipliers = { ...currentMultipliers, [targetIndex]: transferredMultiplier }
+        delete nextMultipliers[sourceIndex]
+        return nextMultipliers
+      })
+      setRewardedPowerMessage(`Vampir ${transferredMultiplier}x çarpanı kendi taşına aktardı!`)
+      window.setTimeout(() => {
+        setVampireTransferEvent(null)
+      }, 350)
+    }, 650)
   }
 
   function handleBoostPower(index, isVisible = true) {
@@ -814,23 +831,43 @@ const hasGameStarted =
           spendAiPower('bomb')
           playSound('bomb')
           setActivePower(null)
+          setBombEvent({ index: aiPowerAction.index, id: Date.now() })
+          window.setTimeout(() => {
+            setBombEvent(null)
+          }, 650)
           setXIsNext(true)
           setIsAiThinking(false)
           return
         }
 
         if (aiPowerAction?.type === 'shield') {
-          setShieldedSquares((currentShieldedSquares) => [
-            ...currentShieldedSquares,
+          const nextShieldedSquares = [
+            ...shieldedSquares,
             aiPowerAction.index,
-          ])
+          ]
+          setShieldedSquares(nextShieldedSquares)
           spendAiPower('shield')
           playSound('power')
           setLockedSquares([])
           setFrozenSquares([])
           setActivePower(null)
-          setXIsNext(true)
-          setIsAiThinking(false)
+
+          const aiMove = getAdaptiveAiMove({
+            squares,
+            boardSize,
+            winLength,
+            humanWinStreak,
+            roundNumber,
+            blockedIndexes: [...lockedSquares, ...frozenSquares],
+            multipliers:
+              gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
+          })
+          if (aiMove !== null && aiMove !== undefined) {
+            placeAiStone(aiMove)
+          } else {
+            setXIsNext(true)
+            setIsAiThinking(false)
+          }
           return
         }
 
@@ -911,6 +948,26 @@ const hasGameStarted =
           })
           if (aiPowerAction?.type === 'move') {
             placeAiStone(aiPowerAction.index)
+            return
+          }
+          if (aiPowerAction?.type === 'boost') {
+            const nextBoostedSquares = [...boostedSquares, aiPowerAction.index]
+            setBoostedSquares(nextBoostedSquares)
+            spendAiPower('boost')
+            playSound('power')
+            placeAiStone(aiPowerAction.index, nextBoostedSquares)
+            return
+          }
+          if (aiPowerAction?.type === 'shield') {
+            setShieldedSquares((current) => [...current, aiPowerAction.index])
+            spendAiPower('shield')
+            playSound('power')
+            const fallbackMove = getAdaptiveAiMove({
+              squares, boardSize, winLength, humanWinStreak,
+              blockedIndexes: [...lockedSquares, ...frozenSquares],
+              multipliers: gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
+            })
+            if (fallbackMove !== null) placeAiStone(fallbackMove)
             return
           }
         }
@@ -1414,6 +1471,8 @@ const hasGameStarted =
             currentPlayer={currentPlayer}
             visibleTrapOwner={opponentType === 'ai' ? 'X' : currentPlayer}
             blackHoleEventIndex={blackHoleEvent?.index}
+            bombEventIndex={bombEvent?.index}
+            vampireTransferEvent={vampireTransferEvent}
           />
 
           <PowerPanel

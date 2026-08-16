@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import CrystalSnowflake from './CrystalSnowflake';
 
 const POWERS = [
   { id: 'bomba', icon: '💣', name: 'Bomba', desc: 'Rakibin korumasız taşını patlat!' },
-  { id: 'kalkan', icon: '🛡️', name: 'Kalkan', desc: 'Kendi taşını saldırılardan koru!' },
-  { id: 'boost', icon: '⚡', name: 'Boost', desc: 'Hücre çarpanını 2 katına çıkar!' },
+  { id: 'kalkan', icon: '🛡️', name: 'Kalkan', desc: 'Kendi taşını koru! (Hamle hakkın devam eder)' },
+  { id: 'boost', icon: '⚡', name: 'Boost', desc: 'Hücre çarpanını 2 katına çıkar! (Hamle hakkın devam eder)' },
   { id: 'karadelik', icon: '🕳️', name: 'Kara Delik', desc: 'Rakibin taşı koyunca yutulur!' },
   { id: 'joker', icon: '🃏', name: 'Joker', desc: 'Rakibin taşını kendi taşına çevir!' },
-  { id: 'freeze', icon: '❄️', name: 'Freeze', desc: 'Boş kareyi bir hamle boyunca kilitle!' },
-  { id: 'vampir', icon: '🧛', name: 'Vampir', desc: 'Rakibin çarpanını kendi taşına taşı!' }
+  { id: 'freeze', icon: '❄️', name: 'Freeze', desc: 'Boş kareyi kilitle! (Hamle hakkın devam eder)' },
+  { id: 'vampir', icon: '🧛', name: 'Vampir', desc: 'Rakibin çarpanını kendi taşına taşı! (Hamle hakkın devam eder)' }
 ];
 
 const SCENARIOS = {
@@ -201,7 +202,7 @@ export default function PowerSimulation() {
             onClick={() => handlePowerClick(power.id)}
             title={power.name}
           >
-            {power.icon}
+            {power.id === 'freeze' ? <CrystalSnowflake size="20px" /> : power.icon}
           </button>
         ))}
       </div>

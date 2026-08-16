@@ -1,4 +1,8 @@
 import { memo } from 'react'
+import ArcadeBomb from './ArcadeBomb'
+import CrystalSnowflake from './CrystalSnowflake'
+import EnergyShieldIcon from './EnergyShieldIcon'
+import ExplosionBlast from './ExplosionBlast'
 
 const Square = memo(function Square({
   value,
@@ -10,8 +14,11 @@ const Square = memo(function Square({
   isBoosted,
   isTrapped,
   isBlackHoleTriggered,
+  isBombExploding,
   isPowerTargeting,
   isPowerTarget,
+  isVampireSource,
+  isVampireTarget,
   powerTargetLabel,
   onSquareClick,
 }) {
@@ -27,6 +34,9 @@ const Square = memo(function Square({
     isBoosted ? 'boosted-square' : '',
     isTrapped ? 'trapped-square' : '',
     isBlackHoleTriggered ? 'black-hole-triggered-square' : '',
+    isBombExploding ? 'bomb-exploding-square' : '',
+    isVampireSource ? 'vampire-source-square' : '',
+    isVampireTarget ? 'vampire-target-square' : '',
     isPowerTargeting ? 'power-targeting-square' : '',
     isPowerTarget ? 'power-target-eligible' : '',
     isPowerTargeting && !isPowerTarget ? 'power-target-ineligible' : '',
@@ -47,14 +57,29 @@ const Square = memo(function Square({
     >
       {multiplier && <span className="multiplier-badge">{multiplier}x</span>}
       {isBoosted && <span className="boost-badge" aria-label="Boostlu kare">⚡</span>}
-      {isShielded && <span className="shield-badge">SHIELD</span>}
+      {isShielded && (
+        <>
+          <span className="shield-icon-badge" aria-label="Korumalı taş">
+            <EnergyShieldIcon size={16} />
+          </span>
+          <span className="shield-energy-aura" aria-hidden="true">
+            <span className="shield-orbital-ring ring-1" />
+            <span className="shield-orbital-ring ring-2" />
+          </span>
+        </>
+      )}
       {isTrapped && <span className="trap-badge">🕳️</span>}
       {isBlackHoleTriggered && (
         <span className="black-hole-badge" aria-label="Kara delik tetiklendi">
           🕳️
         </span>
       )}
-      {isLocked && (
+      {isBombExploding && (
+        <span className="bomb-explosion-overlay" aria-hidden="true">
+          <ExplosionBlast className="bomb-blast-graphic" />
+        </span>
+      )}
+      {isLocked && !isBombExploding && (
         <span className="shattered-glass-overlay" aria-hidden="true">
           <svg viewBox="0 0 100 100" className="shattered-glass-svg">
             {/* Ana Derin Kırık Damarları */}
@@ -76,9 +101,18 @@ const Square = memo(function Square({
             />
 
             {/* Orta Düzey Çatlak Dalları */}
-            <path d="M 62 22 Q 65 29, 63 32 Q 70 35, 76 35 Q 82 32, 86 38 Q 78 40, 75 48 Q 76 56, 74 65" className="crack-mid" />
-            <path d="M 10 46 Q 14 55, 16 64 Q 12 70, 15 76 Q 13 82, 18 84 Q 15 90, 10 93 Q 8 98, 7 100" className="crack-mid" />
-            <path d="M 75 74 Q 78 82, 77 92 Q 81 96, 80 100" className="crack-mid" />
+            <path
+              d="M 62 22 Q 65 29, 63 32 Q 70 35, 76 35 Q 82 32, 86 38 Q 78 40, 75 48 Q 76 56, 74 65"
+              className="crack-mid"
+            />
+            <path
+              d="M 10 46 Q 14 55, 16 64 Q 12 70, 15 76 Q 13 82, 18 84 Q 15 90, 10 93 Q 8 98, 7 100"
+              className="crack-mid"
+            />
+            <path
+              d="M 75 74 Q 78 82, 77 92 Q 81 96, 80 100"
+              className="crack-mid"
+            />
             <path d="M 41 12 Q 46 12, 52 10 Q 56 12, 60 14" className="crack-mid" />
             <path d="M 18 10 Q 20 16, 26 18 Q 28 17, 30 19" className="crack-mid" />
 
@@ -96,7 +130,17 @@ const Square = memo(function Square({
           </svg>
         </span>
       )}
-      {isFrozen && <span className="freeze-badge" aria-label="Donmuş kare">❄️</span>}
+      {isFrozen && (
+        <span className="frozen-crystal-overlay" aria-hidden="true">
+          <CrystalSnowflake className="frozen-crystal-graphic" />
+        </span>
+      )}
+      {isVampireSource && (
+        <span className="vampire-drain-pulse" aria-hidden="true" />
+      )}
+      {isVampireTarget && (
+        <span className="vampire-absorb-burst" aria-hidden="true" />
+      )}
       <span className="square-value">{value}</span>
     </button>
   )
