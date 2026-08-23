@@ -877,15 +877,7 @@ export default function GameSetup({
                       </div>
                     </div>
 
-                    {gameMode === 'arena' && (
-                      <div className="online-arena-create-settings">
-                        <BoostModeSetting
-                          boostMode={onlineBoostMode}
-                          onChange={setOnlineBoostMode}
-                          explained
-                        />
-                      </div>
-                    )}
+                    {/* BoostModeSetting: Boost arka planda hazır, şimdilik UI'da gösterilmiyor */}
 
                     {/* Theme Skin Setting for Host */}
                     <div className="setup-group">

@@ -108,22 +108,20 @@ export default function HowToPlay({
       content: (
         <>
           <RuleItem icon="💣" title="Bomba">
-            Rakibinizin taşlarından birini patlat. Korumalı taşlara kullanılamaz.
+            Rakibin korumasız taşını kaldır.
           </RuleItem>
           <RuleItem icon="🛡️" title="Kalkan">
-            Yerleştirdiğin taşı koru. Korumalı taş bombayla patlatılamaz.
-          </RuleItem>
-          <RuleItem icon="⚡" title="Boost">
-            Yerleştirdiğin taşın hücre çarpanını 2 katına çıkarır.
+            Seçilen taşı koru. Bombayla patlatılamaz. Sıra geçmez.
           </RuleItem>
           <RuleItem icon="🕳️" title="Kara Delik">
-            Boş bir kareye gizli Kara Delik kur. Rakip oraya taş koyarsa taşı
-            anında kaybolur ve sırası geçer. Kara Deliği sadece sen görürsün.
+            Boş kareye gizli tuzak kur. Rakip basarsa taşı kaybolur ve sırası geçer.
           </RuleItem>
-          <div className="locked-power-note">
-            <strong>Sürpriz paket güçleri:</strong> Arena PvC’de Joker, Freeze veya
-            Vampir seçebilirsin.
-          </div>
+          <RuleItem icon="❄️" title="Dondur">
+            Boş kareyi 1 tur kilitle. Rakip o kareye taş koyamaz. Sıra geçmez.
+          </RuleItem>
+          <RuleItem icon="🧛" title="Vampir">
+            Rakibin çarpanını kendi taşına çek. Sıra geçmez.
+          </RuleItem>
         </>
       ),
     },
@@ -137,15 +135,10 @@ export default function HowToPlay({
             Her karedeki sayı (2x, 3x, 4x), o karede taşınız varken kazandığınızda
             alacağınız puan çarpanıdır. Kazanan çizgideki tüm çarpanlar toplanır.
           </RuleItem>
-          <RuleItem icon="⚡" title="Boost Etkisi">
-            1x + 3x + 2x karelerden oluşan bir çizgiyle kazanırsanız 6 puan
-            alırsınız. Boost kullandıysanız o kare 2 katına çıkar.
-          </RuleItem>
           {gameMode === 'arena' && (
             <div className="how-to-play-state-line">
               Çarpanlar: {arenaSettings.multipliersEnabled ? 'Açık' : 'Kapalı'} ·
-              Güçler: {arenaSettings.powersEnabled ? 'Açık' : 'Kapalı'} ·
-              Boost: {arenaSettings.boostMode === 'random' ? 'Rastgele' : 'Seçimli'}
+              Güçler: {arenaSettings.powersEnabled ? 'Açık' : 'Kapalı'}
             </div>
           )}
         </>
@@ -162,7 +155,7 @@ export default function HowToPlay({
           </RuleItem>
           <RuleItem icon="O" title="Bilgisayar">
             Bilgisayar O oynar. Klasik modda taş koyar; Arena PvC modunda bomba,
-            kalkan, boost ve Kara Delik güçlerini kontrollü şekilde kullanabilir.
+            kalkan, kara delik ve vampir güçlerini kontrollü şekilde kullanabilir.
           </RuleItem>
         </>
       ),
@@ -205,10 +198,6 @@ export default function HowToPlay({
             Yüksek çarpanlı kareleri (3x veya 4x) önce kapat ya da rakibini
             oralardan uzak tut.
           </RuleItem>
-          <RuleItem icon="⚡" title="Boost Zamanı">
-            Boost gücünü 3x kare üzerinde kullanırsan 6x puan alırsın; bu oyun
-            belirleyici olabilir.
-          </RuleItem>
           <RuleItem icon="💣" title="Bomba">
             Bombayı rakibin kazanacak hamlesini engellemek için kullan. Panikle harcama.
           </RuleItem>
@@ -218,6 +207,10 @@ export default function HowToPlay({
           <RuleItem icon="🕳️" title="Kara Delik">
             Kara Deliği rakibin en çok tercih ettiği yüksek çarpanlı kareye kur;
             fark etmeden basarsa sırası boşa gider.
+          </RuleItem>
+          <RuleItem icon="🧛" title="Vampir Zamanı">
+            Rakibin yüksek çarpanlı taşı varken Vampiri kullan; o çarpanı kendi taşına
+            aktararak hem rakibini zayıflatır hem de puanını artırırsın.
           </RuleItem>
           <RuleItem icon="🔁" title="X/O Değişimi">
             X/O değişimini unutma; bir sonraki turda hangi tarafta olacağını hesapla.
@@ -326,12 +319,9 @@ export default function HowToPlay({
             <div className="quick-reference-list">
               <QuickReferencePower icon="💣" title="Bomba" description="Korumasız bir taşı kaldırır." />
               <QuickReferencePower icon="🛡️" title="Kalkan" description="Kendi taşını korur. (Hamle hakkın devam eder)" />
-              <QuickReferencePower icon="⚡" title="Boost" description="Hücre puanını iki katına çıkarır. (Hamle hakkın devam eder)" />
               <QuickReferencePower icon="🕳️" title="Kara Delik" description="Rakibin taşı koyunca kaybolur ve sırası geçer." />
-              <span className="quick-reference-break" aria-hidden="true" />
-              <QuickReferencePower icon="🃏" title="Joker" description="Rakibin taşını kendi taşına çevirir." />
-              <QuickReferencePower icon="❄️" title="Freeze" description="Boş kareyi kilitler. (Hamle hakkın devam eder)" />
-              <QuickReferencePower icon="🧛" title="Vampir" description="Rakibin çarpanını aktarır. (Hamle hakkın devam eder)" />
+              <QuickReferencePower icon="❄️" title="Dondur" description="Boş kareyi 1 tur kilitle. Sıra geçmez." />
+              <QuickReferencePower icon="🧛" title="Vampir" description="Rakibin çarpanını kendi taşına çek. Sıra geçmez." />
             </div>
           </section>
         </div>

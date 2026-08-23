@@ -101,6 +101,7 @@ export default function App() {
   const [rewardedPowerMessage, setRewardedPowerMessage] = useState('')
   const [isRewardedPowerPickerOpen, setIsRewardedPowerPickerOpen] = useState(false)
   const [isAiThinking, setIsAiThinking] = useState(false)
+  const [hasUsedPowerThisTurn, setHasUsedPowerThisTurn] = useState(false)
  
  
 
@@ -155,14 +156,15 @@ const hasGameStarted =
     !lockedSquares.includes(index) &&
     !traps.some((trap) => trap.index === index && trap.owner === currentPlayer)
 )
+  const opponentPlayer = currentPlayer === 'X' ? 'O' : 'X'
   const vampireSources = squares
-    .map((square, index) => square === 'O' && multipliers[index] ? index : null)
+    .map((square, index) => square === opponentPlayer && multipliers[index] ? index : null)
     .filter((index) => index !== null)
   const vampireTargets = squares
-    .map((square, index) => square === 'X' && !multipliers[index] ? index : null)
+    .map((square, index) => square === currentPlayer && !multipliers[index] ? index : null)
     .filter((index) => index !== null)
-  const isRewardedPowerAvailable =
-    gameMode === 'arena' && opponentType === 'ai' && powersEnabled
+  // Reklam altyapısı ileride aktif edilecek — şimdilik UI'dan gizli
+  const isRewardedPowerAvailable = false
   const scoreLabel = 'Puan'
   const modeChip = gameMode === 'arena' ? 'ARENA' : 'KLASİK'
   const targetChip = gameConfig
@@ -258,7 +260,7 @@ const hasGameStarted =
     setResultMessage(null)
     setLoserMessage(null)
     setIsRoundResultDismissed(false)
-    
+    setHasUsedPowerThisTurn(false)
   }
 
   function handleRewardedPowerClaim(powerId) {
@@ -279,13 +281,13 @@ const hasGameStarted =
       }))
       setRewardedPowerClaimed(true)
       setIsRewarding(false)
-      setRewardedPowerMessage(`${powerId === 'joker' ? 'Joker' : powerId === 'freeze' ? 'Freeze' : 'Vampir'} gücü eklendi.`)
+      setRewardedPowerMessage(`${powerId === 'freeze' ? 'Freeze' : 'Vampir'} gücü eklendi.`)
       playSound('power')
     }, 2000)
   }
 
   function handleSelectHumanPower(powerId) {
-    if (winner || matchWinner || isDraw) {
+    if (winner || matchWinner || isDraw || hasUsedPowerThisTurn) {
       return
     }
 
@@ -342,6 +344,10 @@ const hasGameStarted =
   }
 
   function handleBombPower(index) {
+    if (hasUsedPowerThisTurn) {
+      return
+    }
+
     const targetValue = squares[index]
 
     if (!targetValue || shieldedSquares.includes(index)) {
@@ -373,6 +379,10 @@ const hasGameStarted =
   }
 
   function handleShieldPower(index) {
+    if (hasUsedPowerThisTurn) {
+      return
+    }
+
     const targetValue = squares[index]
 
     if (
@@ -392,8 +402,13 @@ const hasGameStarted =
     playSound('power')
     setLockedSquares([])
     setActivePower(null)
+    setHasUsedPowerThisTurn(true)
   }
   function handleTrapPower(index) {
+    if (hasUsedPowerThisTurn) {
+      return
+    }
+
     if (
       squares[index] ||
       lockedSquares.includes(index) ||
@@ -416,32 +431,12 @@ const hasGameStarted =
     setActivePower(null)
     setXIsNext(!xIsNext)
   }
-  function handleJokerPower(index) {
-    const targetValue = squares[index]
-    const opponentPlayer = currentPlayer === 'X' ? 'O' : 'X'
 
-    if (
-      targetValue !== opponentPlayer ||
-      shieldedSquares.includes(index) ||
-      lockedSquares.includes(index)
-    ) {
+  function handleFreezePower(index) {
+    if (hasUsedPowerThisTurn) {
       return
     }
 
-    const nextSquares = squares.slice()
-    nextSquares[index] = currentPlayer
-
-    setSquares(nextSquares)
-    revealBoostedSquare(index)
-    playSound('power')
-    finishRound(nextSquares)
-    spendPlayerPower(currentPlayer, 'joker')
-    setLockedSquares([])
-    setActivePower(null)
-    setXIsNext(!xIsNext)
-  }
-
-  function handleFreezePower(index) {
     if (squares[index] || lockedSquares.includes(index) || frozenSquares.includes(index)) {
       return
     }
@@ -450,9 +445,14 @@ const hasGameStarted =
     spendPlayerPower(currentPlayer, 'freeze')
     playSound('power')
     setActivePower(null)
+    setHasUsedPowerThisTurn(true)
   }
 
   function handleVampirePower() {
+    if (hasUsedPowerThisTurn) {
+      return
+    }
+
     const sourceIndex = vampireSources[0]
     const targetIndex = vampireTargets[0]
 
@@ -466,6 +466,7 @@ const hasGameStarted =
     spendPlayerPower(currentPlayer, 'vampire')
     playSound('power')
     setActivePower(null)
+    setHasUsedPowerThisTurn(true)
     setRewardedPowerMessage(`Vampir ${transferredMultiplier}x çarpanı çekiyor...`)
 
     setVampireTransferEvent({
@@ -529,26 +530,22 @@ const hasGameStarted =
     return
   }
 
-  if (powersEnabled && activePower === 'shield') {
+  // Turn Phase Lock: güç kullanıldıysa bu turda başka güç kullanılamaz
+  if (hasUsedPowerThisTurn) {
+    setActivePower(null)
+  }
+
+  if (powersEnabled && !hasUsedPowerThisTurn && activePower === 'shield') {
     handleShieldPower(index)
     return
   }
 
-  if (powersEnabled && activePower === 'joker') {
-    if (isDraw) {
-      return
-    }
-
-    handleJokerPower(index)
-    return
-  }
-
-  if (powersEnabled && activePower === 'trap') {
+  if (powersEnabled && !hasUsedPowerThisTurn && activePower === 'trap') {
     handleTrapPower(index)
     return
   }
 
-  if (powersEnabled && activePower === 'freeze') {
+  if (powersEnabled && !hasUsedPowerThisTurn && activePower === 'freeze') {
     handleFreezePower(index)
     return
   }
@@ -558,7 +555,7 @@ const hasGameStarted =
     return
   }
 
-  if (powersEnabled && activePower === 'vampire') {
+  if (powersEnabled && !hasUsedPowerThisTurn && activePower === 'vampire') {
     handleVampirePower()
     return
   }
@@ -595,16 +592,18 @@ const hasGameStarted =
   playSound('move')
   finishRound(nextSquares)
   setLockedSquares([])
+  setFrozenSquares([])
+  setHasUsedPowerThisTurn(false)
   setXIsNext(!xIsNext)
 // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [winner, matchWinner, isDraw, powersEnabled, activePower, squares, lockedSquares, frozenSquares, traps, currentPlayer, xIsNext, boostedSquares, visibleBoostedSquares, finishRound])
+}, [winner, matchWinner, isDraw, powersEnabled, activePower, hasUsedPowerThisTurn, squares, lockedSquares, frozenSquares, traps, currentPlayer, xIsNext, boostedSquares, visibleBoostedSquares, finishRound])
 
   const restoreLocalGameSession = useCallback((session) => {
     setOnlineGame(null)
     setGameConfig(session.gameConfig)
     setGameMode(session.gameMode)
     setScores(session.scores)
-    setArenaSettings(session.arenaSettings)
+    setArenaSettings(initialArenaSettings) // Her zaman default: güçler + çarpanlar açık
     setPendingArenaSettings(null)
     setMultipliers(session.multipliers ?? {})
     setPlayerPowers(session.playerPowers)
@@ -1055,6 +1054,11 @@ const hasGameStarted =
     roundNumber,
   ])
   useEffect(() => {
+    setHasUsedPowerThisTurn(false)
+    setActivePower(null)
+  }, [xIsNext])
+
+  useEffect(() => {
     if (!blackHoleEvent) {
       return
     }
@@ -1440,18 +1444,13 @@ const hasGameStarted =
             powerCounts={playerPowers.X}
             activePower={activePower}
             boostMode={arenaSettings.boostMode}
+            hasUsedPowerThisTurn={hasUsedPowerThisTurn && currentPlayer === 'X'}
             disabledPowers={{
-              bomb: !hasBombTarget,
-              boost: !hasBoostTarget || Boolean(winner),
-              trap: !hasTrapTarget || Boolean(winner),
-              joker: !squares.some(
-                (square, index) =>
-                  square === 'O' &&
-                  !shieldedSquares.includes(index) &&
-                  !lockedSquares.includes(index)
-              ) || Boolean(winner),
-              freeze: !squares.some((square, index) => !square && !lockedSquares.includes(index) && !frozenSquares.includes(index)) || Boolean(winner),
-              vampire: vampireSources.length === 0 || vampireTargets.length === 0 || Boolean(winner),
+              bomb: !hasBombTarget || hasUsedPowerThisTurn,
+              trap: !hasTrapTarget || Boolean(winner) || hasUsedPowerThisTurn,
+              freeze: !squares.some((square, index) => !square && !lockedSquares.includes(index) && !frozenSquares.includes(index)) || Boolean(winner) || hasUsedPowerThisTurn,
+              vampire: vampireSources.length === 0 || vampireTargets.length === 0 || Boolean(winner) || hasUsedPowerThisTurn,
+              shield: hasUsedPowerThisTurn,
             }}
             onSelectPower={handleSelectHumanPower}
             onUseRandomBoost={handleRandomBoostPower}
@@ -1485,12 +1484,15 @@ const hasGameStarted =
             powerCounts={playerPowers.O}
             activePower={activePower}
             boostMode={arenaSettings.boostMode}
+            hasUsedPowerThisTurn={hasUsedPowerThisTurn && currentPlayer === 'O'}
             disabledPowers={{
-              bomb: !hasBombTarget,
-              boost: !hasBoostTarget || Boolean(winner),
-              trap: !hasTrapTarget || Boolean(winner),
+              bomb: !hasBombTarget || hasUsedPowerThisTurn,
+              trap: !hasTrapTarget || Boolean(winner) || hasUsedPowerThisTurn,
+              freeze: !squares.some((square, index) => !square && !lockedSquares.includes(index) && !frozenSquares.includes(index)) || Boolean(winner) || hasUsedPowerThisTurn,
+              vampire: vampireSources.length === 0 || vampireTargets.length === 0 || Boolean(winner) || hasUsedPowerThisTurn,
+              shield: hasUsedPowerThisTurn,
             }}
-            onSelectPower={setActivePower}
+            onSelectPower={handleSelectHumanPower}
             onUseRandomBoost={handleRandomBoostPower}
           />
 
