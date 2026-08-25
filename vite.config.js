@@ -41,7 +41,8 @@ export default defineConfig(({ mode }) => {
   const apiOrigin = getApiOrigin(env.VITE_API_BASE_URL?.trim())
   const connectSources = ["'self'", apiOrigin].filter(Boolean).join(' ')
   const contentSecurityPolicy =
-    "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src " +
+    "default-src 'self'; script-src 'self'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+    "font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src " +
     `${connectSources}; object-src 'none'; base-uri 'self'; form-action 'self'`
 
   return {

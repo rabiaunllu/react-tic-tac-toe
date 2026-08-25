@@ -5,8 +5,8 @@ import Board from './components/Board'
 import GameStatus from './components/GameStatus'
 import ArenaSettings from './components/ArenaSettings'
 import PowerPanel from './components/PowerPanel'
-import { createInitialPowerCounts, rewardedPowerIds } from './game/powers'
 import GameSetup from './components/GameSetup'
+import { ARENA_POWER_NAMES, createInitialPowerCounts, rewardedPowerIds } from './game/powers'
 import OnlineGame from './components/OnlineGame'
 import RoundResultModal from './components/RoundResultModal'
 import RoundResultPreviewBar from './components/RoundResultPreviewBar'
@@ -37,8 +37,6 @@ import {
 } from './sessionStorage'
 import {
   IS_ONLINE_ENABLED,
-  isConnectionError,
-  isRoomNotFoundError,
   requestRoomJson,
 } from './api/roomsApi'
 import { playSound, registerUserGesture } from './game/soundManager'
@@ -77,12 +75,15 @@ export default function App() {
   const [shieldedSquares, setShieldedSquares] = useState([])
   const [lockedSquares, setLockedSquares] = useState([])
   const [frozenSquares, setFrozenSquares] = useState([])
+  const [frozenBy, setFrozenBy] = useState(null)
   const [boostedSquares, setBoostedSquares] = useState([])
   const [visibleBoostedSquares, setVisibleBoostedSquares] = useState([])
   const [traps, setTraps] = useState([])
   const [blackHoleEvent, setBlackHoleEvent] = useState(null)
   const [bombEvent, setBombEvent] = useState(null)
   const [vampireTransferEvent, setVampireTransferEvent] = useState(null)
+  const [stolenSquares, setStolenSquares] = useState([])
+  const [actionError, setActionError] = useState('')
   const [resultMessage, setResultMessage] = useState(null)
   const [loserMessage, setLoserMessage] = useState(null)
   const [gameConfig, setGameConfig] = useState(null)
@@ -100,19 +101,45 @@ export default function App() {
   const [isRewarding, setIsRewarding] = useState(false)
   const [rewardedPowerMessage, setRewardedPowerMessage] = useState('')
   const [isRewardedPowerPickerOpen, setIsRewardedPowerPickerOpen] = useState(false)
-  const [isAiThinking, setIsAiThinking] = useState(false)
   const [hasUsedPowerThisTurn, setHasUsedPowerThisTurn] = useState(false)
- 
- 
+
+  const activeTimeoutsRef = useRef(new Set())
+
+  const safeSetTimeout = useCallback((fn, delay) => {
+    const timerId = window.setTimeout(() => {
+      activeTimeoutsRef.current.delete(timerId)
+      fn()
+    }, delay)
+    activeTimeoutsRef.current.add(timerId)
+    return timerId
+  }, [])
+
+  const clearSafeTimeout = useCallback((timerId) => {
+    if (timerId) {
+      window.clearTimeout(timerId)
+      activeTimeoutsRef.current.delete(timerId)
+    }
+  }, [])
+
+  const clearAllTimeouts = useCallback(() => {
+    activeTimeoutsRef.current.forEach((id) => window.clearTimeout(id))
+    activeTimeoutsRef.current.clear()
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      clearAllTimeouts()
+    }
+  }, [clearAllTimeouts])
 
   const boardSize = gameConfig?.boardSize ?? defaultBoardSize
   const winLength = gameConfig?.winLength ?? 3
   const opponentType = gameConfig?.opponentType ?? 'human'
   const powerOptions = {
-  gameMode,
-  opponentType,
-  playContext: 'local',
-}
+    gameMode,
+    opponentType,
+    playContext: 'local',
+  }
   const winner = calculateWinner(squares, boardSize, winLength)
   const winningLine = getWinningLine(squares, boardSize, winLength)
   const multipliersEnabled = gameMode === 'arena' && arenaSettings.multipliersEnabled
@@ -133,15 +160,22 @@ export default function App() {
           ? 'O'
           : null
       : null
-  const hasBombTarget = squares.some(
-    (square, index) => square && !shieldedSquares.includes(index)
+  const isAiTurn = Boolean(
+    gameConfig &&
+    (gameMode === 'classic' || gameMode === 'arena') &&
+    opponentType === 'ai' &&
+    !xIsNext &&
+    !winner &&
+    !matchWinner &&
+    !isDraw
   )
-const hasGameStarted =
-  squares.some(Boolean) ||
-  shieldedSquares.length > 0 ||
-  lockedSquares.length > 0 ||
-  boostedSquares.length > 0 ||
-  traps.length > 0
+  const isAiThinking = isAiTurn
+  const hasGameStarted =
+    squares.some(Boolean) ||
+    shieldedSquares.length > 0 ||
+    lockedSquares.length > 0 ||
+    boostedSquares.length > 0 ||
+    traps.length > 0
   const boostTargets = squares
     .map((square, index) =>
       square || boostedSquares.includes(index) || lockedSquares.includes(index)
@@ -150,19 +184,33 @@ const hasGameStarted =
     )
     .filter((index) => index !== null)
   const hasBoostTarget = boostTargets.length > 0
-  const hasTrapTarget = squares.some(
-  (square, index) =>
-    !square &&
-    !lockedSquares.includes(index) &&
-    !traps.some((trap) => trap.index === index && trap.owner === currentPlayer)
-)
   const opponentPlayer = currentPlayer === 'X' ? 'O' : 'X'
   const vampireSources = squares
-    .map((square, index) => square === opponentPlayer && multipliers[index] ? index : null)
+    .map((square, index) => square === opponentPlayer && multipliers[index] && !stolenSquares.includes(index) ? index : null)
     .filter((index) => index !== null)
   const vampireTargets = squares
     .map((square, index) => square === currentPlayer && !multipliers[index] ? index : null)
     .filter((index) => index !== null)
+
+  const arenaPowerTargets = {
+    bomb: squares.flatMap((square, index) =>
+      square && !shieldedSquares.includes(index) ? [index] : []
+    ),
+    shield: squares.flatMap((square, index) =>
+      square === currentPlayer && !shieldedSquares.includes(index) ? [index] : []
+    ),
+    boost: squares.flatMap((square, index) =>
+      !square && !boostedSquares.includes(index) && !lockedSquares.includes(index) ? [index] : []
+    ),
+    trap: squares.flatMap((square, index) =>
+      !square && !lockedSquares.includes(index) && !traps.some((trap) => trap.index === index && trap.owner === currentPlayer) ? [index] : []
+    ),
+    freeze: squares.flatMap((square, index) =>
+      !square && !lockedSquares.includes(index) && !frozenSquares.includes(index) ? [index] : []
+    ),
+    vampire: vampireSources.length > 0 && vampireTargets.length > 0 ? vampireSources : [],
+  }
+  const activePowerTargets = powersEnabled && activePower ? arenaPowerTargets[activePower] ?? [] : null
   // Reklam altyapısı ileride aktif edilecek — şimdilik UI'dan gizli
   const isRewardedPowerAvailable = false
   const scoreLabel = 'Puan'
@@ -232,6 +280,7 @@ const hasGameStarted =
   }
 
   function resetGame(nextSettings = arenaSettings, nextGameMode = gameMode) {
+    clearAllTimeouts()
     const shouldUseMultipliers =
       nextGameMode === 'arena' && nextSettings.multipliersEnabled
 
@@ -242,10 +291,14 @@ const hasGameStarted =
     setShieldedSquares([])
     setLockedSquares([])
     setFrozenSquares([])
+    setFrozenBy(null)
     setBoostedSquares([])
     setVisibleBoostedSquares([])
     setTraps([])
+    setStolenSquares([])
     setBlackHoleEvent(null)
+    setBombEvent(null)
+    setVampireTransferEvent(null)
     setPlayerPowers((currentPowers) => {
       const nextPowers = createInitialPlayerPowers({ gameMode: nextGameMode, opponentType })
       rewardedPowerIds.forEach((powerId) => {
@@ -271,7 +324,7 @@ const hasGameStarted =
     setIsRewarding(true)
     setIsRewardedPowerPickerOpen(false)
     setRewardedPowerMessage('Reklam izleniyor...')
-    window.setTimeout(() => {
+    safeSetTimeout(() => {
       setPlayerPowers((currentPowers) => ({
         ...currentPowers,
         X: {
@@ -291,12 +344,19 @@ const hasGameStarted =
       return
     }
 
+    setActionError('')
+
     if (powerId === 'vampire') {
+      if (vampireSources.length === 0 || vampireTargets.length === 0) {
+        setActionError('Vampir için uygun çarpanlı rakip taşı ve çarpansız kendi taşın gerekli.')
+        setActivePower(null)
+        return
+      }
       handleVampirePower()
       return
     }
 
-    setActivePower(powerId)
+    setActivePower((current) => (current === powerId ? null : powerId))
   }
 
   function revealBoostedSquare(index) {
@@ -367,12 +427,19 @@ const hasGameStarted =
     setVisibleBoostedSquares((currentVisibleBoostedSquares) =>
       currentVisibleBoostedSquares.filter((squareIndex) => squareIndex !== index)
     )
+    setStolenSquares((currentStolen) =>
+      currentStolen.filter((squareIndex) => squareIndex !== index)
+    )
     setLockedSquares([index])
+    if (frozenSquares.length > 0 && frozenBy !== currentPlayer) {
+      setFrozenSquares([])
+      setFrozenBy(null)
+    }
     spendPlayerPower(currentPlayer, 'bomb')
     playSound('bomb')
     setActivePower(null)
     setBombEvent({ index, id: Date.now() })
-    window.setTimeout(() => {
+    safeSetTimeout(() => {
       setBombEvent(null)
     }, 650)
     setXIsNext(!xIsNext)
@@ -428,6 +495,10 @@ const hasGameStarted =
     spendPlayerPower(currentPlayer, 'trap')
     playSound('blackhole')
     setLockedSquares([])
+    if (frozenSquares.length > 0 && frozenBy !== currentPlayer) {
+      setFrozenSquares([])
+      setFrozenBy(null)
+    }
     setActivePower(null)
     setXIsNext(!xIsNext)
   }
@@ -442,6 +513,7 @@ const hasGameStarted =
     }
 
     setFrozenSquares([index])
+    setFrozenBy(currentPlayer)
     spendPlayerPower(currentPlayer, 'freeze')
     playSound('power')
     setActivePower(null)
@@ -457,7 +529,7 @@ const hasGameStarted =
     const targetIndex = vampireTargets[0]
 
     if (sourceIndex === undefined || targetIndex === undefined) {
-      setRewardedPowerMessage('Vampir için uygun çarpanlı rakip taşı ve çarpansız kendi taşın gerekli.')
+      setActionError('Vampir için uygun çarpanlı rakip taşı ve çarpansız kendi taşın gerekli.')
       setActivePower(null)
       return
     }
@@ -476,14 +548,18 @@ const hasGameStarted =
       id: Date.now(),
     })
 
-    window.setTimeout(() => {
+    safeSetTimeout(() => {
       setMultipliers((currentMultipliers) => {
         const nextMultipliers = { ...currentMultipliers, [targetIndex]: transferredMultiplier }
         delete nextMultipliers[sourceIndex]
         return nextMultipliers
       })
+      setStolenSquares((currentStolen) => [
+        ...currentStolen.filter((squareIndex) => squareIndex !== sourceIndex),
+        targetIndex,
+      ])
       setRewardedPowerMessage(`Vampir ${transferredMultiplier}x çarpanı kendi taşına aktardı!`)
-      window.setTimeout(() => {
+      safeSetTimeout(() => {
         setVampireTransferEvent(null)
       }, 350)
     }, 650)
@@ -520,83 +596,134 @@ const hasGameStarted =
   }
 
   const handleSquareClick = useCallback((index) => {
-  registerUserGesture()
-  if (winner || matchWinner || isDraw) {
-    return
-  }
+    registerUserGesture()
+    if (winner || matchWinner || isDraw) {
+      return
+    }
 
-  if (powersEnabled && activePower === 'bomb') {
-    handleBombPower(index)
-    return
-  }
+    if (powersEnabled && activePower) {
+      setActionError('')
 
-  // Turn Phase Lock: güç kullanıldıysa bu turda başka güç kullanılamaz
-  if (hasUsedPowerThisTurn) {
-    setActivePower(null)
-  }
+      if ((playerPowers[currentPlayer]?.[activePower] ?? 0) <= 0) {
+        setActivePower(null)
+        setActionError('Bu güç bitti.')
+        return
+      }
 
-  if (powersEnabled && !hasUsedPowerThisTurn && activePower === 'shield') {
-    handleShieldPower(index)
-    return
-  }
+      if (!activePowerTargets.includes(index)) {
+        setActionError(
+          activePower === 'bomb' || activePower === 'shield'
+            ? 'Önce uygun bir taş seç.'
+            : 'Bu hedef uygun değil.'
+        )
+        return
+      }
 
-  if (powersEnabled && !hasUsedPowerThisTurn && activePower === 'trap') {
-    handleTrapPower(index)
-    return
-  }
+      if (activePower === 'bomb') {
+        handleBombPower(index)
+        return
+      }
 
-  if (powersEnabled && !hasUsedPowerThisTurn && activePower === 'freeze') {
-    handleFreezePower(index)
-    return
-  }
+      if (!hasUsedPowerThisTurn && activePower === 'shield') {
+        handleShieldPower(index)
+        return
+      }
 
-  if (powersEnabled && activePower === 'boost') {
-    handleBoostPower(index)
-    return
-  }
+      if (!hasUsedPowerThisTurn && activePower === 'trap') {
+        handleTrapPower(index)
+        return
+      }
 
-  if (powersEnabled && !hasUsedPowerThisTurn && activePower === 'vampire') {
-    handleVampirePower()
-    return
-  }
+      if (!hasUsedPowerThisTurn && activePower === 'freeze') {
+        handleFreezePower(index)
+        return
+      }
 
-  if (squares[index] || lockedSquares.includes(index) || frozenSquares.includes(index)) {
-    return
-  }
+      if (activePower === 'boost') {
+        handleBoostPower(index)
+        return
+      }
 
-  const triggeredTrap = traps.find(
-    (trap) => trap.index === index && trap.owner !== currentPlayer
-  )
+      if (!hasUsedPowerThisTurn && activePower === 'vampire') {
+        handleVampirePower()
+        return
+      }
 
-  if (triggeredTrap) {
-    setBlackHoleEvent({
-      index,
-      player: currentPlayer,
-      id: Date.now(),
-    })
-    setTraps((currentTraps) =>
-      currentTraps.filter((trap) => trap.index !== index)
+      return
+    }
+
+    setActionError('')
+
+    if (squares[index] || lockedSquares.includes(index) || frozenSquares.includes(index)) {
+      return
+    }
+
+    const triggeredTrap = traps.find(
+      (trap) => trap.index === index && trap.owner !== currentPlayer
     )
+
+    if (triggeredTrap) {
+      setBlackHoleEvent({
+        index,
+        player: currentPlayer,
+        id: Date.now(),
+      })
+      setTraps((currentTraps) =>
+        currentTraps.filter((trap) => trap.index !== index)
+      )
+      setLockedSquares([])
+      if (frozenSquares.length > 0) {
+        if (frozenBy === currentPlayer) {
+          setFrozenBy(null)
+        } else {
+          setFrozenSquares([])
+          setFrozenBy(null)
+        }
+      }
+      setActivePower(null)
+      setXIsNext(!xIsNext)
+      playSound('blackhole')
+      return
+    }
+
+    const nextSquares = squares.slice()
+    nextSquares[index] = currentPlayer
+
+    setSquares(nextSquares)
+    revealBoostedSquare(index)
+    playSound('move')
+    finishRound(nextSquares)
     setLockedSquares([])
-    setActivePower(null)
+    if (frozenSquares.length > 0) {
+      if (frozenBy === currentPlayer) {
+        setFrozenBy(null)
+      } else {
+        setFrozenSquares([])
+        setFrozenBy(null)
+      }
+    }
+    setHasUsedPowerThisTurn(false)
     setXIsNext(!xIsNext)
-    playSound('blackhole')
-    return
-  }
-
-  const nextSquares = squares.slice()
-  nextSquares[index] = currentPlayer
-
-  setSquares(nextSquares)
-  revealBoostedSquare(index)
-  playSound('move')
-  finishRound(nextSquares)
-  setLockedSquares([])
-  setFrozenSquares([])
-  setHasUsedPowerThisTurn(false)
-  setXIsNext(!xIsNext)
-// eslint-disable-next-line react-hooks/exhaustive-deps
-}, [winner, matchWinner, isDraw, powersEnabled, activePower, hasUsedPowerThisTurn, squares, lockedSquares, frozenSquares, traps, currentPlayer, xIsNext, boostedSquares, visibleBoostedSquares, finishRound])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    winner,
+    matchWinner,
+    isDraw,
+    powersEnabled,
+    activePower,
+    playerPowers,
+    currentPlayer,
+    activePowerTargets,
+    hasUsedPowerThisTurn,
+    squares,
+    lockedSquares,
+    frozenSquares,
+    frozenBy,
+    traps,
+    xIsNext,
+    finishRound,
+    revealBoostedSquare,
+  ])
 
   const restoreLocalGameSession = useCallback((session) => {
     setOnlineGame(null)
@@ -611,6 +738,8 @@ const hasGameStarted =
     setShieldedSquares(session.shieldedSquares)
     setLockedSquares(session.lockedSquares)
     setFrozenSquares(session.frozenSquares ?? [])
+    setFrozenBy(session.frozenBy ?? null)
+    setStolenSquares(session.stolenSquares ?? [])
     setBoostedSquares(session.boostedSquares)
     setVisibleBoostedSquares(session.visibleBoostedSquares)
     setTraps(session.traps)
@@ -664,7 +793,7 @@ const hasGameStarted =
           })
           setSetupRestoreMessage('')
           setIsSessionRestoreChecked(true)
-        } catch (error) {
+        } catch {
           clearOnlineSession()
           if (isMounted) {
             setSetupRestoreMessage('')
@@ -710,10 +839,33 @@ const hasGameStarted =
   }, [restoreLocalGameSession])
 
   const aiWorkerRef = useRef(null)
+  const latestAiHandlerRef = useRef({})
+
+  // Singleton AI Worker Initialization (Mounted once for the component lifecycle)
+  useEffect(() => {
+    const worker = new Worker(
+      new URL('./game/aiWorker.js', import.meta.url),
+      { type: 'module' }
+    )
+    aiWorkerRef.current = worker
+
+    worker.onmessage = (event) => {
+      latestAiHandlerRef.current.onMessage?.(event.data)
+    }
+
+    worker.onerror = (error) => {
+      latestAiHandlerRef.current.onError?.(error)
+    }
+
+    return () => {
+      worker.terminate()
+      aiWorkerRef.current = null
+    }
+  }, [])
 
   useEffect(() => {
     const isAiSupportedMode = gameMode === 'classic' || gameMode === 'arena'
-    const isAiTurn =
+    const isAiTurnActive =
       gameConfig &&
       isAiSupportedMode &&
       opponentType === 'ai' &&
@@ -722,24 +874,9 @@ const hasGameStarted =
       !matchWinner &&
       !isDraw
 
-    if (!isAiTurn) {
-      setIsAiThinking(false)
+    if (!isAiTurnActive) {
       return
     }
-
-    setIsAiThinking(true)
-
-    // Önceki worker varsa temizle
-    if (aiWorkerRef.current) {
-      aiWorkerRef.current.terminate()
-      aiWorkerRef.current = null
-    }
-
-    const worker = new Worker(
-      new URL('./game/aiWorker.js', import.meta.url),
-      { type: 'module' }
-    )
-    aiWorkerRef.current = worker
 
     const spendAiPower = (powerId) => {
       setPlayerPowers((currentPowers) => ({
@@ -770,11 +907,17 @@ const hasGameStarted =
           currentTraps.filter((trap) => trap.index !== index)
         )
         setLockedSquares([])
-        setFrozenSquares([])
+        if (frozenSquares.length > 0) {
+          if (frozenBy === 'O') {
+            setFrozenBy(null)
+          } else {
+            setFrozenSquares([])
+            setFrozenBy(null)
+          }
+        }
         setActivePower(null)
         setXIsNext(true)
         playSound('blackhole')
-        setIsAiThinking(false)
         return
       }
 
@@ -794,17 +937,22 @@ const hasGameStarted =
       playSound('move')
       finishRound(nextSquares, nextBoostedSquares)
       setLockedSquares([])
-      setFrozenSquares([])
+      if (frozenSquares.length > 0) {
+        if (frozenBy === 'O') {
+          setFrozenBy(null)
+        } else {
+          setFrozenSquares([])
+          setFrozenBy(null)
+        }
+      }
       setXIsNext(true)
-      setIsAiThinking(false)
     }
 
-    // Worker'dan gelen cevabı işle
-    worker.onmessage = (event) => {
-      const { type: msgType } = event.data
+    latestAiHandlerRef.current.onMessage = (data) => {
+      const { type: msgType } = data
 
       if (msgType === 'ARENA_POWER_ACTION_RESULT') {
-        const aiPowerAction = event.data.action
+        const aiPowerAction = data.action
 
         if (aiPowerAction?.type === 'move') {
           placeAiStone(aiPowerAction.index)
@@ -826,16 +974,18 @@ const hasGameStarted =
             currentVisibleBoostedSquares.filter((squareIndex) => squareIndex !== aiPowerAction.index)
           )
           setLockedSquares([aiPowerAction.index])
-          setFrozenSquares([])
+          if (frozenSquares.length > 0 && frozenBy !== 'O') {
+            setFrozenSquares([])
+            setFrozenBy(null)
+          }
           spendAiPower('bomb')
           playSound('bomb')
           setActivePower(null)
           setBombEvent({ index: aiPowerAction.index, id: Date.now() })
-          window.setTimeout(() => {
+          safeSetTimeout(() => {
             setBombEvent(null)
           }, 650)
           setXIsNext(true)
-          setIsAiThinking(false)
           return
         }
 
@@ -848,7 +998,6 @@ const hasGameStarted =
           spendAiPower('shield')
           playSound('power')
           setLockedSquares([])
-          setFrozenSquares([])
           setActivePower(null)
 
           const aiMove = getAdaptiveAiMove({
@@ -865,7 +1014,6 @@ const hasGameStarted =
             placeAiStone(aiMove)
           } else {
             setXIsNext(true)
-            setIsAiThinking(false)
           }
           return
         }
@@ -881,10 +1029,12 @@ const hasGameStarted =
           spendAiPower('trap')
           playSound('blackhole')
           setLockedSquares([])
-          setFrozenSquares([])
+          if (frozenSquares.length > 0 && frozenBy !== 'O') {
+            setFrozenSquares([])
+            setFrozenBy(null)
+          }
           setActivePower(null)
           setXIsNext(true)
-          setIsAiThinking(false)
           return
         }
 
@@ -898,14 +1048,13 @@ const hasGameStarted =
           spendAiPower('boost')
           playSound('power')
           setLockedSquares([])
-          setFrozenSquares([])
           setActivePower(null)
           placeAiStone(aiPowerAction.index, nextBoostedSquares)
           return
         }
 
         // Fallback: null action durumunda normal hamle iste
-        worker.postMessage({
+        aiWorkerRef.current?.postMessage({
           type: 'ADAPTIVE_MOVE',
           payload: {
             squares,
@@ -922,19 +1071,15 @@ const hasGameStarted =
       }
 
       if (msgType === 'ADAPTIVE_MOVE_RESULT') {
-        const aiMove = event.data.move
+        const aiMove = data.move
         if (aiMove !== null && aiMove !== undefined) {
           placeAiStone(aiMove)
-        } else {
-          setIsAiThinking(false)
         }
         return
       }
     }
 
-    worker.onerror = () => {
-      // Worker hata verirse senkron fallback — oyun kırılmasın
-      setIsAiThinking(false)
+    latestAiHandlerRef.current.onError = () => {
       try {
         if (gameMode === 'arena' && powersEnabled) {
           const aiPowerAction = getArenaAiPowerAction({
@@ -976,15 +1121,14 @@ const hasGameStarted =
           multipliers: gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
         })
         if (fallbackMove !== null) placeAiStone(fallbackMove)
-      } catch (_) {
+      } catch {
         // Sessizce geç
       }
     }
 
-    // 450ms gecikmeyi worker mesajından önce uygula
-    const delayId = window.setTimeout(() => {
+    const postAiTask = () => {
       if (gameMode === 'arena' && powersEnabled) {
-        worker.postMessage({
+        aiWorkerRef.current?.postMessage({
           type: 'ARENA_POWER_ACTION',
           payload: {
             squares,
@@ -1004,7 +1148,7 @@ const hasGameStarted =
           },
         })
       } else {
-        worker.postMessage({
+        aiWorkerRef.current?.postMessage({
           type: 'ADAPTIVE_MOVE',
           payload: {
             squares,
@@ -1018,15 +1162,33 @@ const hasGameStarted =
           },
         })
       }
-    }, 450)
+    }
+
+    let activeVisibilityHandler = null
+
+    // 400ms gecikmeyi worker mesajından önce uygula
+    const delayId = safeSetTimeout(() => {
+      if (document.visibilityState === 'hidden') {
+        activeVisibilityHandler = () => {
+          if (document.visibilityState !== 'hidden') {
+            document.removeEventListener('visibilitychange', activeVisibilityHandler)
+            activeVisibilityHandler = null
+            postAiTask()
+          }
+        }
+        document.addEventListener('visibilitychange', activeVisibilityHandler)
+        return
+      }
+      postAiTask()
+    }, 400)
 
     return () => {
-      window.clearTimeout(delayId)
-      if (aiWorkerRef.current) {
-        aiWorkerRef.current.terminate()
-        aiWorkerRef.current = null
+      latestAiHandlerRef.current = {}
+      clearSafeTimeout(delayId)
+      if (activeVisibilityHandler) {
+        document.removeEventListener('visibilitychange', activeVisibilityHandler)
+        activeVisibilityHandler = null
       }
-      setIsAiThinking(false)
     }
   }, [
     gameConfig,
@@ -1042,6 +1204,7 @@ const hasGameStarted =
     humanWinStreak,
     lockedSquares,
     frozenSquares,
+    frozenBy,
     powersEnabled,
     playerPowers,
     shieldedSquares,
@@ -1052,23 +1215,21 @@ const hasGameStarted =
     traps,
     finishRound,
     roundNumber,
+    safeSetTimeout,
+    clearSafeTimeout,
   ])
-  useEffect(() => {
-    setHasUsedPowerThisTurn(false)
-    setActivePower(null)
-  }, [xIsNext])
 
   useEffect(() => {
     if (!blackHoleEvent) {
       return
     }
 
-    const timeoutId = window.setTimeout(() => {
+    const timeoutId = safeSetTimeout(() => {
       setBlackHoleEvent(null)
     }, 1100)
 
-    return () => window.clearTimeout(timeoutId)
-  }, [blackHoleEvent])
+    return () => clearSafeTimeout(timeoutId)
+  }, [blackHoleEvent, safeSetTimeout, clearSafeTimeout])
 
   useEffect(() => {
     if (!gameConfig || onlineGame) {
@@ -1094,6 +1255,7 @@ const hasGameStarted =
       activePower,
       shieldedSquares,
       lockedSquares,
+      stolenSquares,
       boostedSquares,
       visibleBoostedSquares,
       traps,
@@ -1106,7 +1268,7 @@ const hasGameStarted =
       isMatchCompleted: Boolean(matchWinner),
       humanWinStreak,
       ...(gameMode === 'arena' && opponentType === 'ai'
-        ? { frozenSquares, rewardedPowerClaimed, rewardedPowerMessage }
+        ? { frozenSquares, frozenBy, rewardedPowerClaimed, rewardedPowerMessage }
         : {}),
     }
 
@@ -1126,6 +1288,8 @@ const hasGameStarted =
     shieldedSquares,
     lockedSquares,
     frozenSquares,
+    frozenBy,
+    stolenSquares,
     boostedSquares,
     visibleBoostedSquares,
     traps,
@@ -1136,6 +1300,7 @@ const hasGameStarted =
     winner,
     isDraw,
     showSetupReturnConfirm,
+    matchWinner,
     humanWinStreak,
     rewardedPowerClaimed,
     rewardedPowerMessage,
@@ -1149,6 +1314,7 @@ const hasGameStarted =
     registerUserGesture()
     playSound('click')
     resetGame()
+    setActionError('')
     setRewardedPowerClaimed(false)
     setIsRewarding(false)
     setRewardedPowerMessage('')
@@ -1167,11 +1333,16 @@ const hasGameStarted =
     setMultipliers(multipliersEnabled ? createBoardMultipliers(boardSize) : {})
     setPlayerPowers(createInitialPlayerPowers({ gameMode, opponentType }))
     setTraps([])
+    setStolenSquares([])
+    setActionError('')
     setBlackHoleEvent(null)
+    setBombEvent(null)
+    setVampireTransferEvent(null)
     setActivePower(null)
     setShieldedSquares([])
     setLockedSquares([])
     setFrozenSquares([])
+    setFrozenBy(null)
     setBoostedSquares([])
     setVisibleBoostedSquares([])
     setResultMessage(null)
@@ -1195,7 +1366,11 @@ const hasGameStarted =
     setShowScoreResetConfirm(false)
     setGameConfig(null)
     setTraps([])
+    setStolenSquares([])
+    setActionError('')
     setBlackHoleEvent(null)
+    setBombEvent(null)
+    setVampireTransferEvent(null)
     clearLocalSession()
   }
 
@@ -1242,10 +1417,15 @@ const hasGameStarted =
     setShieldedSquares([])
     setLockedSquares([])
     setFrozenSquares([])
+    setFrozenBy(null)
+    setStolenSquares([])
+    setActionError('')
     setBoostedSquares([])
     setVisibleBoostedSquares([])
     setTraps([])
     setBlackHoleEvent(null)
+    setBombEvent(null)
+    setVampireTransferEvent(null)
     setResultMessage(null)
     setLoserMessage(null)
     setIsRoundResultDismissed(false)
@@ -1408,6 +1588,12 @@ const hasGameStarted =
           isAiThinking={isAiThinking}
         />
 
+        {actionError && (
+          <div className="online-message online-message--error" role="alert">
+            {actionError}
+          </div>
+        )}
+
         {blackHoleEvent && (
           <div className="black-hole-message" role="status" aria-live="assertive">
             KARA DELİK! {blackHoleEvent.player} taşı yutuldu!
@@ -1445,13 +1631,6 @@ const hasGameStarted =
             activePower={activePower}
             boostMode={arenaSettings.boostMode}
             hasUsedPowerThisTurn={hasUsedPowerThisTurn && currentPlayer === 'X'}
-            disabledPowers={{
-              bomb: !hasBombTarget || hasUsedPowerThisTurn,
-              trap: !hasTrapTarget || Boolean(winner) || hasUsedPowerThisTurn,
-              freeze: !squares.some((square, index) => !square && !lockedSquares.includes(index) && !frozenSquares.includes(index)) || Boolean(winner) || hasUsedPowerThisTurn,
-              vampire: vampireSources.length === 0 || vampireTargets.length === 0 || Boolean(winner) || hasUsedPowerThisTurn,
-              shield: hasUsedPowerThisTurn,
-            }}
             onSelectPower={handleSelectHumanPower}
             onUseRandomBoost={handleRandomBoostPower}
           />
@@ -1465,6 +1644,8 @@ const hasGameStarted =
             lockedSquares={lockedSquares}
             frozenSquares={frozenSquares}
             visibleBoostedSquares={visibleBoostedSquares}
+            powerTargetIndexes={activePowerTargets}
+            powerTargetLabel={ARENA_POWER_NAMES[activePower]}
             onSquareClick={handleSquareClick}
             traps={traps}
             currentPlayer={currentPlayer}
@@ -1485,13 +1666,6 @@ const hasGameStarted =
             activePower={activePower}
             boostMode={arenaSettings.boostMode}
             hasUsedPowerThisTurn={hasUsedPowerThisTurn && currentPlayer === 'O'}
-            disabledPowers={{
-              bomb: !hasBombTarget || hasUsedPowerThisTurn,
-              trap: !hasTrapTarget || Boolean(winner) || hasUsedPowerThisTurn,
-              freeze: !squares.some((square, index) => !square && !lockedSquares.includes(index) && !frozenSquares.includes(index)) || Boolean(winner) || hasUsedPowerThisTurn,
-              vampire: vampireSources.length === 0 || vampireTargets.length === 0 || Boolean(winner) || hasUsedPowerThisTurn,
-              shield: hasUsedPowerThisTurn,
-            }}
             onSelectPower={handleSelectHumanPower}
             onUseRandomBoost={handleRandomBoostPower}
           />

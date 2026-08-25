@@ -68,14 +68,18 @@ body::after {
 
 button {
   font-family: inherit;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
 }
 
 .app-shell {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 32px 16px;
+  padding: max(20px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
 }
 
 .game-card {
@@ -2766,6 +2770,59 @@ button,
   place-items: center;
   padding: 18px;
   background: rgba(3, 6, 14, 0.92);
+}
+
+.round-result-modal-wrapper {
+  position: relative;
+  width: min(420px, 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.popup-confetti-emitter {
+  position: absolute;
+  top: 90px;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.popup-confetti-spark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--size, 10px);
+  height: var(--size, 10px);
+  background: var(--bg, #fbbf24);
+  box-shadow: 0 0 8px var(--bg, #fbbf24);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0);
+  animation: popup-confetti-burst 1.3s cubic-bezier(0.14, 0.85, 0.35, 1) forwards;
+  animation-delay: var(--delay, 0s);
+  will-change: transform, opacity;
+}
+
+@keyframes popup-confetti-burst {
+  0% {
+    transform: translate(-50%, -50%) scale(0) rotate(0deg);
+    opacity: 1;
+  }
+  40% {
+    transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(1.1) rotate(var(--rot));
+    opacity: 1;
+  }
+  75% {
+    transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty) + 15px)) scale(0.85) rotate(calc(var(--rot) * 1.25));
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty) + 35px)) scale(0.2) rotate(calc(var(--rot) * 1.5));
+    opacity: 0;
+  }
 }
 
 .round-result-card {

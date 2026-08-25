@@ -25,7 +25,6 @@ export default class ErrorBoundary extends Component {
     // In production we avoid console.log, but this is a legitimate
     // diagnostic channel for the developer (not sensitive user data).
     if (typeof window !== 'undefined' && !import.meta.env.PROD) {
-      // eslint-disable-next-line no-console
       console.error('[ErrorBoundary]', error, info?.componentStack)
     }
   }

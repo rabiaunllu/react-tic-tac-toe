@@ -1,6 +1,5 @@
 import { getAvailablePowerDefinitions, getPowerDefinitions } from '../game/powers'
 import { playSound, registerUserGesture } from '../game/soundManager'
-import ArcadeBomb from './ArcadeBomb'
 import CrystalSnowflake from './CrystalSnowflake'
 import EnergyShieldIcon from './EnergyShieldIcon'
 
@@ -15,7 +14,6 @@ export default function PowerPanel({
   powerCounts,
   activePower,
   boostMode,
-  disabledPowers = {},
   hasUsedPowerThisTurn = false,
   onSelectPower,
   onUseRandomBoost,
@@ -129,7 +127,7 @@ export default function PowerPanel({
           {basePowers.map((power) => {
             const count = powerCounts[power.id]
             const isActive = canInteract && activePower === power.id
-            const isDisabled = !canInteract || count === 0 || disabledPowers[power.id] || hasUsedPowerThisTurn
+            const isDisabled = !canInteract || count === 0 || hasUsedPowerThisTurn
 
             return (
               <button
@@ -137,15 +135,13 @@ export default function PowerPanel({
                 className={`power-button ${isActive ? 'active' : ''}`}
                 disabled={isDisabled}
                 aria-label={`${power.name}: ${power.description}`}
-                data-hint={hasUsedPowerThisTurn ? 'Bu tur güç kilitli' : disabledPowers[power.id] ? 'Hedef yok' : power.description}
+                data-hint={hasUsedPowerThisTurn ? 'Bu tur güç kilitli' : power.description}
                 title={
                   count === 0
                     ? 'Bu güç bitti.'
                     : hasUsedPowerThisTurn
                       ? 'Bu turda zaten bir güç kullandın. Lütfen taşını koy.'
-                      : disabledPowers[power.id]
-                        ? 'Bu hedef için uygun kare yok.'
-                        : power.description
+                      : power.description
                 }
                 onClick={() => handlePowerClick(power.id, isActive)}
               >
@@ -163,7 +159,7 @@ export default function PowerPanel({
           {extraPowers.map((power) => {
             const count = powerCounts[power.id]
             const isActive = canInteract && activePower === power.id
-            const isDisabled = !canInteract || count === 0 || disabledPowers[power.id]
+            const isDisabled = !canInteract || count === 0 || hasUsedPowerThisTurn
 
             return (
               <button
@@ -171,8 +167,14 @@ export default function PowerPanel({
                 className={`power-button ${isActive ? 'active' : ''}`}
                 disabled={isDisabled}
                 aria-label={`${power.name}: ${power.description}`}
-                data-hint={disabledPowers[power.id] ? 'Hedef yok' : power.description}
-                title={count === 0 ? 'Bu güç bitti.' : power.description}
+                data-hint={hasUsedPowerThisTurn ? 'Bu tur güç kilitli' : power.description}
+                title={
+                  count === 0
+                    ? 'Bu güç bitti.'
+                    : hasUsedPowerThisTurn
+                      ? 'Bu turda zaten bir güç kullandın. Lütfen taşını koy.'
+                      : power.description
+                }
                 onClick={() => handlePowerClick(power.id, isActive)}
               >
                 <span className="power-icon">{renderPowerIcon(power)}</span>

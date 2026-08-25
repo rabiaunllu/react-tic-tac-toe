@@ -49,13 +49,6 @@ export default function ArenaSettings({
     })
   }
 
-  function handleBoostModeChange(boostMode) {
-    onSettingsChange({
-      ...settings,
-      boostMode,
-    })
-  }
-
   return (
     <section className="arena-settings" aria-label="Arena ayarları">
       <div>

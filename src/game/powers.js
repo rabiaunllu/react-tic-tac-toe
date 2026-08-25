@@ -47,6 +47,15 @@ export const powerDefinitions = [
 // Rewarded pack: Freeze veya Vampir (Joker kaldırıldı)
 export const rewardedPowerIds = ['freeze', 'vampire']
 
+export const ARENA_POWER_NAMES = {
+  bomb: 'Bomba',
+  shield: 'Kalkan',
+  boost: 'Boost',
+  trap: 'Kara Delik',
+  freeze: 'Dondur',
+  vampire: 'Vampir',
+}
+
 // Yan Yana (Local Human vs Human): Freeze + Vampir aktif, Boost/Joker yok
 const localHumanPowerIds = ['bomb', 'shield', 'freeze', 'vampire']
 // Bota Karşı (Local PvC): Kara Delik + Vampir aktif, Boost/Joker yok

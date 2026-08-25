@@ -1,10 +1,10 @@
 import { memo } from 'react'
-import ArcadeBomb from './ArcadeBomb'
 import CrystalSnowflake from './CrystalSnowflake'
 import EnergyShieldIcon from './EnergyShieldIcon'
 import ExplosionBlast from './ExplosionBlast'
 
 const Square = memo(function Square({
+  index,
   value,
   multiplier,
   isWinningSquare,
@@ -45,7 +45,7 @@ const Square = memo(function Square({
   return (
     <button
       className={className}
-      onClick={onSquareClick}
+      onClick={() => onSquareClick(index)}
       disabled={isLocked || isFrozen}
       aria-label={
         isFrozen

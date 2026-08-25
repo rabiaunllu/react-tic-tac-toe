@@ -89,13 +89,15 @@ export default function PowerSimulation() {
     stepRef.current = 0;
   }, []);
 
+  const advanceRef = useRef(null);
+
   const advanceScenario = useCallback(() => {
     const scenario = SCENARIOS[activePower];
     if (stepRef.current >= scenario.length) {
       clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => {
         resetSimulation();
-        timerRef.current = setTimeout(advanceScenario, 500);
+        timerRef.current = setTimeout(() => advanceRef.current?.(), 500);
       }, 2200);
       return;
     }
@@ -136,18 +138,24 @@ export default function PowerSimulation() {
       return newBoard;
     });
 
-    timerRef.current = setTimeout(advanceScenario, 750);
+    timerRef.current = setTimeout(() => advanceRef.current?.(), 750);
   }, [activePower, resetSimulation]);
 
   useEffect(() => {
+    advanceRef.current = advanceScenario;
+  }, [advanceScenario]);
+
+  useEffect(() => {
     clearTimeout(timerRef.current);
-    resetSimulation();
-    timerRef.current = setTimeout(advanceScenario, 400);
+    timerRef.current = setTimeout(() => {
+      resetSimulation();
+      timerRef.current = setTimeout(() => advanceRef.current?.(), 400);
+    }, 20);
 
     return () => {
       clearTimeout(timerRef.current);
     };
-  }, [activePower, advanceScenario, resetSimulation]);
+  }, [activePower, resetSimulation]);
 
   const handlePowerClick = (id) => {
     if (activePower !== id) {
