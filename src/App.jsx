@@ -1000,7 +1000,10 @@ export default function App() {
           setLockedSquares([])
           setActivePower(null)
 
-          const aiMove = getAdaptiveAiMove({
+          // Arena search evaluates shield + placement as one turn.  Preserve its
+          // planned follow-up instead of asking the lightweight classic chooser
+          // for an unrelated move after the shield has been spent.
+          const aiMove = aiPowerAction.followUpMove ?? getAdaptiveAiMove({
             squares,
             boardSize,
             winLength,

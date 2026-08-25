@@ -377,188 +377,208 @@ export function getArenaAiPowerAction({
   aiPlayer = aiPlayerDefault,
   humanPlayer = humanPlayerDefault,
 }) {
-  const emptyIndexes = getEmptyIndexes(squares, blockedIndexes)
-  const immediateHumanWinTargets = new Set(
-    getImmediateThreats({
-      squares,
-      boardSize,
-      winLength,
-      player: humanPlayer,
-      blockedIndexes,
-    }).flatMap(({ emptyIndexes: threatEmptyIndexes }) => threatEmptyIndexes)
-  )
-  const hasImmediateHumanWin = immediateHumanWinTargets.size > 0
-  const humanHasBomb = hasPower(humanPowers, 'bomb')
-  const candidates = []
-
-  // A power is an alternative turn action, not a pre-selected priority.  Evaluate
-  // it beside every legal stone placement so the bot can preserve resources.
-  emptyIndexes.forEach((index) => {
-    candidates.push({ type: 'move', index })
-
-    if (hasPower(playerPowers, 'boost') && !boostedSquares.includes(index)) {
-      candidates.push({ type: 'boost', index })
-    }
-
-    // If X is expected to place here to win, occupy it with O instead of
-    // spending a trap: the same square is permanently denied without using a power.
-    if (
-      hasPower(playerPowers, 'trap') &&
-      !aiTrapIndexes.includes(index) &&
-      (!immediateHumanWinTargets.has(index) || humanHasBomb)
-    ) {
-      candidates.push({ type: 'trap', index })
-    }
-  })
-
-  if (hasPower(playerPowers, 'bomb')) {
-    squares.forEach((square, index) => {
-      if (square === humanPlayer && !shieldedSquares.includes(index)) {
-        candidates.push({ type: 'bomb', index })
-      }
-    })
+  const lines = getBoardLines(boardSize, winLength)
+  const initialState = {
+    squares: squares.slice(),
+    turn: aiPlayer,
+    powers: { [aiPlayer]: { ...playerPowers }, [humanPlayer]: { ...humanPowers } },
+    shielded: [...shieldedSquares],
+    boosted: [...boostedSquares],
+    blocked: [...blockedIndexes],
+    // The AI knows its own black holes.  The opponent's black holes deliberately
+    // remain unknown rather than leaking hidden UI state into the bot.
+    aiTraps: [...aiTrapIndexes],
   }
 
-  if (hasPower(playerPowers, 'shield')) {
-    squares.forEach((square, index) => {
-      if (square === aiPlayer && !shieldedSquares.includes(index)) {
-        candidates.push({ type: 'shield', index })
-      }
-    })
+  const otherPlayer = (player) => (player === aiPlayer ? humanPlayer : aiPlayer)
+  const isShielded = (state, index) => state.shielded.includes(index)
+  const empty = (state) => getEmptyIndexes(state.squares, state.blocked)
+  const maxActionsPerNode = boardSize >= 5 ? 28 : boardSize === 4 ? 22 : 36
+
+  function actionsFor(state) {
+    const player = state.turn
+    const opponent = otherPlayer(player)
+    const available = empty(state)
+    const actions = available.map((index) => ({ type: 'move', index }))
+
+    if (hasPower(state.powers[player], 'boost')) {
+      available
+        .filter((index) => !state.boosted.includes(index))
+        .forEach((index) => actions.push({ type: 'boost', index }))
+    }
+
+    if (hasPower(state.powers[player], 'trap')) {
+      available
+        .filter((index) => !(player === aiPlayer && state.aiTraps.includes(index)))
+        .forEach((index) => actions.push({ type: 'trap', index }))
+    }
+
+    if (hasPower(state.powers[player], 'bomb')) {
+      state.squares.forEach((square, index) => {
+        if (square === opponent && !isShielded(state, index)) actions.push({ type: 'bomb', index })
+      })
+    }
+
+    // Shield does not end the turn.  Model it with its follow-up placement so it
+    // competes fairly with a normal move instead of being valued as a lost turn.
+    if (hasPower(state.powers[player], 'shield')) {
+      state.squares.forEach((square, shieldIndex) => {
+        if (square !== player || isShielded(state, shieldIndex)) return
+        available.forEach((moveIndex) => {
+          actions.push({ type: 'shield', index: shieldIndex, followUpMove: moveIndex })
+        })
+      })
+    }
+
+    return actions
   }
 
-  const scoredCandidates = candidates
-    .map((candidate) => {
-      const nextSquares = squares.slice()
-      const nextBlockedIndexes = [...blockedIndexes]
+  function applyAction(state, action) {
+    const player = state.turn
+    const next = {
+      ...state,
+      squares: state.squares.slice(),
+      powers: { ...state.powers, [player]: { ...state.powers[player] } },
+      shielded: [...state.shielded],
+      boosted: [...state.boosted],
+      aiTraps: [...state.aiTraps],
+      // Locks/freeze only constrain the immediately following turn in the UI.
+      blocked: [],
+      turn: otherPlayer(player),
+    }
 
-      if (candidate.type === 'move' || candidate.type === 'boost') {
-        nextSquares[candidate.index] = aiPlayer
+    if (action.type === 'move' || action.type === 'boost') {
+      next.squares[action.index] = player
+      if (action.type === 'boost') {
+        next.powers[player].boost -= 1
+        next.boosted.push(action.index)
       }
+    } else if (action.type === 'bomb') {
+      next.squares[action.index] = null
+      next.shielded = next.shielded.filter((index) => index !== action.index)
+      next.boosted = next.boosted.filter((index) => index !== action.index)
+      next.powers[player].bomb -= 1
+      next.blocked = [action.index]
+    } else if (action.type === 'trap') {
+      next.powers[player].trap -= 1
+      if (player === aiPlayer) next.aiTraps.push(action.index)
+    } else if (action.type === 'shield') {
+      next.powers[player].shield -= 1
+      next.shielded.push(action.index)
+      next.squares[action.followUpMove] = player
+    }
 
-      if (candidate.type === 'bomb') {
-        nextSquares[candidate.index] = null
-        nextBlockedIndexes.push(candidate.index)
-      }
+    return next
+  }
 
-      // A trap makes the target unusable for the opponent's immediate winning move.
-      if (candidate.type === 'trap') {
-        nextBlockedIndexes.push(candidate.index)
-      }
-
-      const opponentCanWin =
-        findWinningMove(
-          nextSquares,
-          boardSize,
-          winLength,
-          humanPlayer,
-          nextBlockedIndexes
-        ) !== null
-
-      // When the opponent has a one-turn win, reject every action that leaves it
-      // available. This guard deliberately runs before heuristics and power value.
-      if (hasImmediateHumanWin && opponentCanWin) {
-        return null
-      }
-
-      const aiWins = calculateWinner(nextSquares, boardSize, winLength) === aiPlayer
-      const bombVulnerableBlock =
-        !aiWins &&
-        humanHasBomb &&
-        hasImmediateHumanWin &&
-        (candidate.type === 'move' || candidate.type === 'boost') &&
-        immediateHumanWinTargets.has(candidate.index)
-      const ownThreats = getImmediateThreats({
+  function getForkCount(state, player) {
+    let forks = 0
+    for (const index of empty(state)) {
+      const nextSquares = state.squares.slice()
+      nextSquares[index] = player
+      const threats = getImmediateThreats({
         squares: nextSquares,
         boardSize,
         winLength,
-        player: aiPlayer,
-        blockedIndexes: nextBlockedIndexes,
-      }).length
-      const humanThreats = getImmediateThreats({
-        squares: nextSquares,
-        boardSize,
-        winLength,
-        player: humanPlayer,
-        blockedIndexes: nextBlockedIndexes,
-      }).length
-      const positionalScore =
-        candidate.type === 'move' || candidate.type === 'boost'
-          ? getPositionalScore(
-              candidate.index,
-              nextSquares,
-              boardSize,
-              winLength,
-              multipliers,
-              aiPlayer
-            )
-          : 0
-      const multiplierValue = getCellMultiplier(multipliers, candidate.index)
-      const tacticalPowerValue = getBoardLines(boardSize, winLength).reduce(
-        (bestValue, line) => {
-          if (!line.includes(candidate.index)) {
-            return bestValue
-          }
+        player,
+        blockedIndexes: state.blocked,
+      })
+      if (threats.length >= 2) forks += 1
+    }
+    return forks
+  }
 
-          const aiStones = line.filter((lineIndex) => nextSquares[lineIndex] === aiPlayer).length
-          const humanStones = line.filter((lineIndex) => nextSquares[lineIndex] === humanPlayer).length
-          const lineMultiplier = line.reduce(
-            (total, lineIndex) => total + getCellMultiplier(multipliers, lineIndex),
-            0
-          )
+  function evaluate(state, plyFromRoot) {
+    const winner = calculateWinner(state.squares, boardSize, winLength)
+    // Prefer faster wins and defer unavoidable losses.
+    if (winner === aiPlayer) return 1000000 - plyFromRoot
+    if (winner === humanPlayer) return -1000000 + plyFromRoot
 
-          if (candidate.type === 'bomb' && aiStones === 0) {
-            return Math.max(
-              bestValue,
-              Math.max(0, humanStones - 1) * 110 + multiplierValue * 10
-            )
-          }
+    let value = 0
+    for (const line of lines) {
+      const aiCount = line.filter((index) => state.squares[index] === aiPlayer).length
+      const humanCount = line.filter((index) => state.squares[index] === humanPlayer).length
+      if (aiCount && humanCount) continue
 
-          if (candidate.type === 'shield' && humanStones === 0) {
-            return Math.max(
-              bestValue,
-              Math.max(0, aiStones - 1) * 100 + lineMultiplier * 4
-            )
-          }
-
-          if (candidate.type === 'trap' && aiStones === 0) {
-            return Math.max(bestValue, humanStones * 42 + multiplierValue * 8)
-          }
-
-          return bestValue
-        },
+      const multiplierValue = line.reduce(
+        (total, index) => total + getCellMultiplier(multipliers, index),
         0
       )
-      const actionCost = {
-        move: 0,
-        boost: 12,
-        bomb: 42,
-        shield: 28,
-        trap: 24,
-      }[candidate.type]
+      if (aiCount) value += 7 ** aiCount + multiplierValue * aiCount
+      if (humanCount) value -= 7 ** humanCount + multiplierValue * humanCount
+    }
 
-      return {
-        ...candidate,
-        score:
-          (aiWins ? 100000 : 0) +
-          positionalScore +
-          tacticalPowerValue +
-          ownThreats * 340 -
-          humanThreats * 460 +
-          (candidate.type === 'boost' ? multiplierValue * 18 : 0) -
-          actionCost -
-          (bombVulnerableBlock ? 900 : 0) -
-          (opponentCanWin ? 10000 : 0),
-      }
-    })
-    .filter(Boolean)
+    const aiThreats = getImmediateThreats({
+      squares: state.squares, boardSize, winLength, player: aiPlayer, blockedIndexes: state.blocked,
+    }).length
+    const humanThreats = getImmediateThreats({
+      squares: state.squares, boardSize, winLength, player: humanPlayer, blockedIndexes: state.blocked,
+    }).length
+    value += (aiThreats - humanThreats) * 9000
 
-  if (scoredCandidates.length === 0) {
-    // This only occurs with an impossible or already-finished board state.
-    return null
+    // Two independent winning squares are qualitatively different from one:
+    // without a matching power response the defender can only close one of them.
+    if (aiThreats >= 2) value += 220000
+    if (humanThreats >= 2) value -= 220000
+
+    // Also value the *ability to create* a fork next turn.  The deep search below
+    // proves it on small boards; this term protects 5x5 positions at the horizon.
+    value += (getForkCount(state, aiPlayer) - getForkCount(state, humanPlayer)) * 26000
+    value += state.aiTraps.length * 35
+    return value
   }
 
-  return scoredCandidates.reduce((best, candidate) =>
-    candidate.score > best.score ? candidate : best
-  )
+  function orderActions(state, actions, plyFromRoot) {
+    const maximizing = state.turn === aiPlayer
+    return actions
+      .map((action) => ({ action, score: evaluate(applyAction(state, action), plyFromRoot + 1) }))
+      .sort((a, b) => (maximizing ? b.score - a.score : a.score - b.score))
+      .slice(0, maxActionsPerNode)
+      .map(({ action }) => action)
+  }
+
+  function search(state, depth, alpha, beta, plyFromRoot) {
+    const winner = calculateWinner(state.squares, boardSize, winLength)
+    if (winner || depth === 0) return evaluate(state, plyFromRoot)
+
+    const actions = actionsFor(state)
+    if (actions.length === 0) return evaluate(state, plyFromRoot)
+    // Search tactical/terminal candidates first; this makes alpha-beta effective.
+    const maximizing = state.turn === aiPlayer
+    const orderedActions = orderActions(state, actions, plyFromRoot)
+
+    let best = maximizing ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY
+    for (const action of orderedActions) {
+      const score = search(applyAction(state, action), depth - 1, alpha, beta, plyFromRoot + 1)
+      if (maximizing) {
+        best = Math.max(best, score)
+        alpha = Math.max(alpha, best)
+      } else {
+        best = Math.min(best, score)
+        beta = Math.min(beta, best)
+      }
+      if (alpha >= beta) break
+    }
+    return best
+  }
+
+  const rootActions = orderActions(initialState, actionsFor(initialState), 0)
+  if (rootActions.length === 0) return null
+
+  // A fork is only proven after four plies: AI action, opponent fork, AI's
+  // attempted block, opponent's remaining winning move.  3x3 and 4x4 can
+  // afford that exact tactical horizon; 5x5 remains bounded for responsiveness.
+  const searchDepth = boardSize <= 4 ? 3 : 2
+  const ranked = rootActions.map((action) => ({
+    action,
+    score: search(
+      applyAction(initialState, action),
+      searchDepth,
+      Number.NEGATIVE_INFINITY,
+      Number.POSITIVE_INFINITY,
+      1
+    ),
+  }))
+  ranked.sort((a, b) => b.score - a.score)
+  return ranked[0].action
 }
