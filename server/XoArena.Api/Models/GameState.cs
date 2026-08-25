@@ -14,4 +14,9 @@ public sealed record GameState(
     IReadOnlyList<int> ShieldedSquares,
     IReadOnlyList<int> BoostedSquares,
     IReadOnlyList<int> LockedSquares,
-    IReadOnlyList<ArenaTrap> Traps);
+    IReadOnlyList<ArenaTrap> Traps,
+    IReadOnlyList<int> FrozenSquares,
+    IReadOnlyList<int> StolenSquares,
+    bool HasUsedPowerThisTurn = false,
+    bool IsForfeit = false,
+    string? FrozenBy = null);

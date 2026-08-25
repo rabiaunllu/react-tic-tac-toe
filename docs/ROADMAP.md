@@ -1,234 +1,149 @@
 # 🗺️ XO Arena — Geliştirme Yol Haritası (Roadmap)
 
-> **Son Güncelleme:** 2026-08-16
-> **Odak:** Projeyi mobil ve webde en iyi haline getirmek.
-> **Kapsam Dışı (Şimdilik):** Poki SDK, CrazyGames, reklam altyapısı, monetizasyon — ileride ayrıca değerlendirilecek.
+> **Son Güncelleme:** 2026-08-23  
+> **Odak:** LinkedIn Vitrin Sürümü (Showcase MVP) — Akıcı, dengeli, hatasız ve görsel olarak etkileyici tek ekran deneyimi.  
+> **Kapsam Dışı (Donduruldu):** Poki SDK, CrazyGames, reklam altyapısı, monetizasyon (Arşive alındı: `docs/archive/EXPERIMENTAL_IDEAS_ARCHIVE.md`).
 
 ---
 
-## Faz 1 · Performans & Kod Kalitesi 🔴 KRİTİK
+## Faz 1 · Performans & Kod Kalitesi 🔴 TAMAMLANDI
 
 Oyunun mobilde oynanabilir, webde akıcı çalışır hale gelmesi için temel teknik borçların giderilmesi.
 
 ### 1.1 — CSS GPU Optimizasyonu
-- **Dosya:** `src/App.css` (5.598 satır, ~119 KB)
-- **Sorun:** Mobilde FPS düşüşü
-- **Yapılacaklar:**
-  - [x] `backdrop-filter: blur()` kullanımlarını (14 satır) hafif alternatiflere dönüştür (`background: rgba()` veya yarı saydam solid renkler)
-  - [x] Ağır `box-shadow` katmanlarını sadeleştir — `backdrop-filter` kaldırıldığında arka plan opacity artırıldı
-  - [x] Karmaşık `radial-gradient` kullanımları korundu (görsel bütünlük)
-- **Başarı Kriteri:** Mobilde hamle başına FPS 50+ (şu an ~15-20)
+- [x] `backdrop-filter: blur()` hafif alternatiflere dönüştürüldü.
+- [x] Ağır `box-shadow` katmanları sadeleştirildi.
+- [x] GPU hardware acceleration (`transform: translateZ(0)`) eklendi.
 
 ### 1.2 — React Re-render Optimizasyonu
-- **Dosyalar:** `src/App.jsx`, `src/components/Board.jsx`, `src/components/Square.jsx`
-- **Sorun:** Her hamle tüm uygulamayı baştan render ediyor
-- **Yapılacaklar:**
-  - [x] `Board.jsx` (55 satır) → `React.memo` ile sarıldı
-  - [x] `Square.jsx` (65 satır) → `React.memo` ile sarıldı
-  - [x] `handleSquareClick` → `useCallback` ile memoize edildi (Board prop referansı artık stable)
-  - [ ] `App.jsx`'teki 31 adet `useState`'i mantıksal gruplara ayır (custom hooks veya `useReducer`) — isteğe bağlı iyileştirme
-- **Başarı Kriteri:** Hamle başına gereksiz re-render sayısı < 5
+- [x] `Board.jsx` → `React.memo` ile sarıldı.
+- [x] `Square.jsx` → `React.memo` ile sarıldı.
+- [x] `handleSquareClick` → `useCallback` ile optimize edildi.
 
 ### 1.3 — AI Hesaplamalarını Ana Thread'den Ayır
-- **Dosya:** `src/game/aiPlayer.js` (565 satır)
-- **Sorun:** AI senkron çalışıyor → 4x4/5x5'te 100-300ms UI kilitlenmesi
-- **Yapılacaklar:**
-  - [x] AI mantığını Web Worker'a taşındı (`src/game/aiWorker.js`)
-  - [x] "AI Düşünüyor…" mikro-animasyonu eklendi (GameStatus + CSS)
-  - [x] Worker hata verirse senkron fallback mevcut (oyun kırılmaz)
-- **Başarı Kriteri:** AI hamlesi sırasında ana thread block süresi 0ms
+- [x] AI mantığı Web Worker'a taşındı (`src/game/aiWorker.js`).
+- [x] "AI Düşünüyor…" mikro-animasyonu eklendi.
+- [x] Worker hata verirse senkron fallback hazırlandı.
 
 ---
 
-## Faz 2 · Mobil & UX İyileştirmeleri 🟡 ÖNEMLİ
+## Faz 2 · Mobil & UX İyileştirmeleri 🟡 TAMAMLANDI
 
 Kullanıcı deneyimini mobil ve masaüstünde cilalama.
 
 ### 2.1 — Responsive Layout Düzeltmeleri
-- **Dosyalar:** `src/App.css`, `src/components/Square.jsx`
-- **Sorun:** 4x4 ve 5x5 tahtalarda çarpan sayıları ve güç ikonları taşıyor
-- **Yapılacaklar:**
-  - [x] Tahta boyutuna göre hücre, ikon ve font boyutlarını dinamik ölçekle (`--square-font-size`, `--badge-scale`)
-  - [x] Çarpan rozetleri (2x, 3x) ve güç rozetlerinin mobilde üst üste binme sorununu çöz
-  - [x] Güç paneli ikonlarının küçük ekranlarda okunabilirliğini artır
+- [x] Tahta boyutuna göre dinamik hücre, ikon ve font ölçekleme.
+- [x] Çarpan rozetleri (2x, 3x) ve güç rozetlerinin taşma sorunları giderildi.
 
 ### 2.2 — Aktif Güç Seçim Göstergesi
-- **Dosya:** `src/components/PowerPanel.jsx`
-- **Sorun:** Dokunmatik ekranlarda hangi gücün aktif olduğu belirsiz
-- **Yapılacaklar:**
-  - [x] Aktif güç için belirgin görsel vurgu (border, scale, renk değişimi ve `@keyframes power-select-pulse`)
-  - [x] Dokunmatik geri bildirim (haptic titreşim + görsel pulse + ses efekti) eklendi
+- [x] Aktif güç için görsel pulse (`@keyframes power-select-pulse`) ve renk vurgusu.
+- [x] Dokunmatik geri bildirim (Haptic titreşim + Web Audio API synth sesleri).
 
 ### 2.3 — Bağlantı Kopması HUD İyileştirmesi
-- **Dosya:** `src/components/OnlineGame.jsx` (863 satır), `src/App.css`
-- **Mevcut Durum:** 30 sn geri sayım var ama düz metin banner olarak gösteriliyordu
-- **Yapılacaklar:**
-  - [x] Tahta üzerinde radar dalgalı ve dairesel SVG progress bar geri sayım HUD'u (`online-reconnecting-hud`)
-  - [x] Görsel olarak dikkat çekici ve animasyonlu hale getirildi
-
-### 2.4 — Genel UX Polisajı
-- **Yapılacaklar:**
-  - [x] Kazanma/kaybetme ekran geçişleri ve pürüzsüz buton odak durumları
-  - [x] Ses efektleri ve dokunmatik geri bildirimler (haptic) güç seçimlerine entegre edildi
-  - [x] Hata durumlarında kullanıcı bilgilendirmesi ve anlaşılır mesajlar sağlandı
+- [x] Radar dalgalı ve dairesel SVG progress bar geri sayım HUD'u entegre edildi.
 
 ---
 
-## Faz 3 · Sunucu Güvenliği & Kararlılığı 🟠 GEREKLİ
+## Faz 3 · Sunucu Güvenliği & Kararlılığı 🟠 TAMAMLANDI
 
 Canlıdaki sunucunun dayanıklılığı için minimum güvenlik önlemleri.
 
 ### 3.1 — Background Room Cleaner
-- **Dosya:** `server/XoArena.Api/Services/InMemoryRoomStore.cs` (912 satır)
-- **Sorun:** Oda temizliği yalnızca yeni oda oluşturulurken tetikleniyor → bellek sızıntısı riski
-- **Yapılacaklar:**
-  - [x] `IHostedService` / `BackgroundService` ile periyodik temizleme: `RoomCleanupService.cs` oluşturuldu
-  - [x] `IRoomStore.CleanupExpiredRooms()` public metod olarak eklendi (int döndürür, kaç oda silindi loglanır)
-  - [x] Durum bazlı zaman aşımı süreleri korundu: waiting 30dk, ready 45dk, playing 2sa, completed 15dk
-  - [x] Başlangıçta 30 saniye gecikme — uygulama tam ayağa kalksın
-  - [x] Temizleme aralığı `appsettings.json` üzerinden yapılandırılabilir (varsayılan: 5 dk)
+- [x] `RoomCleanupService.cs` ile periyodik bellek temizleme servisi.
+- [x] Durum bazlı zaman aşımı süreleri: waiting 30dk, ready 45dk, playing 2sa, completed 15dk.
 
 ### 3.2 — Rate Limiting
-- **Dosya:** `server/XoArena.Api/Program.cs` (331 satır)
-- **Sorun:** IP/Session bazlı istek sınırlaması yok
-- **Yapılacaklar:**
-  - [x] `AddRateLimiter` ile ASP.NET Core built-in rate limiting eklendi
-  - [x] Global IP bazlı limiter: 300 istek/dk (tüm endpoint'ler, polling uyumlu)
-  - [x] Oda oluşturma (`POST /api/rooms`): 20 istek/dk — spam koruması
-  - [x] Hamle ve güç endpoint'leri (`/moves`, `/powers`): 240 istek/dk
-  - [x] Tüm limitler `appsettings.json` üzerinden yapılandırılabilir
-  - [x] Limit aşımında 429 Too Many Requests döndürülür
+- [x] Global IP bazlı limiter: 300 istek/dk.
+- [x] Oda oluşturma: 20 istek/dk; hamle/güç: 240 istek/dk; odaya katılma: 5 istek/dk.
 
 ### 3.3 — CORS Yapılandırması (Production)
-- **Dosya:** `server/XoArena.Api/Program.cs`
-- **Mevcut Durum:** Development'ta localhost kısıtlı, production yapılandırması eksikti
-- **Yapılacaklar:**
-  - [x] `appsettings.json`'a `Cors:AllowedOrigins` boş dizi eklendi (production'da override edilecek)
-  - [x] `appsettings.Development.json` localhost origin'lerini korur
-  - [x] Environment bazlı override: `CORS__ALLOWEDORIGINS__0=https://example.com` şeklinde env var ile production origin ayarlanabilir
+- [x] Production origin whitelist desteği ve env var entegrasyonu.
 
 ---
 
-## Faz 4 · Monetizasyon & Portal Entegrasyonu ⏸️ BEKLEMEDE
+## Faz 4 · Monetizasyon & Portal SDK Altyapısı ⏸️ KAPSAM DIŞI (DONDURULDU)
 
-> **Durum:** Henüz karar verilmedi. Faz 1-3 tamamlandıktan sonra değerlendirilecek.
+> **Durum:** LinkedIn vitrin sürümü ve yalın oyun deneyimine odaklanmak için şimdilik tamamen kaldırıldı ve arşive alındı (`docs/archive/EXPERIMENTAL_IDEAS_ARCHIVE.md`).
 
-- Poki SDK entegrasyonu
-- CrazyGames SDK entegrasyonu
-- Reklam sırasında mute/pause mekanizması
-- 5sn AI fallback (otomatik bot eşleşme)
-- Responsive iframe uyumlaştırma (100vw × 100vh)
-- Ödüllü reklam → ekstra güç mekaniği
+- Poki SDK entegrasyonu (Donduruldu)
+- CrazyGames SDK entegrasyonu (Donduruldu)
+- Reklam molaları ve ödüllü reklam mekanizmaları (Donduruldu)
 
 ---
 
-## Faz 5 · İleri Düzey Güvenlik & Canlıya Hazırlık 🛡️ KRİTİK
+## Faz 5 · İleri Düzey Güvenlik 🛡️ TAMAMLANDI
 
-Oyunu internet ortamına (Production) deploy ederken oluşabilecek kötü niyetli müdahaleleri, kimlik sahteciliğini ve bağlantı açıklarını engelleme adımları.
-
-### 5.1 — Oyuncu Kimlik Doğrulaması (Player Secret / Session Token) 🔴
-- **İlgili Dosyalar:** `server/XoArena.Api/Models/Player.cs`, `InMemoryRoomStore.cs`, `Contracts/PlayerResponse.cs`, `src/components/OnlineGame.jsx`
-- **Mevcut Açık (Player Impersonation / Forfeit Exploit):** 
-  - `GET /api/rooms/{code}` yanıtında her iki oyuncunun `PlayerId` değeri açıkça döner.
-  - Kötü niyetli bir oyuncu, rakibin `PlayerId`sini kullanarak `POST /leave` (teslim olma hilesi) veya rakibin sırasındayken onun yerine sahte `/moves` ve `/powers` istekleri atabilir.
-- **Çözüm Planı:**
-  - [x] Oda oluşturma (`Create`) veya odaya katılma (`Join`) anında sunucu tarafında her oyuncu için gizli bir `PlayerSecret` (kriptografik token) üretiliyor.
-  - [x] `PlayerSecret` sadece odayı oluşturan/katılan oyuncunun yanıtında döndürülüyor; genel `RoomResponse` veya `PlayerResponse` içinde **asla yayınlanmıyor**.
-  - [x] `Move`, `UsePower`, `Start`, `NextRound` ve `Leave` endpoint'leri `PlayerSecret` doğruluyor; uyuşmazlıkta `403 Forbidden` dönüyor.
-  - [x] Frontend `playerSecret` değerini `sessionStorage` içinde saklayıp işlem isteklerine ekliyor.
-
-### 5.2 — Güvenli İletişim (HTTPS & HSTS & WSS) 🔒
-- **İlgili Dosyalar:** `server/XoArena.Api/Program.cs`, Azure / Cloud App Service Config
-- **Risk:** HTTP üzerinden taşınan oda kodları ve oyuncu token'ları Man-in-the-Middle (aradaki adam) saldırılarıyla dinlenebilir.
-- **Çözüm Planı:**
-  - [x] Canlı ortamda `app.UseHttpsRedirection()` ve `app.UseHsts()` middleware'leri zorunlu kılındı.
-  - [x] Azure App Service dağıtım notlarına HTTPS Only ve platform sertifikası doğrulaması eklendi; canlıda geçerli sertifika/TLS yapılandırması platformda etkin tutulmalı.
-
-### 5.3 — Oda Kodu Taraması & Kaba Kuvvet Koruması (Anti-Brute Force) 🛑
-- **İlgili Dosyalar:** `server/XoArena.Api/Program.cs`, `Services/InMemoryRoomStore.cs`
-- **Risk:** Botlar veya kötü niyetli kullanıcılar 6 haneli rastgele kodlar üreterek aktif özel maçlara izinsiz sızabilir veya odaları kilitleyebilir.
-- **Çözüm Planı:**
-  - [x] `POST /api/rooms/{code}/join` endpoint'i IP başına dakikada 5 deneme ile sınırlandı (başarılı denemeler de sayılır).
-  - [ ] İsteğe bağlı olarak özel odalar için 4 haneli PIN/Parola desteği eklenmesi.
-
-### 5.4 — Production CORS & Domain Whitelist Kısıtlaması 🌐
-- **İlgili Dosyalar:** `server/XoArena.Api/appsettings.json`, Ortam Değişkenleri
-- **Risk:** API'nin başka yabancı web sitelerinden yetkisiz çağrılması (Cross-Origin Abuse).
-- **Çözüm Planı:**
-  - [x] Production'da aynı-origin App Service dağıtımı için `Cors:AllowedOrigins` boş bırakılarak çapraz-origin çağrılar varsayılan olarak reddediliyor; ayrı frontend için yalnızca resmi origin eklenmeli.
-  - [x] Ortam değişkeni üzerinden (`CORS__ALLOWEDORIGINS__0=https://...`) dinamik origin yönetimi mevcut; aynı-origin dağıtımda ek origin gerekmez.
-
-### 5.5 — Bellek Dayanıklılığı ve Sıfır Kesinti (State Resilience) 💾
-- **İlgili Dosyalar:** `server/XoArena.Api/Services/`
-- **Risk:** In-Memory yapı nedeniyle sunucu deploy veya yeniden başlatma anında tüm aktif maçlar anında silinir.
-- **Çözüm Planı:**
-  - [ ] İlerleyen aşamada odaların geçici durumunun Redis veya hafif bir önbellek servisi (Redis Backplane / Distributed Cache) ile izole edilmesi; böylece sunucu güncellense bile oyuncuların maçları kopmaz.
+- [x] **Oyuncu Kimlik Doğrulaması:** Kriptografik `PlayerSecret` doğrulaması ve timing attack koruması (`CryptographicOperations.FixedTimeEquals`).
+- [x] **Gizli Veri Koruması:** `Traps` tuzaklarının network yanıtlarında filtrelenmesi.
+- [x] **HTTPS & HSTS:** Zorunlu güvenli yönlendirme.
 
 ---
 
-## Faz 6 · Özel Güç Destesi & Dengeleme Sistemi (Custom Loadout Engine) ⚡ YENİ
+## Faz 6 · LinkedIn Vitrin Sürümü (Showcase MVP) & Mod Bazlı Dengeleme 🚀 YENİ
 
-Oyuncuların maça girmeden önce stratejilerine göre kendi 10 Puanlık Güç Destelerini (Loadout) oluşturabilmesini sağlayan rekabetçi dengeleme ve altyapı mimarisi.
+Ortama ve oynanış tipine göre optimize edilmiş, hatasız ve dengeli güç dağılımı.
 
-### 6.1 — Güç Ekonomisi & Bütçe Sistemi (10 Enerji / Power Budget)
-- **Temel Matematik:** Her oyuncuya maç başında **10 Seçim Puanı (Power Budget)** tahsis edilir.
-- **Aksiyon Değeri (Action Economy):** Hamle tüketen (Turn Consuming) ile ekstra hak sağlayan (0-Turn Cost / Cantrip) güçler arasındaki tempo farkı fiyatlandırılmıştır.
+```
++-----------------------------------------------------------------------------------------+
+|                                MOD BAZLI GÜÇ DAĞILIM MATRİSİ                            |
++-----------------------------------------------------------------------------------------+
+| [1] YAN YANA MODU (Shared Screen) : 💣 Bomba | 🛡️ Kalkan | ❄️ FREEZE     | 🦇 VAMPİR   |
+| [2] BOTA KARŞI & ONLİNE MODU      : 💣 Bomba | 🛡️ Kalkan | 🕳️ KARA DELİK | 🦇 VAMPİR   |
++-----------------------------------------------------------------------------------------+
+```
 
-| Güç (Power) | İkon | Eylem Sınıfı (Archetype) | Tur Tüketimi (Tempo) | Puan (Cost) | Max Adet | Stratejik Rolü |
-| :--- | :---: | :--- | :--- | :---: | :---: | :--- |
-| **Joker** | 🃏 | Transmutation / Swing | Tur Tüketir (Turn End) | **5 Puan** | 1 (Legendary) | Rakip taşını kendine çevirir (+2 Hamle Swing). |
-| **Bomba** | 💣 | Destructive / Hard Removal | Tur Tüketir (Turn End) | **4 Puan** | 2 | Korumasız rakip taşını siler (Tempo kırıcı). |
-| **Kalkan** | 🛡️ | Defensive / Protection | Hamle Devam Eder (+0 Tur) | **3 Puan** | 2 | Taşı kilitler ve saldırılardan korur. |
-| **Kara Delik** | 🕳️ | Tactical / Area Denial | Tur Tüketir (Turn End) | **3 Puan** | 2 | Gizli tuzak kurar, psikolojik baskı yaratır. |
-| **Freeze** | ❄️ | Disruption / Zone Lock | Hamle Devam Eder (+0 Tur) | **2 Puan** | 2 | Kareyi 1 tur kilitler, rakip hattını geciktirir. |
-| **Boost** | ⚡ | Multiplier / Value Burst | Hamle Devam Eder (+0 Tur) | **2 Puan** | 3 | Hücre çarpanını katlar, skor patlaması sağlar. |
-| **Vampir** | 🧛 | Value Steal / Counter | Hamle Devam Eder (+0 Tur) | **2 Puan** | 2 | Rakip çarpanını çalarak kendi taşını güçlendirir. |
+### 6.1 — Mod Bazlı Taktik Dağılımı:
+1. **Yan Yana Modu (Local PvP / Aynı Cihaz):**
+   - **Neden Freeze?** Yan yana oynarken iki oyuncu da birbirinin parmağını gördüğü için gizli tuzak (Kara Delik) çalışmaz. Bu yüzden Yan Yana modında **❄️ Freeze (Açık Alan Engelleme)** aktif olur.
+2. **Bota Karşı (PvC) & Çevrimiçi (Online PvP):**
+   - **Neden Kara Delik?** Oyuncuların ekranları bağımsız olduğu için **🕳️ Kara Delik (Gizli Tuzak)** kusursuz bir blöf ve akıl oyunu sunar.
+3. **Boost (⚡) Arka Planda & Vampir (🦇) Ön Planda:**
+   - **Boost:** Arka planda/kod altyapısında hazır olarak saklanacak, şimdilik UI'da görünmeyecek.
+   - **Vampir:** Ön planda/UI üzerinde görünür güç olarak aktif kullanılacak.
+4. **Kalkan (🛡️) Koruması:** Kalkan tüm modlarda kararlı savunma gücü olarak kalır.
 
-### 6.2 — Deste Sınırlandırmaları (Deck Restrictions & Anti-Degeneracy Rules)
-Oyunun "sonsuz yıkım ve şans kaosuna" dönüşmesini engellemek için kurallar:
-1. **Yıkım & Dönüşüm Tavanı (Destruction Cap):** Destede `Bomba + Joker` toplam adedi en fazla **2** olabilir. (3 Bomba alıp rakibin hiç taş koyamadığı toksik döngü engellenir).
-2. **Unique / Efsanevi Kuralı (Legendary Limit):** Joker maça en fazla **1 adet** alınabilir.
-3. **Kart Adedi Sınırı:** Bir deste toplamda **en az 2, en fazla 5** adet güç kartından oluşmalıdır.
-4. **Bütçe Uyumu Formülü:** 
-   $$\sum_{i} (\text{Count}_i \times \text{Cost}_i) \le 10$$
+---
 
-### 6.3 — Örnek Meta Arketipleri (Pre-set Loadout Archetypes)
-- 🏰 **Control / Fortress (Kale):** 2x Kalkan (6p) + 1x Bomba (4p) = 10 Puan.
-- 🕳️ **Trapmaster / Mindgames (Tuzakçı):** 2x Kara Delik (6p) + 1x Freeze (2p) + 1x Boost (2p) = 10 Puan.
-- 👑 **High-Roller (Büyük Oynayan):** 1x Joker (5p) + 1x Kalkan (3p) + 1x Boost (2p) = 10 Puan.
-- ⚡ **Tempo / Score Burst (Skor Fırtınası):** 3x Boost (6p) + 2x Freeze (4p) = 10 Puan.
-- ⚔️ **Aggro / Disruptor (Baskıcı):** 1x Bomba (4p) + 1x Kalkan (3p) + 1x Freeze (2p) = 9 Puan (1p yedek/esnek).
+### 6.2 — Vampir & Boost Konfigürasyonu
+- **Ön Plan (UI):** Aktif 4. güç slotunda **Vampir** görünecek ve kullanılacak.
+- **Arka Plan Mimarisi:** Boost kod altyapısı projede saklı kalacak (silinmeyecek), ileriki güncellemeler için hazır bekletilecek.
 
-### 6.4 — Backend & Online (HTTP/SignalR) Entegrasyonu
-- **İlgili Dosyalar:** `server/XoArena.Api/Models/`, `InMemoryRoomStore.cs`, `src/components/OnlineGame.jsx`, `src/components/PowerDeckBuilder.jsx`
-- **İstek Formatı (Create / Join Payload):**
-  ```json
-  {
-    "playerName": "Oyuncu_1",
-    "loadout": {
-      "bomb": 1,
-      "shield": 1,
-      "boost": 1
-    }
-  }
-  ```
-- **Sunucu Doğrulama Motoru (`ValidateLoadout`):**
-  - [ ] Toplam maliyetin $\le 10$ olduğunu sunucu tarafında teyit et (Client manipülasyonu engeli).
-  - [ ] Arketip sınırlarını doğrula (Bomba + Joker $\le 2$).
-  - [ ] Geçersiz destelerde `400 Bad Request ("Geçersiz deste bütçesi veya kural aşımı")` döndür.
-  - [ ] `Room.Game.PlayerInitialPowers` ve `PlayerPowers` sözlüklerinde her iki oyuncunun kişiselleştirilmiş destelerini ayrı ayrı sakla.
-  - [ ] `NextRound` çağrısında desteleri oyuncunun onaylanan başlangıç destesine sıfırla.
+---
+
+### 6.3 — Kritik Sistem Açığı Düzeltmesi (Power Chaining / Spam Exploit Koruması) 🔴
+- **Mevcut Açık (Bug):** Hamle sırasını tüketmeyen güçler (`Kalkan`, `Freeze`, `Vampir`) kullanıldığında oyuncu aynı turda art arda birden fazla güç harcayabiliyor (Power Spamming).
+- **Çözüm Algoritması (Turn Phase Lock):**
+  - Oyuncu bir turda herhangi bir güç kullandığı anda `hasUsedPowerThisTurn = true` bayrağı devreye girer.
+  - O tur boyunca **tüm güç butonları kilitlenir (disabled)**.
+  - Oyuncuya **yalnızca normal taş koyma hamlesi** yapma izni verilir.
+  - Taş konulup sıra rakibe geçtiğinde kilit sıfırlanır (`hasUsedPowerThisTurn = false`).
+
+---
+
+### 6.4 — Görsel Efekt Canlandırması 🎨
+- **Freeze (Yan Yana):** Kristal kar tanesi ve buz parıltısı animasyonu (`CrystalSnowflake`).
+- **Vampir (Tüm Modlar):** Vampir temalı ikon, görsel geri bildirim ve efektler.
+
+---
+
+### 📋 Adım Adım Kodlama Kontrol Listesi:
+
+- [x] **Adım 1:** Güç konfigürasyonunda (`powers.js`) güç listelerini düzenle: Yan Yana modunda `Freeze`, Bota Karşı ve Online modlarında `Kara Delik` (`trap`) aktif edilsin.
+- [x] **Adım 2:** Boost gücünü UI görünümünden kaldırarak arka plana çek; ön planda görünür güç olarak `Vampir` entegrasyonunu doğrula.
+- [x] **Adım 3:** `hasUsedPowerThisTurn` kontrolünü ekleyerek aynı turda çoklu güç kullanım açığını (Power Chaining) kapat.
+- [x] **Adım 4:** Yan Yana modunda `Dondur` gücünün tahtada dondurma ve 1-tur sonra çözülme akışını test et.
+- [x] **Adım 5:** Vampir gücünün UI üzerindeki çalışmasını ve görsel geri bildirimini doğrula.
+- [ ] **Adım 6:** LinkedIn demosu için 20 saniyelik kusursuz gameplay akışını doğrula.
 
 ---
 
 ## 📌 Teknik Notlar
 
 | Bilgi | Değer |
-|-------|-------|
+|---|---|
 | Frontend | React 19, Vite 8, Vanilla CSS |
 | Backend | .NET 9, ASP.NET Core Minimal API, SignalR |
-| Online İletişim | HTTP Polling (SignalR client **kullanılmıyor**) |
-| State Yönetimi | React useState (31 adet, monolitik App.jsx) |
-| AI | Senkron, ana thread (Web Worker yok) |
-| Ses | Web Audio API (prosedürel sentez) + Haptic |
-| Depolama | In-Memory ConcurrentDictionary (DB yok) |
+| Online İletişim | Adaptive HTTP Polling |
+| State Yönetimi | React useState |
+| Ses & Titreşim | Web Audio API (prosedürel sentez) + Navigator Haptic |
+| Arşiv Dokümanı | `docs/archive/EXPERIMENTAL_IDEAS_ARCHIVE.md` |

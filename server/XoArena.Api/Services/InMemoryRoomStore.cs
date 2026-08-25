@@ -8,7 +8,7 @@ public sealed class InMemoryRoomStore : IRoomStore
 {
     private const int RoomCodeLength = 6;
     private const string RoomCodeAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    private static readonly string[] ArenaPowerIds = ["bomb", "shield", "boost", "trap"];
+    private static readonly string[] ArenaPowerIds = ["bomb", "shield", "boost", "trap", "freeze", "vampire"];
     private static readonly IReadOnlyDictionary<string, TimeSpan> RoomExpirationTimes =
         new Dictionary<string, TimeSpan>(StringComparer.OrdinalIgnoreCase)
         {
@@ -71,9 +71,22 @@ public sealed class InMemoryRoomStore : IRoomStore
             if (now - room.UpdatedAt >= TimeSpan.FromSeconds(30))
             {
                 // 30 seconds expired -> forfeit win to the player who remained in room
+                var remainingPlayerIndex = 0;
                 var remainingPlayer = room.Players.FirstOrDefault();
-                var winnerSymbol = remainingPlayer?.Symbol ?? "X";
-                var updatedScores = string.Equals(winnerSymbol, "X", StringComparison.OrdinalIgnoreCase)
+                if (remainingPlayer is not null)
+                {
+                    for (var i = 0; i < room.Players.Count; i++)
+                    {
+                        if (string.Equals(room.Players[i].Id, remainingPlayer.Id, StringComparison.OrdinalIgnoreCase))
+                        {
+                            remainingPlayerIndex = i;
+                            break;
+                        }
+                    }
+                }
+
+                var winnerSymbol = GetPlayerSymbol(room.Game.RoundNumber, remainingPlayerIndex);
+                var updatedScores = remainingPlayerIndex == 0
                     ? room.Game.Scores with { X = Math.Max(room.Game.Scores.X, room.TargetValue) }
                     : room.Game.Scores with { O = Math.Max(room.Game.Scores.O, room.TargetValue) };
 
@@ -81,7 +94,8 @@ public sealed class InMemoryRoomStore : IRoomStore
                 {
                     Winner = winnerSymbol,
                     Scores = updatedScores,
-                    WinningLine = []
+                    WinningLine = [],
+                    IsForfeit = true
                 };
                 var expiredRoom = room with
                 {
@@ -275,6 +289,11 @@ public sealed class InMemoryRoomStore : IRoomStore
                 return MoveRoomResult.Conflict("Square is temporarily locked.");
             }
 
+            if (room.Game.FrozenSquares.Contains(index))
+            {
+                return MoveRoomResult.Conflict("Square is temporarily frozen.");
+            }
+
             if (room.Game.Squares[index] is not null)
             {
                 return MoveRoomResult.Conflict("Square is already occupied.");
@@ -296,13 +315,19 @@ public sealed class InMemoryRoomStore : IRoomStore
 
             if (triggeredTrap is not null)
             {
+                var isTrapPlayerFreezer = string.Equals(room.Game.FrozenBy, playerSymbol, StringComparison.OrdinalIgnoreCase);
+                var nextTrapFrozenSquares = isTrapPlayerFreezer ? room.Game.FrozenSquares : [];
+
                 var trapRoom = room with
                 {
                     UpdatedAt = DateTimeOffset.UtcNow,
                     Game = room.Game with
                     {
                         XIsNext = !room.Game.XIsNext,
+                        HasUsedPowerThisTurn = false,
                         LockedSquares = [],
+                        FrozenSquares = nextTrapFrozenSquares,
+                        FrozenBy = null,
                         Traps = room.Game.Traps.Where(trap => trap != triggeredTrap).ToArray()
                     }
                 };
@@ -330,6 +355,9 @@ public sealed class InMemoryRoomStore : IRoomStore
             var isMatchCompleted = winner is not null
                 && GetPlayerScore(scores, playerIndex) >= room.TargetValue;
 
+            var isMovePlayerFreezer = string.Equals(room.Game.FrozenBy, playerSymbol, StringComparison.OrdinalIgnoreCase);
+            var nextMoveFrozenSquares = isMovePlayerFreezer ? room.Game.FrozenSquares : [];
+
             var updatedRoom = room with
             {
                 Status = isMatchCompleted ? RoomStatuses.Completed : room.Status,
@@ -338,11 +366,14 @@ public sealed class InMemoryRoomStore : IRoomStore
                 {
                     Squares = squares,
                     XIsNext = !room.Game.XIsNext,
+                    HasUsedPowerThisTurn = false,
                     Scores = scores,
                     Winner = winner,
                     IsDraw = isDraw,
                     WinningLine = winningLine,
-                    LockedSquares = []
+                    LockedSquares = [],
+                    FrozenSquares = nextMoveFrozenSquares,
+                    FrozenBy = null
                 }
             };
 
@@ -399,6 +430,11 @@ public sealed class InMemoryRoomStore : IRoomStore
                 return PowerRoomResult.Conflict("Game is already finished.");
             }
 
+            if (room.Game.HasUsedPowerThisTurn)
+            {
+                return PowerRoomResult.Conflict("You have already used a power this turn. Place a stone to continue.");
+            }
+
             var expectedSymbol = room.Game.XIsNext ? "X" : "O";
             var playerSymbol = GetPlayerSymbol(room.Game.RoundNumber, playerIndex);
 
@@ -435,6 +471,9 @@ public sealed class InMemoryRoomStore : IRoomStore
             var boosts = room.Game.BoostedSquares.ToList();
             var lockedSquares = room.Game.LockedSquares.ToList();
             var traps = room.Game.Traps.ToList();
+            var frozenSquares = room.Game.FrozenSquares.ToList();
+            var stolenSquares = room.Game.StolenSquares?.ToList() ?? new List<int>();
+            var multipliers = new Dictionary<int, int>(room.Game.Multipliers);
 
             lockedSquares.Clear();
 
@@ -443,6 +482,8 @@ public sealed class InMemoryRoomStore : IRoomStore
                 case "bomb":
                     squares[targetIndex] = null;
                     boosts.Remove(targetIndex);
+                    multipliers.Remove(targetIndex);
+                    stolenSquares.Remove(targetIndex);
                     lockedSquares.Add(targetIndex);
                     break;
                 case "shield":
@@ -454,6 +495,45 @@ public sealed class InMemoryRoomStore : IRoomStore
                 case "trap":
                     traps.Add(new ArenaTrap(playerIdText, targetIndex));
                     break;
+                case "freeze":
+                    frozenSquares.Add(targetIndex);
+                    break;
+                case "vampire":
+                    var opponentSymbol = playerSymbol == "X" ? "O" : "X";
+                    var sourceIndex = -1;
+                    var targetStoneIndex = -1;
+
+                    if (multipliers.ContainsKey(targetIndex) && squares[targetIndex] == opponentSymbol && !stolenSquares.Contains(targetIndex))
+                    {
+                        sourceIndex = targetIndex;
+                        targetStoneIndex = Enumerable.Range(0, squares.Length)
+                            .FirstOrDefault(i => squares[i] == playerSymbol && !multipliers.ContainsKey(i), -1);
+                    }
+                    else if (squares[targetIndex] == playerSymbol && !multipliers.ContainsKey(targetIndex))
+                    {
+                        targetStoneIndex = targetIndex;
+                        sourceIndex = Enumerable.Range(0, squares.Length)
+                            .FirstOrDefault(i => squares[i] == opponentSymbol && multipliers.ContainsKey(i) && !stolenSquares.Contains(i), -1);
+                    }
+                    else
+                    {
+                        sourceIndex = Enumerable.Range(0, squares.Length)
+                            .FirstOrDefault(i => squares[i] == opponentSymbol && multipliers.ContainsKey(i) && !stolenSquares.Contains(i), -1);
+                        targetStoneIndex = Enumerable.Range(0, squares.Length)
+                            .FirstOrDefault(i => squares[i] == playerSymbol && !multipliers.ContainsKey(i), -1);
+                    }
+
+                    if (sourceIndex >= 0 && targetStoneIndex >= 0 && multipliers.TryGetValue(sourceIndex, out var multVal))
+                    {
+                        multipliers.Remove(sourceIndex);
+                        multipliers[targetStoneIndex] = multVal;
+                        stolenSquares.Remove(sourceIndex);
+                        if (!stolenSquares.Contains(targetStoneIndex))
+                        {
+                            stolenSquares.Add(targetStoneIndex);
+                        }
+                    }
+                    break;
             }
 
             var playerPowers = room.Game.PlayerPowers.ToDictionary(entry => entry.Key, entry => entry.Value);
@@ -461,20 +541,32 @@ public sealed class InMemoryRoomStore : IRoomStore
                 entry => entry.Key,
                 entry => entry.Key == normalizedPowerId ? entry.Value - 1 : entry.Value);
 
+            var passesTurn = normalizedPowerId is "bomb" or "trap";
+            var nextFrozenBy = normalizedPowerId == "freeze" ? playerSymbol : room.Game.FrozenBy;
+
+            if (passesTurn && !string.Equals(room.Game.FrozenBy, playerSymbol, StringComparison.OrdinalIgnoreCase))
+            {
+                frozenSquares.Clear();
+                nextFrozenBy = null;
+            }
+
             var updatedRoom = room with
             {
                 UpdatedAt = DateTimeOffset.UtcNow,
                 Game = room.Game with
                 {
                     Squares = squares,
-                    XIsNext = normalizedPowerId == "boost"
-                        ? room.Game.XIsNext
-                        : !room.Game.XIsNext,
+                    XIsNext = passesTurn ? !room.Game.XIsNext : room.Game.XIsNext,
+                    HasUsedPowerThisTurn = !passesTurn,
                     PlayerPowers = playerPowers,
                     ShieldedSquares = shields,
                     BoostedSquares = boosts,
                     LockedSquares = lockedSquares,
-                    Traps = traps
+                    Traps = traps,
+                    FrozenSquares = frozenSquares,
+                    FrozenBy = nextFrozenBy,
+                    StolenSquares = stolenSquares,
+                    Multipliers = multipliers
                 }
             };
 
@@ -567,7 +659,11 @@ public sealed class InMemoryRoomStore : IRoomStore
                     ShieldedSquares = [],
                     BoostedSquares = [],
                     LockedSquares = [],
-                    Traps = []
+                    Traps = [],
+                    FrozenSquares = [],
+                    FrozenBy = null,
+                    StolenSquares = [],
+                    HasUsedPowerThisTurn = false
                 }
             };
 
@@ -618,7 +714,12 @@ public sealed class InMemoryRoomStore : IRoomStore
             [],
             [],
             [],
-            []);
+            [],
+            [],
+            [],
+            false,
+            false,
+            null);
 
     private static IReadOnlyList<string?> CreateEmptySquares(int boardSize)
         => Enumerable.Repeat<string?>(null, boardSize * boardSize).ToArray();
@@ -729,8 +830,32 @@ public sealed class InMemoryRoomStore : IRoomStore
                 => "Square is temporarily locked.",
             "trap" when room.Game.Traps.Any(trap => trap.Index == targetIndex)
                 => "Square already contains a Black Hole.",
+            "freeze" when room.Game.Squares[targetIndex] is not null
+                => "Freeze needs an empty square.",
+            "freeze" when room.Game.LockedSquares.Contains(targetIndex)
+                => "Square is temporarily locked.",
+            "freeze" when room.Game.FrozenSquares.Contains(targetIndex)
+                => "Square is already frozen.",
+            "vampire" when room.Game.StolenSquares != null && room.Game.StolenSquares.Contains(targetIndex)
+                => "Vampir ile daha önce çalınmış bir çarpan tekrar geri alınamaz.",
+            "vampire" when !HasValidVampireTargets(room, playerSymbol)
+                => "Vampire requires an opponent stone with a multiplier and your own stone without a multiplier.",
             _ => null
         };
+
+    private static bool HasValidVampireTargets(Room room, string playerSymbol)
+    {
+        var opponentSymbol = playerSymbol == "X" ? "O" : "X";
+        var stolenSquares = room.Game.StolenSquares ?? [];
+        var hasOpponentMultiplier = room.Game.Multipliers.Keys.Any(i =>
+            i >= 0 &&
+            i < room.Game.Squares.Count &&
+            room.Game.Squares[i] == opponentSymbol &&
+            !stolenSquares.Contains(i));
+        var hasPlayerUnmultipliedStone = Enumerable.Range(0, room.Game.Squares.Count)
+            .Any(i => room.Game.Squares[i] == playerSymbol && !room.Game.Multipliers.ContainsKey(i));
+        return hasOpponentMultiplier && hasPlayerUnmultipliedStone;
+    }
 
     private static IReadOnlyList<int> CalculateWinningLine(
         IReadOnlyList<string?> squares,
@@ -829,13 +954,26 @@ public sealed class InMemoryRoomStore : IRoomStore
         if (string.Equals(room.Status, RoomStatuses.Playing, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(room.Status, RoomStatuses.Reconnecting, StringComparison.OrdinalIgnoreCase))
         {
-            var remainingPlayer = room.Players.FirstOrDefault(p => !string.Equals(p.Id, playerStr, StringComparison.OrdinalIgnoreCase));
+            var remainingPlayerIndex = -1;
+            for (var i = 0; i < room.Players.Count; i++)
+            {
+                if (!string.Equals(room.Players[i].Id, playerStr, StringComparison.OrdinalIgnoreCase))
+                {
+                    remainingPlayerIndex = i;
+                    break;
+                }
+            }
 
             // Explicit menu surrender -> IMMEDIATE FORFEIT WIN (0s delay!)
-            if (isSurrender || remainingPlayer is null)
+            if (isSurrender || remainingPlayerIndex < 0)
             {
-                var winnerSymbol = remainingPlayer?.Symbol ?? "X";
-                var updatedScores = string.Equals(winnerSymbol, "X", StringComparison.OrdinalIgnoreCase)
+                if (remainingPlayerIndex < 0)
+                {
+                    remainingPlayerIndex = 0;
+                }
+
+                var winnerSymbol = GetPlayerSymbol(room.Game.RoundNumber, remainingPlayerIndex);
+                var updatedScores = remainingPlayerIndex == 0
                     ? room.Game.Scores with { X = Math.Max(room.Game.Scores.X, room.TargetValue) }
                     : room.Game.Scores with { O = Math.Max(room.Game.Scores.O, room.TargetValue) };
 
@@ -843,7 +981,8 @@ public sealed class InMemoryRoomStore : IRoomStore
                 {
                     Winner = winnerSymbol,
                     Scores = updatedScores,
-                    WinningLine = []
+                    WinningLine = [],
+                    IsForfeit = true
                 };
 
                 var forfeitRoom = room with

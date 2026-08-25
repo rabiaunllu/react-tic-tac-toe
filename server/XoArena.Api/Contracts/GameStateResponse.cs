@@ -15,7 +15,11 @@ public sealed record GameStateResponse(
     IReadOnlyDictionary<string, IReadOnlyDictionary<string, int>> PlayerPowers,
     IReadOnlyList<int> ShieldedSquares,
     IReadOnlyList<int> BoostedSquares,
-    IReadOnlyList<int> LockedSquares)
+    IReadOnlyList<int> LockedSquares,
+    IReadOnlyList<int> FrozenSquares,
+    IReadOnlyList<int> StolenSquares,
+    bool HasUsedPowerThisTurn,
+    bool IsForfeit)
 {
     public static GameStateResponse FromGameState(GameState game)
         => new(
@@ -31,5 +35,9 @@ public sealed record GameStateResponse(
             game.PlayerPowers,
             game.ShieldedSquares,
             game.BoostedSquares,
-            game.LockedSquares);
+            game.LockedSquares,
+            game.FrozenSquares,
+            game.StolenSquares ?? [],
+            game.HasUsedPowerThisTurn,
+            game.IsForfeit);
 }

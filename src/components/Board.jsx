@@ -60,6 +60,7 @@ const Board = memo(function Board({
         return (
           <Square
             key={index}
+            index={index}
             value={square}
             multiplier={multipliers[index]}
             isWinningSquare={winningLine?.includes(index)}
@@ -75,7 +76,7 @@ const Board = memo(function Board({
             isPowerTargeting={isPowerTargeting}
             isPowerTarget={isPowerTarget}
             powerTargetLabel={powerTargetLabel}
-            onSquareClick={() => onSquareClick(index)}
+            onSquareClick={onSquareClick}
           />
         )
       })}

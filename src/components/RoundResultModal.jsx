@@ -7,6 +7,7 @@ export default function RoundResultModal({
   winner,
   isDraw,
   matchWinner,
+  isForfeit = false,
   scores,
   scoreLabel,
   resultMessage,
@@ -23,9 +24,6 @@ export default function RoundResultModal({
 }) {
   const [isMenuConfirmOpen, setIsMenuConfirmOpen] = useState(false)
   const [isCopied, setIsCopied] = useState(false)
-  const [showAdOverlay, setShowAdOverlay] = useState(false)
-  const [adCountdown, setAdCountdown] = useState(3)
-  const [pendingAction, setPendingAction] = useState(null)
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow
@@ -38,8 +36,12 @@ export default function RoundResultModal({
 
   const displayedWinner = matchWinner ?? winner
   const isForfeitWin = Boolean(
+    isForfeit ||
     resultMessage?.includes('ayrıldı') ||
-    resultMessage?.includes('kazandın')
+    resultMessage?.includes('Pes Etti') ||
+    resultMessage?.includes('çekildi') ||
+    resultMessage?.includes('Hükmen') ||
+    resultMessage?.includes('hükmen')
   )
   const isMatchOver = Boolean(matchWinner) || isForfeitWin
 
@@ -50,7 +52,7 @@ export default function RoundResultModal({
       : `TUR ${roundNumber} SONUCU`
 
   const resultLabel = isForfeitWin
-    ? '🏆 RAKİP OYUNDAN AYRILDI!'
+    ? '🏆 RAKİP OYUNDAN AYRILDI '
     : isDraw
       ? 'TUR BERABERE'
       : isMatchOver
@@ -63,41 +65,6 @@ export default function RoundResultModal({
     : isDraw
       ? 'draw'
       : displayedWinner?.toLowerCase() ?? 'x'
-
-  // Interstitial Ad Trigger logic (Every 3 completed matches/rounds)
-  function triggerActionWithAdCheck(actionFn) {
-    if (typeof window === 'undefined') {
-      actionFn()
-      return
-    }
-    const currentCount = parseInt(window.sessionStorage.getItem('xo-arena-match-count') || '0', 10) + 1
-    window.sessionStorage.setItem('xo-arena-match-count', currentCount.toString())
-
-    // Show Interstitial Ad on every 3rd match
-    if (currentCount % 3 === 0) {
-      setPendingAction(() => actionFn)
-      setShowAdOverlay(true)
-      setAdCountdown(3)
-    } else {
-      actionFn()
-    }
-  }
-
-  useEffect(() => {
-    if (!showAdOverlay) return undefined
-    const timer = setInterval(() => {
-      setAdCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer)
-          setShowAdOverlay(false)
-          if (pendingAction) pendingAction()
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-    return () => clearInterval(timer)
-  }, [showAdOverlay, pendingAction])
 
   async function handleShareScore() {
     registerUserGesture()
@@ -126,24 +93,11 @@ export default function RoundResultModal({
 
   return (
     <div className="round-result-overlay" role="presentation">
-      {!isDraw && <WinConfetti active={true} particleCount={80} duration={3000} />}
+      <div className="round-result-modal-wrapper">
+        {!isDraw && <WinConfetti active={true} />}
 
-      {/* ── Interstitial Ad Simulation Overlay ── */}
-      {showAdOverlay && (
-        <div className="interstitial-ad-overlay">
-          <div className="interstitial-ad-card">
-            <span className="ad-badge">REKLAM (AdMob Entegrasyonu)</span>
-            <h3>XO ARENA</h3>
-            <p>Oyun sponsor reklamı...</p>
-            <div className="ad-countdown">
-              Reklam sonlanıyor: <strong>{adCountdown}s</strong>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <section
-        className={`round-result-card round-result-card--${symbolModifier}`}
+        <section
+          className={`round-result-card round-result-card--${symbolModifier}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={
@@ -256,7 +210,11 @@ export default function RoundResultModal({
             {isMatchOver ? (
               <button
                 type="button"
-                onClick={() => triggerActionWithAdCheck(onNewMatch)}
+                onClick={() => {
+                  registerUserGesture()
+                  playSound('click')
+                  onNewMatch()
+                }}
                 autoFocus
               >
                 Yeni maç
@@ -264,7 +222,11 @@ export default function RoundResultModal({
             ) : (
               <button
                 type="button"
-                onClick={() => triggerActionWithAdCheck(onNextRound)}
+                onClick={() => {
+                  registerUserGesture()
+                  playSound('click')
+                  onNextRound()
+                }}
                 disabled={isNextRoundDisabled}
                 title={nextRoundTitle}
                 autoFocus={!isNextRoundDisabled}
@@ -293,6 +255,7 @@ export default function RoundResultModal({
           </div>
         )}
       </section>
+      </div>
     </div>
   )
 }

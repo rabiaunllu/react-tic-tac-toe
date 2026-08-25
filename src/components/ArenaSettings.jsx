@@ -49,13 +49,6 @@ export default function ArenaSettings({
     })
   }
 
-  function handleBoostModeChange(boostMode) {
-    onSettingsChange({
-      ...settings,
-      boostMode,
-    })
-  }
-
   return (
     <section className="arena-settings" aria-label="Arena ayarları">
       <div>
@@ -67,7 +60,7 @@ export default function ArenaSettings({
         <label className="arena-setting">
           <span>
             <strong>Özel güçler</strong>
-            <small>Bomba, kalkan, joker ve boost gücü.</small>
+            <small>Bomba, kalkan, freeze ve vampir gücü.</small>
           </span>
 
           <input
@@ -90,9 +83,7 @@ export default function ArenaSettings({
           />
         </label>
 
-         {settings.powersEnabled && (
-          <BoostModeSetting boostMode={settings.boostMode} onChange={handleBoostModeChange} />
-        )}
+        {/* BoostModeSetting: Boost arka planda hazır, şimdilik UI'da gösterilmiyor */}
         
         {pendingSettings && (
           <div className="settings-confirm-panel">

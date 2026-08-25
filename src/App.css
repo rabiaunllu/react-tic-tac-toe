@@ -68,14 +68,18 @@ body::after {
 
 button {
   font-family: inherit;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
 }
 
 .app-shell {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 32px 16px;
+  padding: max(20px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
 }
 
 .game-card {
@@ -1907,9 +1911,7 @@ button:focus-visible,
 .multiplier-badge,
 .shield-badge,
 .boost-badge,
-.freeze-badge,
-.trap-badge,
-.black-hole-badge {
+.freeze-badge {
   z-index: 2;
   border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
@@ -1932,9 +1934,7 @@ button:focus-visible,
 
 .shield-badge,
 .boost-badge,
-.freeze-badge,
-.trap-badge,
-.black-hole-badge {
+.freeze-badge {
   position: absolute;
   padding: 2px 4px;
   border-radius: 999px;
@@ -1962,14 +1962,6 @@ button:focus-visible,
   right: 4px;
   bottom: 4px;
   background: rgba(160, 220, 255, 0.22);
-}
-
-.trap-badge,
-.black-hole-badge {
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%) scale(var(--badge-scale, 1));
-  background: rgba(180, 100, 255, 0.25);
 }
 
 .boosted-square {
@@ -2778,6 +2770,59 @@ button,
   place-items: center;
   padding: 18px;
   background: rgba(3, 6, 14, 0.92);
+}
+
+.round-result-modal-wrapper {
+  position: relative;
+  width: min(420px, 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.popup-confetti-emitter {
+  position: absolute;
+  top: 90px;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.popup-confetti-spark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--size, 10px);
+  height: var(--size, 10px);
+  background: var(--bg, #fbbf24);
+  box-shadow: 0 0 8px var(--bg, #fbbf24);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0);
+  animation: popup-confetti-burst 1.3s cubic-bezier(0.14, 0.85, 0.35, 1) forwards;
+  animation-delay: var(--delay, 0s);
+  will-change: transform, opacity;
+}
+
+@keyframes popup-confetti-burst {
+  0% {
+    transform: translate(-50%, -50%) scale(0) rotate(0deg);
+    opacity: 1;
+  }
+  40% {
+    transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(1.1) rotate(var(--rot));
+    opacity: 1;
+  }
+  75% {
+    transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty) + 15px)) scale(0.85) rotate(calc(var(--rot) * 1.25));
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty) + 35px)) scale(0.2) rotate(calc(var(--rot) * 1.5));
+    opacity: 0;
+  }
 }
 
 .round-result-card {
@@ -4047,21 +4092,132 @@ button,
   background: #1c223c;
   padding: 6px;
   border-radius: 12px;
+  transform: translateZ(0);
 }
 
 .psim-cell {
-  width: 48px;
-  height: 48px;
+  width: 52px;
+  height: 52px;
   background: #0c0f1c;
-  border-radius: 8px;
+  border-radius: 9px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 28px;
+  font-size: 24px;
   font-weight: bold;
   position: relative;
   border: 1px solid #232a48;
   box-sizing: border-box;
+  overflow: hidden;
+  transform: translateZ(0);
+}
+
+@media (max-width: 380px) {
+  .psim-cell {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+  }
+}
+
+.psim-cell .multiplier-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 9px;
+  padding: 1px 3px;
+  border-radius: 4px;
+  background: rgba(234, 179, 8, 0.9);
+  color: #1a1500;
+  font-weight: 800;
+  z-index: 6;
+  line-height: 1;
+}
+
+.psim-cell .shield-icon-badge {
+  top: 2px;
+  left: 2px;
+  z-index: 5;
+}
+
+.psim-cell .trap-badge {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  border: none;
+  background: none;
+  box-shadow: none;
+  z-index: 4;
+  pointer-events: none;
+  filter: drop-shadow(0 0 6px rgba(168, 85, 247, 0.8));
+}
+
+.psim-cell .black-hole-badge {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  border: none;
+  background: none;
+  box-shadow: none;
+  z-index: 6;
+  pointer-events: none;
+  filter: drop-shadow(0 0 10px rgba(168, 85, 247, 0.95));
+  animation: blackHoleSpinSuck 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.psim-cell .frozen-crystal-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at center, rgba(56, 189, 248, 0.3) 0%, rgba(14, 165, 233, 0.15) 100%);
+  pointer-events: none;
+  z-index: 4;
+}
+
+.psim-cell .frozen-crystal-graphic {
+  width: 60%;
+  height: 60%;
+  filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.9));
+}
+
+.psim-cell .vampire-drain-pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 2px solid #ef4444;
+  box-shadow: inset 0 0 12px rgba(239, 68, 68, 0.6), 0 0 10px rgba(239, 68, 68, 0.7);
+  animation: psim-vamp-drain 0.65s ease-in-out infinite alternate;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.psim-cell .vampire-absorb-burst {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 2px solid #c084fc;
+  box-shadow: inset 0 0 14px rgba(192, 132, 252, 0.7), 0 0 12px rgba(192, 132, 252, 0.8);
+  animation: psim-vamp-absorb 0.65s ease-in-out infinite alternate;
+  pointer-events: none;
+  z-index: 5;
+}
+
+@keyframes psim-vamp-drain {
+  from { opacity: 0.6; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1.02); }
+}
+
+@keyframes psim-vamp-absorb {
+  from { opacity: 0.7; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1.04); }
 }
 
 .psim-val-X {
@@ -4081,36 +4237,10 @@ button,
   min-height: 24px;
 }
 
-.psim-mult {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  background: #2a3052;
-  font-size: 10px;
-  padding: 2px 4px;
-  border-radius: 4px;
-  color: #ffd700;
-}
-
-.psim-win-badge {
-  position: absolute;
-  top: -20px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #ffaa00;
-  color: #fff;
-  font-size: 12px;
-  padding: 2px 8px;
-  border-radius: 10px;
-  white-space: nowrap;
-  z-index: 10;
-  box-shadow: 0 0 10px #ffaa00;
-  animation: psim-badge-in 0.3s forwards;
-}
-
-@keyframes psim-badge-in {
-  from { opacity: 0; transform: translate(-50%, 10px); }
-  to { opacity: 1; transform: translate(-50%, 0); }
+.psim-win-text {
+  color: #facc15;
+  font-weight: 700;
+  text-shadow: 0 0 8px rgba(250, 204, 21, 0.5);
 }
 
 @keyframes psim-anim-explode {
@@ -4490,76 +4620,70 @@ button,
   }
 }
 .trapped-square {
-  border-color: rgba(255, 209, 102, 0.58);
+  border-color: rgba(168, 85, 247, 0.7) !important;
+  background: radial-gradient(circle at center, rgba(88, 28, 135, 0.4) 0%, rgba(15, 17, 26, 0.95) 85%) !important;
   box-shadow:
-    inset 0 0 0 1px rgba(255, 209, 102, 0.18),
-    0 0 20px rgba(255, 209, 102, 0.12);
+    inset 0 0 14px rgba(168, 85, 247, 0.3),
+    0 0 16px rgba(168, 85, 247, 0.25) !important;
 }
 
 .trap-badge {
   position: absolute;
-  right: 8px;
-  bottom: 8px;
-  z-index: 2;
-  padding: 3px 6px;
-  border: 1px solid rgba(255, 209, 102, 0.42);
-  border-radius: 999px;
-  background: rgba(255, 209, 102, 0.14);
-  color: #fff0bd;
-  font-size: 8px;
-  font-weight: 900;
-  letter-spacing: 0.08em;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+  font-size: clamp(16px, 3.5vw, 24px);
+  border: none;
+  background: none;
+  box-shadow: none;
+  pointer-events: none;
+  filter: drop-shadow(0 0 8px rgba(168, 85, 247, 0.85));
 }
 
 .black-hole-message {
   width: min(100%, 420px);
   padding: 11px 14px;
-  border: 1px solid rgba(255, 209, 102, 0.28);
+  border: 1px solid rgba(168, 85, 247, 0.4);
   border-radius: 14px;
   background:
-    radial-gradient(circle at 18% 10%, rgba(255, 209, 102, 0.16), transparent 56%),
-    rgba(13, 17, 29, 0.88);
-  color: #fff0bd;
+    radial-gradient(circle at 18% 10%, rgba(168, 85, 247, 0.22), transparent 56%),
+    rgba(13, 17, 29, 0.92);
+  color: #f3e8ff;
   font-size: 13px;
   font-weight: 950;
   text-align: center;
   box-shadow:
-    0 16px 34px rgba(0, 0, 0, 0.22),
+    0 16px 34px rgba(0, 0, 0, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
   animation: black-hole-message-pop 1100ms ease-out both;
 }
 
 .black-hole-triggered-square {
-  border-color: rgba(255, 209, 102, 0.88);
+  border-color: rgba(168, 85, 247, 0.9) !important;
   background:
-    radial-gradient(circle at 50% 50%, rgba(3, 6, 14, 0.9) 0 18%, rgba(255, 209, 102, 0.22) 19% 31%, transparent 33%),
-    #202432;
+    radial-gradient(circle at 50% 50%, #000000 0% 25%, #2e1065 55%, #0c0f1c 100%) !important;
   box-shadow:
-    0 0 0 2px rgba(255, 209, 102, 0.18),
-    0 0 30px rgba(255, 209, 102, 0.2),
-    inset 0 0 26px rgba(0, 0, 0, 0.32);
+    0 0 0 2px rgba(168, 85, 247, 0.4),
+    0 0 30px rgba(168, 85, 247, 0.45),
+    inset 0 0 26px rgba(0, 0, 0, 0.8) !important;
   animation: black-hole-square-pop 1100ms ease-out both;
 }
 
 .black-hole-badge {
   position: absolute;
-  inset: 50% auto auto 50%;
-  z-index: 4;
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border: 1px solid rgba(255, 209, 102, 0.44);
-  border-radius: 999px;
-  background: rgba(3, 6, 14, 0.88);
-  color: #fff0bd;
-  font-size: 25px;
-  line-height: 1;
-  box-shadow:
-    0 0 28px rgba(255, 209, 102, 0.2),
-    inset 0 0 18px rgba(0, 0, 0, 0.5);
-  transform: translate(-50%, -50%);
-  animation: black-hole-badge-pop 1100ms ease-out both;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  box-shadow: none;
+  font-size: clamp(22px, 5vw, 32px);
+  filter: drop-shadow(0 0 14px rgba(168, 85, 247, 0.95));
+  animation: blackHoleSpinSuck 1100ms ease-out both;
 }
 
 .locked-square,

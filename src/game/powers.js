@@ -3,58 +3,65 @@ export const powerDefinitions = [
     id: 'bomb',
     name: 'Bomba',
     icon: '💣',
-    description: 'Korumasız herhangi bir taşı kaldırır.',
+    description: 'Rakibin korumasız taşını kaldır.',
     initialCount: 1,
   },
   {
     id: 'shield',
     name: 'Kalkan',
     icon: '🛡️',
-    description: 'Kendi taşını saldırılara karşı korur. (Hamle hakkın devam eder)',
+    description: 'Seçilen taşı koru. Sıra geçmez.',
     initialCount: 1,
   },
+  // Boost: arka planda hazır, UI'dan gizli — ileride aktif edilebilir
   {
     id: 'boost',
     name: 'Boost',
     icon: '⚡',
-    description: 'Sonraki hamlenin hücre puanını artırır. (Hamle hakkın devam eder)',
-    initialCount: 1,
-  },
-  {
-    id: 'joker',
-    name: 'Joker',
-    icon: '🃏',
-    description: 'Rakibin taşını kendi taşına çevirir.',
-    initialCount: 1,
+    description: 'Hücre puanını 2 katına çıkar. Sıra geçmez.',
+    initialCount: 0,
   },
   {
     id: 'trap',
     name: 'Kara Delik',
     icon: '🕳️',
-    description: 'Boş kareye gizli kara delik kurar. Rakip basarsa taşı kaybolur.',
+    description: 'Boş kareye gizli tuzak kur. Rakip basarsa taşı kaybolur.',
     initialCount: 1,
   },
   {
     id: 'freeze',
-    name: 'Freeze',
+    name: 'Dondur',
     icon: '❄️',
-    description: 'Boş bir kareyi rakibin bir sonraki hamlesi boyunca kilitler. (Hamle hakkın devam eder)',
-    initialCount: 0,
+    description: 'Boş kareyi 1 tur kilitle. Sıra geçmez.',
+    initialCount: 1,
   },
   {
     id: 'vampire',
     name: 'Vampir',
     icon: '🧛',
-    description: 'Rakibin çarpanını uygun kendi taşına aktarır. (Hamle hakkın devam eder)',
-    initialCount: 0,
+    description: 'Rakibin çarpanını kendi taşına çek. Sıra geçmez.',
+    initialCount: 1,
   },
 ]
 
-export const rewardedPowerIds = ['joker', 'freeze', 'vampire']
+// Rewarded pack: Freeze veya Vampir (Joker kaldırıldı)
+export const rewardedPowerIds = ['freeze', 'vampire']
 
-const localHumanPowerIds = ['bomb', 'shield', 'boost', 'joker']
-const localAiPowerIds = ['bomb', 'shield', 'boost', 'trap']
-const onlinePowerIds = ['bomb', 'shield', 'boost', 'trap']
+export const ARENA_POWER_NAMES = {
+  bomb: 'Bomba',
+  shield: 'Kalkan',
+  boost: 'Boost',
+  trap: 'Kara Delik',
+  freeze: 'Dondur',
+  vampire: 'Vampir',
+}
+
+// Yan Yana (Local Human vs Human): Freeze + Vampir aktif, Boost/Joker yok
+const localHumanPowerIds = ['bomb', 'shield', 'freeze', 'vampire']
+// Bota Karşı (Local PvC): Kara Delik + Vampir aktif, Boost/Joker yok
+const localAiPowerIds = ['bomb', 'shield', 'trap', 'vampire']
+// Online: Kara Delik + Vampir aktif, Boost/Joker yok
+const onlinePowerIds = ['bomb', 'shield', 'trap', 'vampire']
 
 export function getAvailablePowerIds({
   gameMode,

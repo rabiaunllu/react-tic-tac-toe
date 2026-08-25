@@ -64,7 +64,7 @@ function getBoardSignature(room) {
 }
 
 function getResultSignature(room) {
-  return `${room.game.roundNumber}:${room.game.winner ?? ''}:${room.game.isDraw}:${room.status}`
+  return `${room.game.roundNumber}:${room.game.winner ?? ''}:${room.game.isDraw}:${room.status}:${room.game.isForfeit ? 'forfeit' : 'normal'}`
 }
 
 function pickRandomMessage(messages) {
@@ -76,11 +76,16 @@ function createOnlineRoundMessage(room, mySymbol) {
     return null
   }
 
-  if (
-    room.game.winner === mySymbol &&
-    (room.status === 'completed' || !room.game.winningLine || room.game.winningLine.length === 0)
-  ) {
-    return ['🏆 Rakip oyundan ayrıldı!', 'Sen kazandın!']
+  const isForfeit = Boolean(
+    room.game.isForfeit ||
+    (room.status === 'completed' && (!room.game.winningLine || room.game.winningLine.length === 0) && room.game.winner)
+  )
+
+  if (isForfeit) {
+    if (room.game.winner === mySymbol) {
+      return ['🏆 Rakip oyundan ayrıldı ', 'Rakip maçtan çekildi. Hükmen galip ilan edildin!']
+    }
+    return ['🏳️ Maçtan çekilindi', 'Oyundan ayrıldığın için hükmen mağlubiyet.']
   }
 
   if (room.game.isDraw) {
@@ -128,46 +133,12 @@ function getStatusMessage({ room, mySymbol, reconnectSeconds = 30 }) {
   return currentSymbol === mySymbol ? 'Sıra sende' : 'Sıranı bekle'
 }
 
-function OnlinePlayerPanel({ player, isActive, position }) {
-  if (!player) {
-    return (
-      <section className="power-panel player-panel inactive-player online-seat-panel">
-        <div className="player-panel-topline">
-          <div className="player-identity">
-            <span className="player-symbol">?</span>
-            <span className="player-name">Rakip bekleniyor</span>
-          </div>
-          <div className="player-score">
-            <small>Puan</small>
-            <strong>0</strong>
-          </div>
-        </div>
-      </section>
-    )
-  }
 
-  return (
-    <section
-      className={`power-panel player-panel player-${player.symbol.toLowerCase()} online-seat-panel ${
-        isActive ? 'active-player' : 'inactive-player'
-      }`}
-      aria-label={`${position} oyuncu paneli`}
-    >
-      <div className="player-panel-topline">
-        <div className="player-identity">
-          <span className="player-symbol">{player.symbol}</span>
-          <span className="player-name">{player.name}</span>
-        </div>
-        <div className="player-score">
-          <small>Puan</small>
-          <strong>{player.score ?? 0}</strong>
-        </div>
-      </div>
-    </section>
-  )
-}
+
 
 export default function OnlineGame({ initialOnlineGame, onMenu }) {
+  const eventIdRef = useRef(1)
+
   const [room, setRoom] = useState(initialOnlineGame.room)
   const [actionError, setActionError] = useState('')
   const [connectionMessage, setConnectionMessage] = useState('')
@@ -177,6 +148,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
   const [activePower, setActivePower] = useState(null)
   const [bombEvent, setBombEvent] = useState(null)
   const [blackHoleEvent, setBlackHoleEvent] = useState(null)
+  const [vampireTransferEvent, setVampireTransferEvent] = useState(null)
   const [isStartPending, setIsStartPending] = useState(false)
   const [isNextRoundPending, setIsNextRoundPending] = useState(false)
   const [isMenuConfirmOpen, setIsMenuConfirmOpen] = useState(false)
@@ -188,7 +160,6 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
 
   useEffect(() => {
     if (room.status !== 'reconnecting') {
-      setReconnectSeconds(30)
       return undefined
     }
 
@@ -231,6 +202,8 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
   const shieldedSquares = room.game.shieldedSquares ?? []
   const boostedSquares = room.game.boostedSquares ?? []
   const lockedSquares = room.game.lockedSquares ?? []
+  const frozenSquares = room.game.frozenSquares ?? []
+  const hasUsedPowerThisTurn = room.game.hasUsedPowerThisTurn ?? false
   const visibleLockedSquares = bombEvent
     ? Array.from(new Set([...lockedSquares, bombEvent.index]))
     : lockedSquares
@@ -238,6 +211,18 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
   const visibleBoostedSquares = boostMode === 'random'
     ? boostedSquares.filter((index) => Boolean(room.game.squares[index]))
     : boostedSquares
+
+  const stolenSquares = room.game.stolenSquares ?? []
+  const opponentSymbol = mySymbol === 'X' ? 'O' : 'X'
+  const vampireSources = Object.keys(room.game.multipliers ?? {})
+    .map(Number)
+    .filter((idx) => room.game.squares[idx] === opponentSymbol && !stolenSquares.includes(idx))
+  const vampireTargets = room.game.squares.flatMap((square, index) =>
+    square === mySymbol && !(room.game.multipliers && room.game.multipliers[index] !== undefined)
+      ? [index]
+      : []
+  )
+
   const arenaPowerTargets = {
     bomb: room.game.squares.flatMap((square, index) =>
       square && !shieldedSquares.includes(index) ? [index] : []
@@ -251,14 +236,12 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
     trap: room.game.squares.flatMap((square, index) =>
       !square && !lockedSquares.includes(index) ? [index] : []
     ),
+    freeze: room.game.squares.flatMap((square, index) =>
+      !square && !lockedSquares.includes(index) && !frozenSquares.includes(index) ? [index] : []
+    ),
+    vampire: vampireSources.length > 0 && vampireTargets.length > 0 ? vampireSources : [],
   }
   const activePowerTargets = isArena && activePower ? arenaPowerTargets[activePower] ?? [] : null
-  const arenaDisabledPowers = {
-    bomb: arenaPowerTargets.bomb.length === 0,
-    shield: arenaPowerTargets.shield.length === 0,
-    boost: arenaPowerTargets.boost.length === 0,
-    trap: arenaPowerTargets.trap.length === 0,
-  }
   const ownerIsActive =
     ownerPlayer?.symbol === currentSymbol && !isRoundFinished && room.status === 'playing'
   const guestIsActive =
@@ -311,6 +294,23 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
     setIsPowerPending(true)
 
     try {
+      if (powerId === 'vampire') {
+        const sourceIndex = targetIndex
+        const targetStoneIndex = room.game.squares.findIndex(
+          (sq, idx) => sq === mySymbol && !(room.game.multipliers && room.game.multipliers[idx] !== undefined)
+        )
+        const mult = room.game.multipliers?.[sourceIndex] ?? 2
+        if (targetStoneIndex >= 0) {
+          eventIdRef.current += 1
+          setVampireTransferEvent({
+            sourceIndex,
+            targetIndex: targetStoneIndex,
+            multiplier: mult,
+            id: eventIdRef.current,
+          })
+        }
+      }
+
       const nextRoom = await requestRoomJson(`/api/rooms/${roomCode}/powers`, {
         method: 'POST',
         body: JSON.stringify({
@@ -440,6 +440,9 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
       return
     }
 
+    setBombEvent(null)
+    setBlackHoleEvent(null)
+    setVampireTransferEvent(null)
     setActionError('')
     setConnectionMessage('')
     setIsNextRoundPending(true)
@@ -458,7 +461,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
     }
   }
 
-  async function handleConfirmStartRoom() {
+  async function handleStartRoom() {
     registerUserGesture()
     playSound('click')
 
@@ -499,11 +502,54 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
     const previousMoveCount = previousRoom.game.squares.filter(Boolean).length
     const nextMoveCount = room.game.squares.filter(Boolean).length
 
+    // If round number changed (new round started), reset active events and do not detect power diffs
+    if (previousRoom.game.roundNumber !== room.game.roundNumber) {
+      setBombEvent(null)
+      setBlackHoleEvent(null)
+      setVampireTransferEvent(null)
+      previousRoomRef.current = room
+      return
+    }
+
     if (nextBoardSignature !== previousBoardSignature) {
       if (pendingLocalMoveSignatureRef.current === nextBoardSignature) {
         pendingLocalMoveSignatureRef.current = null
-      } else if (nextMoveCount > previousMoveCount && room.status === 'playing') {
-        playSound('move')
+      } else {
+        if (nextMoveCount > previousMoveCount && room.status === 'playing') {
+          playSound('move')
+        }
+
+        // Opponent Power Detection: Bomb (only within same round)
+        const previousSquares = previousRoom.game.squares
+        const currentSquares = room.game.squares
+        for (let i = 0; i < currentSquares.length; i++) {
+          if (previousSquares[i] && !currentSquares[i] && room.game.lockedSquares?.includes(i)) {
+            setBombEvent({ index: i })
+            playSound('bomb')
+            break
+          }
+        }
+
+        // Opponent Power Detection: Vampire (only within same round when both squares contain stones)
+        const prevMults = previousRoom.game.multipliers || {}
+        const currMults = room.game.multipliers || {}
+        const lostSource = Object.keys(prevMults).find((idx) => !currMults[idx])
+        const gainedTarget = Object.keys(currMults).find((idx) => !prevMults[idx])
+        if (
+          lostSource !== undefined &&
+          gainedTarget !== undefined &&
+          room.game.squares[lostSource] &&
+          room.game.squares[gainedTarget]
+        ) {
+          eventIdRef.current += 1
+          setVampireTransferEvent({
+            sourceIndex: Number(lostSource),
+            targetIndex: Number(gainedTarget),
+            multiplier: currMults[gainedTarget] ?? 2,
+            id: eventIdRef.current,
+          })
+          playSound('power')
+        }
       }
     }
 
@@ -609,6 +655,15 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
   }, [blackHoleEvent])
 
   useEffect(() => {
+    if (!vampireTransferEvent) {
+      return undefined
+    }
+
+    const timerId = window.setTimeout(() => setVampireTransferEvent(null), 1000)
+    return () => window.clearTimeout(timerId)
+  }, [vampireTransferEvent])
+
+  useEffect(() => {
     if (roomCode && playerId && mySymbol && room.status !== 'completed') {
       writeOnlineSession({
         roomCode,
@@ -619,6 +674,18 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
       })
     }
   }, [roomCode, playerId, playerSecret, mySymbol, myPlayer?.name, room.status])
+
+  async function handleOnlineMenuWithLeave() {
+    registerUserGesture()
+    playSound('click')
+    try {
+      await leaveRoom(roomCode, playerId, playerSecret, { isSurrender: true })
+    } catch {
+      // Proceed with local menu navigation
+    }
+    clearOnlineSession()
+    onMenu()
+  }
 
   return (
     <main className="app-shell">
@@ -667,17 +734,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
               <button
                 type="button"
                 className="danger-action"
-                onClick={async () => {
-                  registerUserGesture()
-                  playSound('click')
-                  try {
-                    await leaveRoom(roomCode, playerId, playerSecret, { isSurrender: true })
-                  } catch {
-                    // Proceed with local menu navigation
-                  }
-                  clearOnlineSession()
-                  onMenu()
-                }}
+                onClick={handleOnlineMenuWithLeave}
               >
                 Menüye dön
               </button>
@@ -763,7 +820,6 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
                 powerCounts={ownerPowerCounts}
                 activePower={ownerPlayer?.id === playerId ? activePower : null}
                 boostMode={boostMode}
-                disabledPowers={arenaDisabledPowers}
                 statusText={
                   ownerIsActive
                     ? ownerPlayer?.id === playerId
@@ -773,6 +829,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
                       : 'Rakibin hamlesi bekleniyor.'
                     : 'Sıranı bekle, tahtayı oku.'
                 }
+                hasUsedPowerThisTurn={hasUsedPowerThisTurn}
                 onSelectPower={setActivePower}
                 onUseRandomBoost={handleRandomBoostPower}
               />
@@ -784,12 +841,15 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
                 winningLine={winningLine}
                 shieldedSquares={shieldedSquares}
                 lockedSquares={visibleLockedSquares}
+                frozenSquares={frozenSquares}
                 visibleBoostedSquares={visibleBoostedSquares}
                 powerTargetIndexes={activePowerTargets}
                 powerTargetLabel={ARENA_POWER_NAMES[activePower]}
                 onSquareClick={handleSquareClick}
                 currentPlayer={mySymbol}
                 blackHoleEventIndex={blackHoleEvent?.index}
+                bombEventIndex={bombEvent?.index}
+                vampireTransferEvent={vampireTransferEvent}
               />
 
               <PowerPanel
@@ -804,7 +864,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
                 powerCounts={guestPowerCounts}
                 activePower={guestPlayer?.id === playerId ? activePower : null}
                 boostMode={boostMode}
-                disabledPowers={arenaDisabledPowers}
+                hasUsedPowerThisTurn={hasUsedPowerThisTurn}
                 statusText={
                   !guestPlayer
                     ? 'Rakip katılması bekleniyor...'
@@ -822,7 +882,24 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
             </>
           ) : (
             <>
-              <OnlinePlayerPanel player={ownerPlayer} position="Üst" isActive={ownerIsActive} />
+              <PowerPanel
+                currentPlayer={ownerPlayer?.symbol ?? 'X'}
+                playerName={ownerPlayer?.name ?? 'Oda Sahibi'}
+                score={ownerPlayer?.score ?? 0}
+                scoreLabel="Skor"
+                powerOptions={{ gameMode: 'classic' }}
+                isActivePlayer={ownerIsActive}
+                canInteract={false}
+                isPowersEnabled={false}
+                powerCounts={{}}
+                statusText={
+                  ownerIsActive
+                    ? ownerPlayer?.id === playerId
+                      ? 'Hamle sende. En iyi çizgiyi kur.'
+                      : 'Rakibin hamlesi bekleniyor.'
+                    : 'Sıranı bekle, tahtayı oku.'
+                }
+              />
               <Board
                 boardSize={room.boardSize}
                 squares={room.game.squares}
@@ -830,11 +907,33 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
                 winningLine={winningLine}
                 shieldedSquares={[]}
                 lockedSquares={[]}
+                frozenSquares={[]}
                 visibleBoostedSquares={[]}
                 onSquareClick={handleSquareClick}
                 currentPlayer={mySymbol}
+                bombEventIndex={null}
+                vampireTransferEvent={null}
               />
-              <OnlinePlayerPanel player={guestPlayer} position="Alt" isActive={guestIsActive} />
+              <PowerPanel
+                currentPlayer={guestPlayer?.symbol ?? 'O'}
+                playerName={guestPlayer?.name ?? (room.status === 'waiting' ? 'Rakip Bekleniyor...' : 'Oyuncu O')}
+                score={guestPlayer?.score ?? 0}
+                scoreLabel="Skor"
+                powerOptions={{ gameMode: 'classic' }}
+                isActivePlayer={guestIsActive}
+                canInteract={false}
+                isPowersEnabled={false}
+                powerCounts={{}}
+                statusText={
+                  !guestPlayer
+                    ? 'Rakip katılması bekleniyor...'
+                    : guestIsActive
+                      ? guestPlayer?.id === playerId
+                        ? 'Hamle sende. En iyi çizgiyi kur.'
+                        : 'Rakibin hamlesi bekleniyor.'
+                      : 'Sıranı bekle, tahtayı oku.'
+                }
+              />
             </>
           )}
         </div>
@@ -861,12 +960,17 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
           roundNumber={room.game.roundNumber}
           winner={room.game.winner}
           isDraw={room.game.isDraw}
+          matchWinner={room.status === 'completed' ? (room.game.winner ?? mySymbol) : null}
+          isForfeit={Boolean(
+            room.game.isForfeit ||
+            (room.status === 'completed' && (!room.game.winningLine || room.game.winningLine.length === 0) && room.game.winner)
+          )}
           scores={{ X: ownerPlayer?.score ?? 0, O: guestPlayer?.score ?? 0 }}
           scoreLabel={isArena ? 'Puan' : 'Skor'}
           resultMessage={roundResultMessage[0]}
-          loserMessage={nextRoundStatusMessage}
+          loserMessage={roundResultMessage[1] || nextRoundStatusMessage}
           onNextRound={handleNextRound}
-          onMenu={onMenu}
+          onMenu={handleOnlineMenuWithLeave}
           nextRoundLabel={nextRoundLabel}
           isNextRoundDisabled={isNextRoundDisabled}
           nextRoundTitle={

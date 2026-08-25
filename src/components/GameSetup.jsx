@@ -5,12 +5,10 @@ import {
   isConnectionError,
   isRoomNotFoundError,
   leaveRoom,
-  ONLINE_UNAVAILABLE_MESSAGE,
   requestRoomJson,
   startRoom,
 } from '../api/roomsApi'
 import { clearOnlineSession } from '../sessionStorage'
-import { BoostModeSetting } from './ArenaSettings'
 import HowToPlay from './HowToPlay'
 import SoundToggle from './SoundToggle'
 import { playSound, registerUserGesture } from '../game/soundManager'
@@ -28,10 +26,10 @@ const arenaTargets = [15, 30, 50, 100]
 
 const SKINS = [
   { id: 'neon', name: 'Siber Neon', icon: '⚡', isFree: true },
-  { id: 'gold', name: 'Altın Efsane', icon: '🌟', isFree: false },
-  { id: 'emerald', name: 'Zümrüt Retro', icon: '🌲', isFree: false },
-  { id: 'cosmic', name: 'Kozmik Mor', icon: '🔮', isFree: false },
-  { id: 'ice', name: 'Buz Kristali', icon: '❄️', isFree: false },
+  { id: 'gold', name: 'Altın Efsane', icon: '🌟', isFree: true },
+  { id: 'emerald', name: 'Zümrüt Retro', icon: '🌲', isFree: true },
+  { id: 'cosmic', name: 'Kozmik Mor', icon: '🔮', isFree: true },
+  { id: 'ice', name: 'Buz Kristali', icon: '❄️', isFree: true },
 ]
 
 // Security: strip HTML/JS injection chars and enforce max length on player names
@@ -65,17 +63,32 @@ function getCurrentOnlinePlayer(room, playerName, preferredSymbol) {
   )
 }
 
+function getInitialDeepLinkRoom() {
+  if (typeof window === 'undefined') return null
+  const params = new URLSearchParams(window.location.search)
+  const roomParam = params.get('room')
+  if (roomParam && IS_ONLINE_ENABLED) {
+    const sanitizedRoom = roomParam.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8)
+    if (isValidRoomCodeInput(sanitizedRoom)) {
+      return sanitizedRoom
+    }
+  }
+  return null
+}
+
 export default function GameSetup({
   onStartGame,
   onStartOnlineGame,
   onSaveOnlineSession,
   restoreMessage,
 }) {
+  const initialDeepLinkRoom = getInitialDeepLinkRoom()
+
   // Mode selection modal states
-  const [activeModal, setActiveModal] = useState(null) // null | 'local_config' | 'online_modal'
+  const [activeModal, setActiveModal] = useState(() => (initialDeepLinkRoom ? 'online_modal' : null))
   const [boardSize, setBoardSize] = useState(3)
   const [gameMode, setGameMode] = useState('classic')
-  const [opponentType, setOpponentType] = useState('ai') // 'ai' | 'human' | 'online'
+  const [opponentType, setOpponentType] = useState(() => (initialDeepLinkRoom ? 'online' : 'ai'))
   const [targetValue, setTargetValue] = useState(5)
   const [isInfinite, setIsInfinite] = useState(false)
   const [isHowToPlayOpen, setIsHowToPlayOpen] = useState(false)
@@ -83,17 +96,17 @@ export default function GameSetup({
   // Online states
   const [createPlayerName, setCreatePlayerName] = useState('')
   const [joinPlayerName, setJoinPlayerName] = useState('')
-  const [joinRoomCode, setJoinRoomCode] = useState('')
-  const [onlineFlow, setOnlineFlow] = useState(null) // null | 'create' | 'join'
+  const [joinRoomCode, setJoinRoomCode] = useState(() => initialDeepLinkRoom ?? '')
+  const [onlineFlow, setOnlineFlow] = useState(() => (initialDeepLinkRoom ? 'join' : null))
   const [onlineLobby, setOnlineLobby] = useState(null)
   const [onlineError, setOnlineError] = useState('')
   const [onlineConnectionMessage, setOnlineConnectionMessage] = useState('')
   const [onlineLoadingAction, setOnlineLoadingAction] = useState(null)
   const [isRoomCodeCopied, setIsRoomCodeCopied] = useState(false)
-  const [onlineBoostMode, setOnlineBoostMode] = useState('random')
+  const [onlineBoostMode] = useState('random')
   const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false)
 
-  // Skin / Cosmetic & Rewarded Ad states
+  // Skin / Cosmetic state
   const [selectedSkin, setSelectedSkin] = useState(() => {
     if (typeof window !== 'undefined') {
       return window.localStorage.getItem('xo-arena-skin') || 'neon'
@@ -101,84 +114,18 @@ export default function GameSetup({
     return 'neon'
   })
 
-  const [unlockedSkins, setUnlockedSkins] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem('xo-arena-unlocked-skins')
-      if (stored) {
-        try {
-          return JSON.parse(stored)
-        } catch {
-          // ignore parsing error
-        }
-      }
-    }
-    return ['neon']
-  })
-
-  const [skinRewardModal, setSkinRewardModal] = useState(null) // null | skin object
-  const [skinRewardCountdown, setSkinRewardCountdown] = useState(3)
-
   function handleSelectSkin(skin) {
     registerUserGesture()
     playSound('click')
-
-    if (skin.isFree || unlockedSkins.includes(skin.id)) {
-      setSelectedSkin(skin.id)
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem('xo-arena-skin', skin.id)
-        document.body.setAttribute('data-skin', skin.id)
-      }
-    } else {
-      // Trigger Mock Rewarded Ad Modal
-      setSkinRewardModal(skin)
-      setSkinRewardCountdown(3)
+    setSelectedSkin(skin.id)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('xo-arena-skin', skin.id)
+      document.body.setAttribute('data-skin', skin.id)
     }
   }
 
-  // Handle Mock Rewarded Ad Countdown for Skin unlock
-  useEffect(() => {
-    if (!skinRewardModal) return undefined
-    const timer = setInterval(() => {
-      setSkinRewardCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer)
-          // Unlock skin
-          setUnlockedSkins((prevUnlocked) => {
-            const newUnlocked = [...prevUnlocked, skinRewardModal.id]
-            if (typeof window !== 'undefined') {
-              window.localStorage.setItem('xo-arena-unlocked-skins', JSON.stringify(newUnlocked))
-            }
-            return newUnlocked
-          })
-          setSelectedSkin(skinRewardModal.id)
-          if (typeof window !== 'undefined') {
-            window.localStorage.setItem('xo-arena-skin', skinRewardModal.id)
-            document.body.setAttribute('data-skin', skinRewardModal.id)
-          }
-          setSkinRewardModal(null)
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-    return () => clearInterval(timer)
-  }, [skinRewardModal])
-
-  // Deep Link Parser on load (?room=ROOMCODE)
   useEffect(() => {
     if (typeof window === 'undefined') return
-    const params = new URLSearchParams(window.location.search)
-    const roomParam = params.get('room')
-    // Security: validate deep-link room code format before using it
-    if (roomParam && IS_ONLINE_ENABLED) {
-      const sanitizedRoom = roomParam.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8)
-      if (isValidRoomCodeInput(sanitizedRoom)) {
-        setOpponentType('online')
-        setActiveModal('online_modal')
-        setOnlineFlow('join')
-        setJoinRoomCode(sanitizedRoom)
-      }
-    }
     const savedSkin = window.localStorage.getItem('xo-arena-skin') || 'neon'
     document.body.setAttribute('data-skin', savedSkin)
   }, [])
@@ -528,20 +475,6 @@ export default function GameSetup({
 
   return (
     <main className="app-shell">
-      {/* ── Mock Rewarded Ad Modal for Skin Unlock ── */}
-      {skinRewardModal && (
-        <div className="interstitial-ad-overlay" style={{ zIndex: 300 }}>
-          <div className="interstitial-ad-card">
-            <span className="ad-badge">ÖDÜLLÜ REKLAM (AdMob Entegrasyonu)</span>
-            <h3>{skinRewardModal.icon} {skinRewardModal.name}</h3>
-            <p>Tema kilidi açılıyor...</p>
-            <div className="ad-countdown">
-              Reklam sonlanıyor: <strong>{skinRewardCountdown}s</strong>
-            </div>
-          </div>
-        </div>
-      )}
-
       <section className="game-card setup-card viral-hub-card">
         {/* Top Sound Action */}
         <div className="setup-quick-actions">
@@ -724,21 +657,18 @@ export default function GameSetup({
               <span className="setup-label">Taş & Tema Görünümü</span>
               <div className="skin-options-row">
                 {SKINS.map((skin) => {
-                  const isUnlocked = skin.isFree || unlockedSkins.includes(skin.id)
                   const isActive = selectedSkin === skin.id
 
                   return (
                     <button
                       key={skin.id}
-                      className={`setup-option skin-option-btn ${isActive ? 'active' : ''} ${!isUnlocked ? 'is-locked-skin' : ''}`}
+                      className={`setup-option skin-option-btn ${isActive ? 'active' : ''}`}
                       type="button"
                       onClick={() => handleSelectSkin(skin)}
-                      title={!isUnlocked ? 'Reklam izleyerek kilidi aç' : undefined}
                     >
                       <span className="skin-btn-content">
                         {skin.icon} {skin.name}
                       </span>
-                      {!skin.isFree && !isUnlocked && <span className="skin-ad-badge">🎬</span>}
                       {isActive && <span className="skin-check-badge">✓</span>}
                     </button>
                   )
@@ -877,35 +807,25 @@ export default function GameSetup({
                       </div>
                     </div>
 
-                    {gameMode === 'arena' && (
-                      <div className="online-arena-create-settings">
-                        <BoostModeSetting
-                          boostMode={onlineBoostMode}
-                          onChange={setOnlineBoostMode}
-                          explained
-                        />
-                      </div>
-                    )}
+                    {/* BoostModeSetting: Boost arka planda hazır, şimdilik UI'da gösterilmiyor */}
 
                     {/* Theme Skin Setting for Host */}
                     <div className="setup-group">
                       <span className="setup-label">Taş & Tema Görünümü</span>
                       <div className="skin-options-row">
                         {SKINS.map((skin) => {
-                          const isUnlocked = skin.isFree || unlockedSkins.includes(skin.id)
                           const isActive = selectedSkin === skin.id
 
                           return (
                             <button
                               key={skin.id}
-                              className={`setup-option skin-option-btn ${isActive ? 'active' : ''} ${!isUnlocked ? 'is-locked-skin' : ''}`}
+                              className={`setup-option skin-option-btn ${isActive ? 'active' : ''}`}
                               type="button"
                               onClick={() => handleSelectSkin(skin)}
                             >
                               <span className="skin-btn-content">
                                 {skin.icon} {skin.name}
                               </span>
-                              {!skin.isFree && !isUnlocked && <span className="skin-ad-badge">🎬</span>}
                               {isActive && <span className="skin-check-badge">✓</span>}
                             </button>
                           )
@@ -973,6 +893,30 @@ export default function GameSetup({
                         disabled={isOnlineLoading}
                         autoComplete="off"
                       />
+                    </div>
+
+                    {/* Theme Skin Setting for Guest */}
+                    <div className="setup-group">
+                      <span className="setup-label">Taş & Tema Görünümü</span>
+                      <div className="skin-options-row">
+                        {SKINS.map((skin) => {
+                          const isActive = selectedSkin === skin.id
+
+                          return (
+                            <button
+                              key={skin.id}
+                              className={`setup-option skin-option-btn ${isActive ? 'active' : ''}`}
+                              type="button"
+                              onClick={() => handleSelectSkin(skin)}
+                            >
+                              <span className="skin-btn-content">
+                                {skin.icon} {skin.name}
+                              </span>
+                              {isActive && <span className="skin-check-badge">✓</span>}
+                            </button>
+                          )
+                        })}
+                      </div>
                     </div>
 
                     <button
