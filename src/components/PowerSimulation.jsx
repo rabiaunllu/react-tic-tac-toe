@@ -4,11 +4,11 @@ import EnergyShieldIcon from './EnergyShieldIcon';
 import ExplosionBlast from './ExplosionBlast';
 
 const POWERS = [
-  { id: 'bomba', icon: '💣', name: 'Bomba', desc: 'Rakibin korumasız taşını patlat!' },
-  { id: 'kalkan', icon: <EnergyShieldIcon size={18} />, name: 'Kalkan', desc: 'Seçilen taşı koru. Sıra geçmez.' },
-  { id: 'karadelik', icon: '🕳️', name: 'Kara Delik', desc: 'Boş kareye gizli tuzak kur. Rakip basarsa taşı kaybolur!' },
-  { id: 'freeze', icon: <CrystalSnowflake size="18px" />, name: 'Dondur', desc: 'Boş kareyi 1 tur kilitle. Sıra geçmez.' },
-  { id: 'vampir', icon: '🧛', name: 'Vampir', desc: 'Rakibin çarpanını kendi taşına çek. Sıra geçmez.' }
+  { id: 'bomba', icon: '💣', name: 'Bomba', desc: 'Rakibin korumasız taşını patlatır.' },
+  { id: 'kalkan', icon: <EnergyShieldIcon size={18} />, name: 'Kalkan', desc: 'Seçilen taşı korur. Sıra geçmez.' },
+  { id: 'karadelik', icon: '🕳️', name: 'Kara Delik', desc: 'Gizli tuzak kurar. Taşı yutar.' },
+  { id: 'freeze', icon: <CrystalSnowflake size="18px" />, name: 'Dondur', desc: 'Kareyi 1 tur kilitler. Sıra geçmez.' },
+  { id: 'vampir', icon: '🧛', name: 'Vampir', desc: 'Çarpanı kendi taşına çeker.' }
 ];
 
 const INITIAL_CELL = {
@@ -30,34 +30,42 @@ const SCENARIOS = {
     { type: 'PATCH', idx: 0, patch: { val: 'X' } },
     { type: 'PATCH', idx: 4, patch: { val: 'O' } },
     { type: 'PATCH', idx: 2, patch: { val: 'X' } },
-    { type: 'PATCH', idx: 6, patch: { val: 'O' } },
+    { type: 'PATCH', idx: 8, patch: { val: 'O' } },
     { type: 'PATCH', idx: 4, patch: { isBombExploding: true } },
     { type: 'PATCH', idx: 4, patch: { val: null, isBombExploding: false, isLocked: true } },
+    { type: 'PATCH', idx: 7, patch: { val: 'O' } },
     { type: 'PATCH', idx: 1, patch: { val: 'X' } },
     { type: 'WIN', indices: [0, 1, 2] }
   ],
   kalkan: [
     { type: 'PATCH', idx: 4, patch: { val: 'X' } },
-    { type: 'PATCH', idx: 4, patch: { isShielded: true } },
-    { type: 'PATCH', idx: 4, patch: { transientEffect: 'psim-deflect' } },
     { type: 'PATCH', idx: 0, patch: { val: 'O' } },
-    { type: 'PATCH', idx: 1, patch: { val: 'X' } }
+    { type: 'PATCH', idx: 4, patch: { isShielded: true, transientEffect: 'psim-deflect' } },
+    { type: 'PATCH', idx: 2, patch: { val: 'X' } },
+    { type: 'PATCH', idx: 6, patch: { val: 'O' } },
+    { type: 'PATCH', idx: 8, patch: { val: 'X' } },
+    { type: 'WIN', indices: [2, 4, 8] }
   ],
   karadelik: [
     { type: 'PATCH', idx: 0, patch: { val: 'X' } },
     { type: 'PATCH', idx: 4, patch: { val: 'O' } },
     { type: 'PATCH', idx: 8, patch: { isTrapped: true } },
     { type: 'PATCH', idx: 8, patch: { isBlackHoleTriggered: true, isTrapped: false } },
-    { type: 'PATCH', idx: 8, patch: { isTrapped: false, isBlackHoleTriggered: false } },
-    { type: 'PATCH', idx: 2, patch: { val: 'X' } }
+    { type: 'PATCH', idx: 8, patch: { isTrapped: false, isBlackHoleTriggered: false, val: null } },
+    { type: 'PATCH', idx: 2, patch: { val: 'X' } },
+    { type: 'PATCH', idx: 6, patch: { val: 'O' } },
+    { type: 'PATCH', idx: 1, patch: { val: 'X' } },
+    { type: 'WIN', indices: [0, 1, 2] }
   ],
   freeze: [
-    { type: 'PATCH', idx: 4, patch: { val: 'X' } },
-    { type: 'PATCH', idx: 0, patch: { val: 'O' } },
-    { type: 'PATCH', idx: 8, patch: { isFrozen: true } },
-    { type: 'PATCH', idx: 8, patch: { transientEffect: 'psim-shake' } },
-    { type: 'PATCH', idx: 2, patch: { val: 'O' } },
-    { type: 'PATCH', idx: 8, patch: { isFrozen: false, val: 'X' } }
+    { type: 'PATCH', idx: 0, patch: { val: 'X' } },
+    { type: 'PATCH', idx: 4, patch: { val: 'O' } },
+    { type: 'PATCH', idx: 8, patch: { isFrozen: true, transientEffect: 'psim-shake' } },
+    { type: 'PATCH', idx: 2, patch: { val: 'X' } },
+    { type: 'PATCH', idx: 6, patch: { val: 'O' } },
+    { type: 'PATCH', idx: 8, patch: { isFrozen: false } },
+    { type: 'PATCH', idx: 1, patch: { val: 'X' } },
+    { type: 'WIN', indices: [0, 1, 2] }
   ],
   vampir: [
     { type: 'PATCH', idx: 0, patch: { val: 'X', mult: 1 } },
@@ -67,7 +75,8 @@ const SCENARIOS = {
       { idx: 4, patch: { mult: 1, isVampireSource: false } },
       { idx: 0, patch: { mult: 3, isVampireTarget: false } }
     ] },
-    { type: 'PATCH', idx: 2, patch: { val: 'O' } },
+    { type: 'PATCH', idx: 2, patch: { val: 'X' } },
+    { type: 'PATCH', idx: 6, patch: { val: 'O' } },
     { type: 'PATCH', idx: 1, patch: { val: 'X' } },
     { type: 'WIN', indices: [0, 1, 2] }
   ]
@@ -146,6 +155,17 @@ export default function PowerSimulation() {
   }, [advanceScenario]);
 
   useEffect(() => {
+    function handleVisibility() {
+      if (document.hidden) {
+        clearTimeout(timerRef.current);
+      } else {
+        clearTimeout(timerRef.current);
+        timerRef.current = setTimeout(() => advanceRef.current?.(), 400);
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibility);
+
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       resetSimulation();
@@ -153,6 +173,7 @@ export default function PowerSimulation() {
     }, 20);
 
     return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
       clearTimeout(timerRef.current);
     };
   }, [activePower, resetSimulation]);

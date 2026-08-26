@@ -3,7 +3,7 @@ import { memo } from 'react'
 const EnergyShieldIcon = memo(function EnergyShieldIcon({
   size = 18,
   className = '',
-  style = {},
+  style,
 }) {
   return (
     <svg

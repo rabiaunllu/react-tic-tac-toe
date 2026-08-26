@@ -145,6 +145,8 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
   const [isRoomInactive, setIsRoomInactive] = useState(false)
   const [isMovePending, setIsMovePending] = useState(false)
   const [isPowerPending, setIsPowerPending] = useState(false)
+  const isMovePendingRef = useRef(false)
+  const isPowerPendingRef = useRef(false)
   const [activePower, setActivePower] = useState(null)
   const [bombEvent, setBombEvent] = useState(null)
   const [blackHoleEvent, setBlackHoleEvent] = useState(null)
@@ -158,13 +160,19 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
     createOnlineRoundMessage(initialOnlineGame.room, initialOnlineGame.symbol)
   )
 
+  const reconnectStartRef = useRef(null)
+
   useEffect(() => {
     if (room.status !== 'reconnecting') {
+      reconnectStartRef.current = null
       return undefined
     }
 
+    reconnectStartRef.current = Date.now()
+
     const timerId = window.setInterval(() => {
-      setReconnectSeconds((current) => Math.max(0, current - 1))
+      const elapsed = Math.floor((Date.now() - reconnectStartRef.current) / 1000)
+      setReconnectSeconds(Math.max(0, 30 - elapsed))
     }, 1000)
 
     return () => window.clearInterval(timerId)
@@ -247,7 +255,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
   const guestIsActive =
     guestPlayer?.symbol === currentSymbol && !isRoundFinished && room.status === 'playing'
   const canRequestNextRound = isRoundFinished && room.status !== 'completed' && !isRoomInactive
-  const winningLine = room.game.winningLine.length > 0 ? room.game.winningLine : null
+  const winningLine = room.game.winningLine?.length > 0 ? room.game.winningLine : null
   const roundResultMessage = onlineRoundMessage ?? ['Tahta ısındı.', 'Rövanş hazır.']
   const nextRoundStatusMessage = hasRequestedNextRound
     ? 'Rakip bekleniyor.'
@@ -292,6 +300,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
   async function submitPowerAction(powerId, targetIndex) {
     setActionError('')
     setIsPowerPending(true)
+    isPowerPendingRef.current = true
 
     try {
       if (powerId === 'vampire') {
@@ -331,12 +340,28 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
 
       applyRoom(nextRoom)
       setActivePower(null)
-      playSound(powerId === 'bomb' ? 'bomb' : powerId === 'trap' ? 'blackhole' : 'power')
+      playSound(
+        powerId === 'bomb'
+          ? 'bomb'
+          : powerId === 'trap'
+            ? 'blackhole'
+            : powerId === 'shield'
+              ? 'shield'
+              : powerId === 'freeze'
+                ? 'freezeActivate'
+                : powerId === 'vampire'
+                  ? 'vampireDrain'
+                  : 'power'
+      )
       setConnectionMessage('')
     } catch (error) {
+      if (powerId === 'vampire') {
+        setVampireTransferEvent(null)
+      }
       handleRoomError(error, setActionError)
     } finally {
       setIsPowerPending(false)
+      isPowerPendingRef.current = false
     }
   }
 
@@ -377,7 +402,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
         return
       }
 
-      submitPowerAction(activePower, index)
+      await submitPowerAction(activePower, index)
       return
     }
 
@@ -387,6 +412,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
 
     setActionError('')
     setIsMovePending(true)
+    isMovePendingRef.current = true
     const currentRoomSnapshot = room
 
     // Optimistic UI Update: Render local move immediately (0ms latency feel!)
@@ -429,6 +455,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
       handleRoomError(error, setActionError)
     } finally {
       setIsMovePending(false)
+      isMovePendingRef.current = false
     }
   }
 
@@ -548,7 +575,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
             multiplier: currMults[gainedTarget] ?? 2,
             id: eventIdRef.current,
           })
-          playSound('power')
+          playSound('vampireDrain')
         }
       }
     }
@@ -581,7 +608,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
       try {
         const nextRoom = await requestRoomJson(`/api/rooms/${roomCode}`)
 
-        if (isPollingActive) {
+        if (isPollingActive && !isMovePendingRef.current && !isPowerPendingRef.current) {
           applyRoom(nextRoom)
           setConnectionMessage('')
           setIsRoomInactive(false)
@@ -846,7 +873,10 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
                 powerTargetIndexes={activePowerTargets}
                 powerTargetLabel={ARENA_POWER_NAMES[activePower]}
                 onSquareClick={handleSquareClick}
-                currentPlayer={mySymbol}
+                currentPlayer={currentSymbol ?? mySymbol}
+                topPlayerSymbol={ownerPlayer?.symbol ?? 'X'}
+                bottomPlayerSymbol={guestPlayer?.symbol ?? 'O'}
+                activePower={activePower}
                 blackHoleEventIndex={blackHoleEvent?.index}
                 bombEventIndex={bombEvent?.index}
                 vampireTransferEvent={vampireTransferEvent}
@@ -910,7 +940,10 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
                 frozenSquares={[]}
                 visibleBoostedSquares={[]}
                 onSquareClick={handleSquareClick}
-                currentPlayer={mySymbol}
+                currentPlayer={currentSymbol ?? mySymbol}
+                topPlayerSymbol={ownerPlayer?.symbol ?? 'X'}
+                bottomPlayerSymbol={guestPlayer?.symbol ?? 'O'}
+                activePower={null}
                 bombEventIndex={null}
                 vampireTransferEvent={null}
               />

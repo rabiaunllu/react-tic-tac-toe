@@ -46,6 +46,8 @@ const defaultBoardSize = 3
 const initialScores = {
   X: 0,
   O: 0,
+  p1: 0,
+  p2: 0,
 }
 
 const initialArenaSettings = {
@@ -152,12 +154,36 @@ export default function App() {
   )
   const isDraw = !winner && isBoardFull(squares)
   const currentPlayer = xIsNext ? 'X' : 'O'
+
+  // Oyuncu İsimleri ve Sırayla X/O Olma (Rotasyon) Mekaniği
+  const player1Name = opponentType === 'ai'
+    ? 'Oyuncu'
+    : (gameConfig?.player1Name?.trim() || '1. Oyuncu')
+  const player2Name = opponentType === 'ai'
+    ? 'Bot'
+    : (gameConfig?.player2Name?.trim() || '2. Oyuncu')
+
+  // Yan Yana (human vs human) modunda:
+  // 1, 3, 5... (Tek) turlarda: 1. Oyuncu = X (başlar), 2. Oyuncu = O
+  // 2, 4, 6... (Çift) turlarda: 2. Oyuncu = X (başlar), 1. Oyuncu = O
+  // Bot modunda: Oyuncu daima X, Bot daima O
+  const isP1X = opponentType === 'human' ? (roundNumber % 2 === 1) : true
+  const p1Symbol = isP1X ? 'X' : 'O'
+  const p2Symbol = isP1X ? 'O' : 'X'
+  const xPlayerName = isP1X ? player1Name : player2Name
+  const oPlayerName = isP1X ? player2Name : player1Name
+
+  const p1Score = scores.p1 ?? scores.X ?? 0
+  const p2Score = scores.p2 ?? scores.O ?? 0
+
+  const winnerPlayerName = winner === 'X' ? xPlayerName : winner === 'O' ? oPlayerName : null
+
   const matchWinner =
     gameConfig && !gameConfig.isInfinite
-      ? scores.X >= gameConfig.targetValue
-        ? 'X'
-        : scores.O >= gameConfig.targetValue
-          ? 'O'
+      ? p1Score >= gameConfig.targetValue
+        ? player1Name
+        : p2Score >= gameConfig.targetValue
+          ? player2Name
           : null
       : null
   const isAiTurn = Boolean(
@@ -191,6 +217,14 @@ export default function App() {
   const vampireTargets = squares
     .map((square, index) => square === currentPlayer && !multipliers[index] ? index : null)
     .filter((index) => index !== null)
+
+  const boardShakeClass = bombEvent
+    ? 'board-shake-bomb'
+    : blackHoleEvent
+      ? 'board-shake-blackhole'
+      : vampireTransferEvent
+        ? 'board-shake-vampire'
+        : ''
 
   const arenaPowerTargets = {
     bomb: squares.flatMap((square, index) =>
@@ -238,9 +272,16 @@ export default function App() {
           nextBoostedSquares
         )
 
+        // Yan Yana modda bu turda kazanan sembol (X veya O) hangi oyuncuya aitse onun puanına ekle
+        const winningPlayerKey = (nextWinner === 'X' ? isP1X : !isP1X) ? 'p1' : 'p2'
+
         setScores((currentScores) => ({
           ...currentScores,
-          [nextWinner]: currentScores[nextWinner] + nextRoundScore,
+          [nextWinner]: (currentScores[nextWinner] ?? 0) + nextRoundScore,
+          [winningPlayerKey]:
+            (currentScores[winningPlayerKey] ??
+              (winningPlayerKey === 'p1' ? (currentScores.X ?? 0) : (currentScores.O ?? 0))) +
+            nextRoundScore,
         }))
         if (opponentType === 'ai' && (gameMode === 'classic' || gameMode === 'arena')) {
   setHumanWinStreak((currentStreak) => {
@@ -267,7 +308,7 @@ export default function App() {
         playSound('draw')
       }
     },
-    [boardSize, winLength, multipliers, multipliersEnabled, boostedSquares,opponentType, gameMode,]
+    [boardSize, winLength, multipliers, multipliersEnabled, boostedSquares, opponentType, gameMode, isP1X]
   )
   function spendPlayerPower(player, powerId) {
     setPlayerPowers((currentPowers) => ({
@@ -340,7 +381,7 @@ export default function App() {
   }
 
   function handleSelectHumanPower(powerId) {
-    if (winner || matchWinner || isDraw || hasUsedPowerThisTurn) {
+    if (winner || matchWinner || isDraw || hasUsedPowerThisTurn || isAiTurn) {
       return
     }
 
@@ -597,7 +638,7 @@ export default function App() {
 
   const handleSquareClick = useCallback((index) => {
     registerUserGesture()
-    if (winner || matchWinner || isDraw) {
+    if (winner || matchWinner || isDraw || isAiTurn) {
       return
     }
 
@@ -1316,13 +1357,15 @@ export default function App() {
   function handleNextRound() {
     registerUserGesture()
     playSound('click')
-    resetGame()
+    const nextRound = roundNumber + 1
+    // Oyuna HER TURDA DAİMA X başlar; Yan Yana modda oyuncular sırayla X ve O olurlar
+    resetGame(arenaSettings, gameMode)
     setActionError('')
     setRewardedPowerClaimed(false)
     setIsRewarding(false)
     setRewardedPowerMessage('')
     setIsRewardedPowerPickerOpen(false)
-    setRoundNumber((currentRound) => currentRound + 1)
+    setRoundNumber(nextRound)
     setIsRoundResultDismissed(false)
   }
 
@@ -1581,7 +1624,7 @@ export default function App() {
         )}
 
         <GameStatus
-          winner={winner}
+          winner={winnerPlayerName}
           isDraw={isDraw}
           xIsNext={xIsNext}
           roundScore={roundScore}
@@ -1605,13 +1648,14 @@ export default function App() {
 
         <div className="arena-board-stack">
           <PowerPanel
-            currentPlayer="X"
-            score={scores.X}
+            currentPlayer={p1Symbol}
+            playerName={player1Name}
+            score={p1Score}
             scoreLabel={scoreLabel}
             powerOptions={powerOptions}
             extraPowerIds={
               isRewardedPowerAvailable
-                ? rewardedPowerIds.filter((powerId) => (playerPowers.X[powerId] ?? 0) > 0)
+                ? rewardedPowerIds.filter((powerId) => (playerPowers[p1Symbol]?.[powerId] ?? 0) > 0)
                 : []
             }
             rewardedPack={
@@ -1628,12 +1672,13 @@ export default function App() {
                   }
                 : null
             }
-            isActivePlayer={currentPlayer === 'X' && !winner && !matchWinner && !isDraw}
+            isActivePlayer={currentPlayer === p1Symbol && !winner && !matchWinner && !isDraw}
+            canInteract={(!isAiTurn || opponentType === 'human') && currentPlayer === p1Symbol && !winner && !matchWinner && !isDraw}
             isPowersEnabled={powersEnabled && !matchWinner}
-            powerCounts={playerPowers.X}
+            powerCounts={playerPowers[p1Symbol]}
             activePower={activePower}
             boostMode={arenaSettings.boostMode}
-            hasUsedPowerThisTurn={hasUsedPowerThisTurn && currentPlayer === 'X'}
+            hasUsedPowerThisTurn={hasUsedPowerThisTurn && currentPlayer === p1Symbol}
             onSelectPower={handleSelectHumanPower}
             onUseRandomBoost={handleRandomBoostPower}
           />
@@ -1652,23 +1697,30 @@ export default function App() {
             onSquareClick={handleSquareClick}
             traps={traps}
             currentPlayer={currentPlayer}
+            topPlayerSymbol={p1Symbol}
+            bottomPlayerSymbol={p2Symbol}
             visibleTrapOwner={opponentType === 'ai' ? 'X' : currentPlayer}
             blackHoleEventIndex={blackHoleEvent?.index}
             bombEventIndex={bombEvent?.index}
             vampireTransferEvent={vampireTransferEvent}
+            shakeClass={boardShakeClass}
+            activePower={activePower}
+            isAiThinking={isAiThinking}
           />
 
           <PowerPanel
-            currentPlayer="O"
-            score={scores.O}
+            currentPlayer={p2Symbol}
+            playerName={player2Name}
+            score={p2Score}
             scoreLabel={scoreLabel}
             powerOptions={powerOptions}
-            isActivePlayer={currentPlayer === 'O' && !winner && !matchWinner && !isDraw}
+            isActivePlayer={currentPlayer === p2Symbol && !winner && !matchWinner && !isDraw}
+            canInteract={opponentType !== 'ai' && !isAiTurn && currentPlayer === p2Symbol && !winner && !matchWinner && !isDraw}
             isPowersEnabled={powersEnabled && !matchWinner}
-            powerCounts={playerPowers.O}
+            powerCounts={playerPowers[p2Symbol]}
             activePower={activePower}
             boostMode={arenaSettings.boostMode}
-            hasUsedPowerThisTurn={hasUsedPowerThisTurn && currentPlayer === 'O'}
+            hasUsedPowerThisTurn={hasUsedPowerThisTurn && currentPlayer === p2Symbol}
             onSelectPower={handleSelectHumanPower}
             onUseRandomBoost={handleRandomBoostPower}
           />
@@ -1688,10 +1740,13 @@ export default function App() {
         (!isRoundResultDismissed || Boolean(matchWinner)) && (
         <RoundResultModal
           roundNumber={roundNumber}
-          winner={winner}
+          winner={winnerPlayerName}
+          winningSymbol={winner}
           isDraw={isDraw}
           matchWinner={matchWinner}
-          scores={scores}
+          scores={{ p1: p1Score, p2: p2Score }}
+          player1Name={player1Name}
+          player2Name={player2Name}
           scoreLabel={scoreLabel}
           resultMessage={resultMessage}
           loserMessage={loserMessage}

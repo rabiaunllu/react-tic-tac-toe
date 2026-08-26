@@ -5,11 +5,335 @@
 /* GPU hardware acceleration for smooth 60fps mobile rendering */
 .game-card,
 .board,
-.square,
 .psim-container,
 .hero-clash-container {
   transform: translateZ(0);
   backface-visibility: hidden;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   A — Screen Shake  (GPU-safe: transform only, no layout reflow)
+   ══════════════════════════════════════════════════════════════ */
+
+@keyframes shake-bomb {
+  0%        { transform: translate(0, 0) rotate(0deg); }
+  10%       { transform: translate(-5px, -3px) rotate(-0.6deg); }
+  22%       { transform: translate(4px,  5px) rotate(0.6deg); }
+  34%       { transform: translate(-4px, -2px) rotate(-0.4deg); }
+  46%       { transform: translate(3px,  4px) rotate(0.3deg); }
+  58%       { transform: translate(-2px, -3px) rotate(-0.2deg); }
+  70%       { transform: translate(2px,  2px) rotate(0.1deg); }
+  82%       { transform: translate(-1px, -1px); }
+  92%       { transform: translate(1px,  0); }
+  100%      { transform: translate(0, 0); }
+}
+
+@keyframes shake-blackhole {
+  0%   { transform: translate(0, 0); }
+  15%  { transform: translate(-3px, -2px); }
+  30%  { transform: translate(3px,  3px); }
+  50%  { transform: translate(-2px, -1px); }
+  70%  { transform: translate(2px,  1px); }
+  85%  { transform: translate(-1px,  0); }
+  100% { transform: translate(0, 0); }
+}
+
+@keyframes shake-vampire {
+  0%   { transform: translate(0, 0); }
+  20%  { transform: translate(-2px, -1px); }
+  40%  { transform: translate(2px,  1px); }
+  60%  { transform: translate(-1px, -1px); }
+  80%  { transform: translate(1px,  0); }
+  100% { transform: translate(0, 0); }
+}
+
+.board-shake-bomb {
+  animation: shake-bomb 0.42s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+.board-shake-blackhole {
+  animation: shake-blackhole 0.30s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+.board-shake-vampire {
+  animation: shake-vampire 0.18s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+/* prefers-reduced-motion: shake devre dışı */
+@media (prefers-reduced-motion: reduce) {
+  .board-shake-bomb,
+  .board-shake-blackhole,
+  .board-shake-vampire {
+    animation: none;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   B — Lightweight CSS Particle Layers (pointer-events: none)
+   ══════════════════════════════════════════════════════════════ */
+
+/* B1: Bomba parçacıkları — 6 kıvılcım merkeze göre farklı açılarda */
+@keyframes spark-fly {
+  0%   { transform: translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(var(--spark-x, 20px), var(--spark-y, -30px)) scale(0); opacity: 0; }
+}
+
+.bomb-spark {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.bomb-spark::before,
+.bomb-spark::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #f59e0b;
+  box-shadow: 0 0 4px #ef4444;
+}
+
+.bomb-spark::before {
+  --spark-x: -22px;
+  --spark-y: -28px;
+  animation: spark-fly 0.45s ease-out both;
+}
+
+.bomb-spark::after {
+  --spark-x: 24px;
+  --spark-y: -20px;
+  animation: spark-fly 0.45s 0.04s ease-out both;
+}
+
+/* B2: Kara delik vortex — içe doğru büzülen halka */
+@keyframes vortex-spin {
+  0%   { transform: rotate(0deg) scale(1); opacity: 0.8; }
+  100% { transform: rotate(360deg) scale(0); opacity: 0; }
+}
+
+.blackhole-vortex {
+  position: absolute;
+  inset: 6px;
+  pointer-events: none;
+  z-index: 10;
+  border-radius: 50%;
+  border: 2px solid rgba(168, 85, 247, 0.7);
+  animation: vortex-spin 0.55s ease-in both;
+}
+
+.blackhole-vortex::before {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(124, 58, 237, 0.5);
+  animation: vortex-spin 0.55s 0.06s ease-in both;
+}
+
+/* B3: Freeze kristal shard parçacıkları */
+@keyframes shard-fall {
+  0%   { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 0.9; }
+  100% { transform: translate(var(--shard-x, 0px), var(--shard-y, 20px)) rotate(var(--shard-r, 45deg)) scale(0.2); opacity: 0; }
+}
+
+.freeze-shard {
+  position: absolute;
+  pointer-events: none;
+  z-index: 10;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 8px;
+  background: linear-gradient(180deg, #bae6fd, #38bdf8);
+  border-radius: 1px;
+}
+
+.freeze-shard:nth-child(1) {
+  --shard-x: -12px; --shard-y: -18px; --shard-r: -30deg;
+  animation: shard-fall 0.6s 0.1s ease-out both;
+}
+
+.freeze-shard:nth-child(2) {
+  --shard-x: 14px; --shard-y: -14px; --shard-r: 40deg;
+  animation: shard-fall 0.6s 0.05s ease-out both;
+}
+
+.freeze-shard:nth-child(3) {
+  --shard-x: 10px; --shard-y: 16px; --shard-r: -50deg;
+  animation: shard-fall 0.65s 0.08s ease-out both;
+}
+
+.freeze-shard:nth-child(4) {
+  --shard-x: -14px; --shard-y: 12px; --shard-r: 35deg;
+  animation: shard-fall 0.6s 0.12s ease-out both;
+}
+
+/* B4: Kazanma hattı shimmer — ::after ile, zero extra DOM */
+@keyframes win-shimmer-sweep {
+  0%   { opacity: 0; transform: scaleX(0); }
+  30%  { opacity: 0.7; }
+  100% { opacity: 0; transform: scaleX(1); }
+}
+
+.winning-square::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent 0%, rgba(114, 245, 164, 0.35) 50%, transparent 100%);
+  transform-origin: left center;
+  animation: win-shimmer-sweep 700ms ease-out 100ms both;
+  pointer-events: none;
+  z-index: 2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .winning-square::after,
+  .bomb-spark::before,
+  .bomb-spark::after,
+  .blackhole-vortex,
+  .blackhole-vortex::before,
+  .freeze-shard {
+    animation: none;
+  }
+}
+
+@keyframes stamp-glow-x {
+  0%   { transform: scale(0.8); opacity: 0.5; }
+  60%  { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes stamp-glow-o {
+  0%   { transform: scale(0.8); opacity: 0.5; }
+  60%  { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.x-mark-square.square-filled .square-value {
+  animation: stamp-glow-x 220ms cubic-bezier(0.2, 1.3, 0.35, 1) both;
+}
+
+.o-mark-square.square-filled .square-value {
+  animation: stamp-glow-o 220ms cubic-bezier(0.2, 1.3, 0.35, 1) both;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   D2 — Güç hedefi renk sistemi: --current-power-color CSS var
+   ══════════════════════════════════════════════════════════════ */
+.power-target-eligible {
+  outline-color: var(--current-power-color, rgba(255, 209, 102, 0.72)) !important;
+  box-shadow:
+    0 0 0 2px var(--current-power-color, rgba(255, 209, 102, 0.3)),
+    inset 0 0 12px rgba(255, 255, 255, 0.05) !important;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   D3 — Dynamic Turn Bridge (X = Üst Köprü, O = Alt Köprü)
+   GPU-Optimized: Sadece transform: scaleX() ve opacity kullanır
+   Layout reflow: 0, 5 Temanın tümüyle (--x-color/--o-color) tam uyumlu
+   ══════════════════════════════════════════════════════════════ */
+.turn-bridge {
+  position: absolute;
+  left: 22px;
+  right: 22px;
+  height: 3.5px;
+  pointer-events: none;
+  z-index: 6;
+  opacity: 0;
+  transform: scaleX(0.65);
+  transition:
+    opacity 240ms ease,
+    transform 280ms cubic-bezier(0.2, 1.2, 0.35, 1);
+}
+
+.turn-bridge--top {
+  top: 0;
+  border-radius: 0 0 5px 5px;
+}
+
+.turn-bridge--bottom {
+  bottom: 0;
+  border-radius: 5px 5px 0 0;
+}
+
+.turn-bridge--x {
+  background-color: var(--x-color, #8cf2ff);
+}
+
+.turn-bridge--x.active {
+  opacity: 0.95;
+  transform: scaleX(1);
+  box-shadow:
+    0 0 14px var(--x-color, #8cf2ff),
+    0 2px 18px rgba(140, 242, 255, 0.45);
+}
+
+.turn-bridge--bottom.turn-bridge--x.active {
+  box-shadow:
+    0 0 14px var(--x-color, #8cf2ff),
+    0 -2px 18px rgba(140, 242, 255, 0.45);
+}
+
+.turn-bridge--o {
+  background-color: var(--o-color, #ff8fc5);
+}
+
+.turn-bridge--o.active {
+  opacity: 0.95;
+  transform: scaleX(1);
+  box-shadow:
+    0 0 14px var(--o-color, #ff8fc5),
+    0 2px 18px rgba(255, 143, 197, 0.45);
+}
+
+.turn-bridge--bottom.turn-bridge--o.active {
+  box-shadow:
+    0 0 14px var(--o-color, #ff8fc5),
+    0 -2px 18px rgba(255, 143, 197, 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .turn-bridge {
+    transition: opacity 120ms ease;
+    transform: none !important;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   D4 — Floating score (+N puan yukarı uçar)
+   ══════════════════════════════════════════════════════════════ */
+@keyframes float-score {
+  0%   { opacity: 1; transform: translate(-50%, 0); }
+  20%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -32px); }
+}
+
+.floating-score {
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translate(-50%, 0);
+  font-size: 11px;
+  font-weight: 800;
+  color: #fde68a;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  z-index: 12;
+  white-space: nowrap;
+  animation: float-score 700ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .floating-score { animation: none; opacity: 0; }
+  .x-mark-square.square-filled .square-value,
+  .o-mark-square.square-filled .square-value { animation: none; }
+  .stamp-glow-x, .stamp-glow-o { animation: none; }
 }
 
 body {
@@ -56,7 +380,6 @@ body::after {
   background-size: 100% 100%;
   animation: drift-particles 25s ease-in-out infinite alternate;
   pointer-events: none;
-  will-change: transform;
 }
 
 @keyframes drift-particles {
@@ -143,10 +466,15 @@ p {
 }
 
 .board {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(var(--board-size), minmax(0, 1fr));
   width: min(100%, 360px);
   gap: 10px;
+}
+
+.board-ai-thinking {
+  pointer-events: none !important;
 }
 
 .board-size-3 {
@@ -1007,14 +1335,13 @@ p {
   text-transform: uppercase;
   cursor: pointer;
   position: relative;
-  overflow: hidden;
-  transition: all 220ms ease;
+  box-shadow: 0 0 20px rgba(140, 242, 255, 0.14), 0 4px 16px rgba(0, 0, 0, 0.3);
   animation: btn-pulse 3s ease-in-out infinite;
 }
 
 @keyframes btn-pulse {
-  0%, 100% { box-shadow: 0 0 20px rgba(140, 242, 255, 0.08), 0 0 40px rgba(140, 242, 255, 0.04); }
-  50%      { box-shadow: 0 0 28px rgba(140, 242, 255, 0.18), 0 0 56px rgba(140, 242, 255, 0.08); }
+  0%, 100% { transform: scale(1); filter: brightness(1); }
+  50%      { transform: scale(1.012); filter: brightness(1.08); }
 }
 
 .start-game-button:hover {
@@ -1494,13 +1821,12 @@ p {
 
 body {
   overflow-x: hidden;
-  background:
-    radial-gradient(circle at 18% 8%, rgba(110, 231, 255, 0.2), transparent 28%),
-    radial-gradient(circle at 82% 20%, rgba(255, 122, 182, 0.16), transparent 30%),
-    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+  background-color: #080b14;
+  background-image:
+    radial-gradient(circle at 18% 8%, rgba(110, 231, 255, 0.15), transparent 28%),
+    radial-gradient(circle at 82% 20%, rgba(255, 122, 182, 0.12), transparent 30%),
     linear-gradient(145deg, #070913 0%, #111725 52%, #090b12 100%);
-  background-size: auto, auto, 34px 34px, 34px 34px, auto;
+  background-attachment: fixed;
 }
 
 .app-shell {
@@ -2066,11 +2392,13 @@ button:focus-visible,
 
 @keyframes power-armed {
   from {
-    box-shadow: 0 0 0 rgba(255, 209, 102, 0);
+    transform: scale(1);
+    filter: brightness(1);
   }
 
   to {
-    box-shadow: 0 0 22px rgba(255, 209, 102, 0.22);
+    transform: scale(1.025);
+    filter: brightness(1.15);
   }
 }
 
@@ -2378,10 +2706,12 @@ button,
 
 @keyframes power-select-pulse {
   0% {
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.3), 0 0 16px rgba(255, 209, 102, 0.3);
+    transform: scale(1);
+    filter: brightness(1);
   }
   100% {
-    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.6), 0 0 28px rgba(255, 209, 102, 0.6);
+    transform: scale(1.025);
+    filter: brightness(1.16);
   }
 }
 
@@ -2515,13 +2845,13 @@ button,
   margin: 10px auto 0;
   border-radius: 999px;
   background: linear-gradient(90deg, transparent, rgba(140, 242, 255, 0.72), rgba(255, 143, 197, 0.52), transparent);
-  box-shadow: 0 0 18px rgba(140, 242, 255, 0.18);
+  box-shadow: 0 0 16px rgba(140, 242, 255, 0.25);
   animation: line-glow 3s ease-in-out infinite alternate;
 }
 
 @keyframes line-glow {
-  from { opacity: 0.7; box-shadow: 0 0 12px rgba(140, 242, 255, 0.12); }
-  to   { opacity: 1;   box-shadow: 0 0 24px rgba(140, 242, 255, 0.28); }
+  from { opacity: 0.65; transform: scaleX(0.95); }
+  to   { opacity: 1;    transform: scaleX(1.05); }
 }
 
 .brand-header p {
@@ -2803,7 +3133,6 @@ button,
   transform: translate(-50%, -50%) scale(0);
   animation: popup-confetti-burst 1.3s cubic-bezier(0.14, 0.85, 0.35, 1) forwards;
   animation-delay: var(--delay, 0s);
-  will-change: transform, opacity;
 }
 
 @keyframes popup-confetti-burst {
@@ -2917,14 +3246,14 @@ button,
   font-family: 'Orbitron', system-ui, sans-serif;
   font-size: 56px;
   font-weight: 900;
-  line-height: 1;
-  text-shadow: 0 0 20px rgba(var(--result-accent-rgb), 0.4);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 0 24px rgba(var(--result-accent-rgb), 0.2);
+  text-shadow: 0 0 16px rgba(var(--result-accent-rgb), 0.45);
   animation: symbol-glow 2s ease-in-out infinite alternate;
 }
 
 @keyframes symbol-glow {
-  from { text-shadow: 0 0 16px rgba(var(--result-accent-rgb), 0.3); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 0 20px rgba(var(--result-accent-rgb), 0.1); }
-  to   { text-shadow: 0 0 28px rgba(var(--result-accent-rgb), 0.5); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 0 32px rgba(var(--result-accent-rgb), 0.22); }
+  from { transform: scale(0.97); opacity: 0.88; }
+  to   { transform: scale(1.03); opacity: 1; }
 }
 
 .round-result-card h2 {
@@ -3324,8 +3653,8 @@ button,
 }
 
 @keyframes selected-glow {
-  from { box-shadow: 0 0 0 1px rgba(18, 245, 220, 0.1), 0 8px 24px rgba(18, 245, 220, 0.1); }
-  to   { box-shadow: 0 0 0 1px rgba(18, 245, 220, 0.15), 0 10px 32px rgba(18, 245, 220, 0.18); }
+  from { opacity: 0.88; }
+  to   { opacity: 1; }
 }
 
 .setup-segment.is-selected small {
@@ -4231,10 +4560,24 @@ button,
 }
 
 .psim-desc {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
-  font-size: 13px;
-  color: #a0a8cc;
-  min-height: 24px;
+  font-size: clamp(11.5px, 3.1vw, 13px);
+  line-height: 1.2;
+  color: #c4cce8;
+  height: 38px;
+  width: 100%;
+  align-self: stretch;
+  padding: 4px 12px;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .psim-win-text {
@@ -5526,11 +5869,11 @@ button,
 @keyframes lockedBombIdle {
   0% {
     transform: scale(0.96) rotate(-2deg);
-    filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.6));
+    filter: brightness(0.95);
   }
   100% {
     transform: scale(1.03) rotate(2deg);
-    filter: drop-shadow(0 0 16px rgba(239, 68, 68, 0.85)) drop-shadow(0 0 8px #fef08a);
+    filter: brightness(1.15);
   }
 }
 
@@ -5661,8 +6004,8 @@ button,
 }
 
 @keyframes reward-pack-glow {
-  from { box-shadow: 0 0 10px rgba(250, 183, 56, 0.2); }
-  to { box-shadow: 0 0 22px rgba(250, 183, 56, 0.56); }
+  from { transform: scale(1); filter: brightness(1); }
+  to   { transform: scale(1.06); filter: brightness(1.15); }
 }
 
 /* ══════════════════════════════════════════════
@@ -5894,7 +6237,9 @@ button,
   width: min(440px, 100%);
   max-height: calc(100vh - 32px);
   overflow-y: auto;
+  overflow-x: hidden;
   overscroll-behavior: contain;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -5913,6 +6258,12 @@ button,
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6),
               inset 0 1px 0 rgba(255, 255, 255, 0.12),
               0 0 50px rgba(127, 0, 255, 0.1);
+}
+
+.viral-modal-card--compact {
+  width: min(380px, 100%);
+  gap: 16px;
+  padding: 24px 20px;
 }
 
 @keyframes modal-pop-up {
@@ -5991,6 +6342,121 @@ button,
 .viral-btn-secondary:hover {
   background: rgba(255, 255, 255, 0.12);
   color: #ffffff;
+}
+
+/* Player Names in Local PvP Setup Modal */
+.player-names-setup-group {
+  margin-bottom: 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.setup-player-names-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.setup-name-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  padding: 8px 12px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.setup-name-input-wrapper--p1 {
+  background: color-mix(in srgb, var(--x-color, #8cf2ff) 7%, rgba(15, 18, 30, 0.85));
+  border-color: color-mix(in srgb, var(--x-color, #8cf2ff) 30%, transparent);
+}
+
+.setup-name-input-wrapper--p1:hover {
+  background: color-mix(in srgb, var(--x-color, #8cf2ff) 12%, rgba(15, 18, 30, 0.85));
+  border-color: color-mix(in srgb, var(--x-color, #8cf2ff) 50%, transparent);
+}
+
+.setup-name-input-wrapper--p1:focus-within {
+  border-color: var(--x-color, #8cf2ff);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--x-color, #8cf2ff) 35%, transparent),
+              inset 0 0 12px color-mix(in srgb, var(--x-color, #8cf2ff) 8%, transparent);
+  background: color-mix(in srgb, var(--x-color, #8cf2ff) 14%, rgba(15, 18, 30, 0.9));
+}
+
+.setup-name-input-wrapper--p2 {
+  background: color-mix(in srgb, var(--o-color, #ff8fc5) 7%, rgba(15, 18, 30, 0.85));
+  border-color: color-mix(in srgb, var(--o-color, #ff8fc5) 30%, transparent);
+}
+
+.setup-name-input-wrapper--p2:hover {
+  background: color-mix(in srgb, var(--o-color, #ff8fc5) 12%, rgba(15, 18, 30, 0.85));
+  border-color: color-mix(in srgb, var(--o-color, #ff8fc5) 50%, transparent);
+}
+
+.setup-name-input-wrapper--p2:focus-within {
+  border-color: var(--o-color, #ff8fc5);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--o-color, #ff8fc5) 35%, transparent),
+              inset 0 0 12px color-mix(in srgb, var(--o-color, #ff8fc5) 8%, transparent);
+  background: color-mix(in srgb, var(--o-color, #ff8fc5) 14%, rgba(15, 18, 30, 0.9));
+}
+
+.setup-name-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: 800;
+  flex-shrink: 0;
+  transition: all 0.25s ease;
+}
+
+.setup-name-badge--p1 {
+  background: color-mix(in srgb, var(--x-color, #8cf2ff) 22%, transparent);
+  color: var(--x-color, #8cf2ff);
+  border: 1px solid color-mix(in srgb, var(--x-color, #8cf2ff) 60%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--x-color, #8cf2ff) 25%, transparent);
+}
+
+.setup-name-badge--p2 {
+  background: color-mix(in srgb, var(--o-color, #ff8fc5) 22%, transparent);
+  color: var(--o-color, #ff8fc5);
+  border: 1px solid color-mix(in srgb, var(--o-color, #ff8fc5) 60%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--o-color, #ff8fc5) 25%, transparent);
+}
+
+.setup-name-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #f1f5f9;
+  font-size: 14.5px;
+  font-weight: 600;
+  outline: none;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.setup-name-input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+  font-weight: 400;
+}
+
+.setup-rotation-hint {
+  display: block;
+  font-size: 11.5px;
+  color: #94a3b8;
+  margin-top: 8px;
+  text-align: center;
+  line-height: 1.4;
 }
 
 /* Online Choice Cards in Modal */
@@ -6166,11 +6632,11 @@ body[data-skin="neon"] {
 }
 body[data-skin="neon"] .x-mark-square .square-value {
   color: #8cf2ff;
-  text-shadow: 0 0 18px rgba(140, 242, 255, 0.7);
+  text-shadow: 0 0 12px rgba(140, 242, 255, 0.7);
 }
 body[data-skin="neon"] .o-mark-square .square-value {
   color: #ff8fc5;
-  text-shadow: 0 0 18px rgba(255, 143, 197, 0.7);
+  text-shadow: 0 0 12px rgba(255, 143, 197, 0.7);
 }
 
 /* 2. Gold Legend Theme (🌟 Imperial Gold & Royal Amethyst) */
@@ -6180,11 +6646,11 @@ body[data-skin="gold"] {
 }
 body[data-skin="gold"] .x-mark-square .square-value {
   color: #fbbf24;
-  text-shadow: 0 0 18px rgba(251, 191, 36, 0.8), 0 0 30px rgba(251, 191, 36, 0.4);
+  text-shadow: 0 0 12px rgba(251, 191, 36, 0.85);
 }
 body[data-skin="gold"] .o-mark-square .square-value {
   color: #c084fc;
-  text-shadow: 0 0 18px rgba(192, 132, 252, 0.8), 0 0 30px rgba(192, 132, 252, 0.4);
+  text-shadow: 0 0 12px rgba(192, 132, 252, 0.85);
 }
 
 /* 3. Emerald Retro Theme (🌲 Matrix Emerald & Cyber Amber) */
@@ -6194,11 +6660,11 @@ body[data-skin="emerald"] {
 }
 body[data-skin="emerald"] .x-mark-square .square-value {
   color: #34d399;
-  text-shadow: 0 0 18px rgba(52, 211, 153, 0.8), 0 0 30px rgba(52, 211, 153, 0.4);
+  text-shadow: 0 0 12px rgba(52, 211, 153, 0.85);
 }
 body[data-skin="emerald"] .o-mark-square .square-value {
   color: #fb923c;
-  text-shadow: 0 0 18px rgba(251, 146, 60, 0.8), 0 0 30px rgba(251, 146, 60, 0.4);
+  text-shadow: 0 0 12px rgba(251, 146, 60, 0.85);
 }
 
 /* 4. Cosmic Purple Theme (🔮 Deep Cosmic Violet & Electric Teal) */
@@ -6208,11 +6674,11 @@ body[data-skin="cosmic"] {
 }
 body[data-skin="cosmic"] .x-mark-square .square-value {
   color: #a855f7;
-  text-shadow: 0 0 18px rgba(168, 85, 247, 0.8), 0 0 30px rgba(168, 85, 247, 0.4);
+  text-shadow: 0 0 12px rgba(168, 85, 247, 0.85);
 }
 body[data-skin="cosmic"] .o-mark-square .square-value {
   color: #2dd4bf;
-  text-shadow: 0 0 18px rgba(45, 212, 191, 0.8), 0 0 30px rgba(45, 212, 191, 0.4);
+  text-shadow: 0 0 12px rgba(45, 212, 191, 0.85);
 }
 
 /* 5. Ice Crystal Theme (❄️ Glacial Frost Blue & Frost Ruby Ice) */
@@ -6222,11 +6688,11 @@ body[data-skin="ice"] {
 }
 body[data-skin="ice"] .x-mark-square .square-value {
   color: #60a5fa;
-  text-shadow: 0 0 18px rgba(96, 165, 250, 0.8), 0 0 30px rgba(96, 165, 250, 0.4);
+  text-shadow: 0 0 12px rgba(96, 165, 250, 0.85);
 }
 body[data-skin="ice"] .o-mark-square .square-value {
   color: #fb7185;
-  text-shadow: 0 0 18px rgba(251, 113, 133, 0.8), 0 0 30px rgba(251, 113, 133, 0.4);
+  text-shadow: 0 0 12px rgba(251, 113, 133, 0.85);
 }
 
 /* ══════════════════════════════════════════════

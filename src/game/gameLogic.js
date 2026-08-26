@@ -83,9 +83,57 @@ export function calculateRoundScore(
   }
 
   return winningLine.reduce((total, cellIndex) => {
-    const cellScore = multipliers[cellIndex] || 1
+    const cellScore = multipliers?.[cellIndex] || 1
     const boostMultiplier = boostedSquares.includes(cellIndex) ? 2 : 1
 
     return total + cellScore * boostMultiplier
   }, 0)
 }
+
+export function hasNearMissThreat(squares, boardSize = 3, winLength = 3, player = 'X') {
+  const directions = [
+    [0, 1],
+    [1, 0],
+    [1, 1],
+    [1, -1],
+  ]
+
+  for (let row = 0; row < boardSize; row += 1) {
+    for (let column = 0; column < boardSize; column += 1) {
+      for (const [rowStep, columnStep] of directions) {
+        const endRow = row + rowStep * (winLength - 1)
+        const endColumn = column + columnStep * (winLength - 1)
+
+        if (
+          endRow < 0 ||
+          endRow >= boardSize ||
+          endColumn < 0 ||
+          endColumn >= boardSize
+        ) {
+          continue
+        }
+
+        let playerCount = 0
+        let emptyCount = 0
+
+        for (let offset = 0; offset < winLength; offset += 1) {
+          const lineRow = row + rowStep * offset
+          const lineColumn = column + columnStep * offset
+          const val = squares[lineRow * boardSize + lineColumn]
+          if (val === player) {
+            playerCount += 1
+          } else if (!val) {
+            emptyCount += 1
+          }
+        }
+
+        if (playerCount === winLength - 1 && emptyCount === 1) {
+          return true
+        }
+      }
+    }
+  }
+
+  return false
+}
+

@@ -1,4 +1,6 @@
-export default function GameStatus({
+import { memo } from 'react'
+
+const GameStatus = memo(function GameStatus({
   winner,
   isDraw,
   roundScore,
@@ -56,4 +58,6 @@ export default function GameStatus({
   }
 
   return null
-}
+})
+
+export default GameStatus

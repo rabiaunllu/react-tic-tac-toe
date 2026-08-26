@@ -1,4 +1,6 @@
-export default function RoundResultPreviewBar({
+import { memo } from 'react'
+
+const RoundResultPreviewBar = memo(function RoundResultPreviewBar({
   onNextRound,
   nextRoundLabel = 'Sonraki Tur',
   isNextRoundDisabled = false,
@@ -26,4 +28,6 @@ export default function RoundResultPreviewBar({
       </button>
     </section>
   )
-}
+})
+
+export default RoundResultPreviewBar

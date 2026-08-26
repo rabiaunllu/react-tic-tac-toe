@@ -3,7 +3,7 @@ import { memo } from 'react'
 const ExplosionBlast = memo(function ExplosionBlast({
   className = '',
   size = '100%',
-  style = {},
+  style,
 }) {
   return (
     <svg

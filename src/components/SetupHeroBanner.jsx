@@ -1,4 +1,6 @@
-export default function SetupHeroBanner({ compact = false }) {
+import { memo } from 'react'
+
+const SetupHeroBanner = memo(function SetupHeroBanner({ compact = false }) {
   return (
     <div className={`hero-banner-container${compact ? ' hero-banner-container--compact' : ''}`}>
       {/* Clash Animation */}
@@ -9,4 +11,6 @@ export default function SetupHeroBanner({ compact = false }) {
       </div>
     </div>
   );
-}
+})
+
+export default SetupHeroBanner

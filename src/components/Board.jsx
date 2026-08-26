@@ -12,6 +12,8 @@ const Board = memo(function Board({
   visibleBoostedSquares,
   traps = [],
   currentPlayer,
+  topPlayerSymbol = 'X',
+  bottomPlayerSymbol = 'O',
   visibleTrapOwner = currentPlayer,
   blackHoleEventIndex,
   bombEventIndex,
@@ -19,9 +21,18 @@ const Board = memo(function Board({
   powerTargetIndexes = null,
   powerTargetLabel,
   onSquareClick,
+  shakeClass = '',
+  lastPlacedIndex = null,
+  activePower = null,
+  isAiThinking = false,
 }) {
   const supportedBoardSizes = [3, 4, 5]
   const safeBoardSize = supportedBoardSizes.includes(boardSize) ? boardSize : 3
+
+  const isTopActive = Boolean(currentPlayer && currentPlayer === topPlayerSymbol)
+  const isBottomActive = Boolean(currentPlayer && currentPlayer === bottomPlayerSymbol)
+  const topColorClass = topPlayerSymbol === 'O' ? 'turn-bridge--o' : 'turn-bridge--x'
+  const bottomColorClass = bottomPlayerSymbol === 'X' ? 'turn-bridge--x' : 'turn-bridge--o'
 
   const isVampireActive = Boolean(
     vampireTransferEvent &&
@@ -44,8 +55,33 @@ const Board = memo(function Board({
     }
   }
 
+  // Power-based target outline color for micro-interaction D2
+  const powerColorMap = {
+    bomb: 'var(--power-bomb-color, #ef4444)',
+    shield: 'var(--power-shield-color, #60a5fa)',
+    trap: 'var(--power-trap-color, #a855f7)',
+    freeze: 'var(--power-freeze-color, #22d3ee)',
+    vampire: 'var(--power-vampire-color, #c084fc)',
+    boost: 'var(--power-boost-color, #fbbf24)',
+  }
+  const activePowerColor = activePower ? powerColorMap[activePower] : null
+
   return (
-    <div className={`board board-size-${safeBoardSize}`}>
+    <div
+      className={`board board-size-${safeBoardSize}${shakeClass ? ` ${shakeClass}` : ''}${
+        isAiThinking ? ' board-ai-thinking' : ''
+      }`}
+      style={activePowerColor ? { '--current-power-color': activePowerColor } : undefined}
+    >
+      {/* D3: Dynamic Turn Bridge — Sırası gelen oyuncunun panel yönünde ve sembol renginde parlar */}
+      <div
+        className={`turn-bridge turn-bridge--top ${topColorClass} ${isTopActive ? 'active' : ''}`}
+        aria-hidden="true"
+      />
+      <div
+        className={`turn-bridge turn-bridge--bottom ${bottomColorClass} ${isBottomActive ? 'active' : ''}`}
+        aria-hidden="true"
+      />
       {squares.map((square, index) => {
         const visibleTrap = traps.find(
           (trap) => trap.index === index && trap.owner === visibleTrapOwner
@@ -76,6 +112,7 @@ const Board = memo(function Board({
             isPowerTargeting={isPowerTargeting}
             isPowerTarget={isPowerTarget}
             powerTargetLabel={powerTargetLabel}
+            isLastPlaced={index === lastPlacedIndex}
             onSquareClick={onSquareClick}
           />
         )

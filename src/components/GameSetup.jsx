@@ -93,6 +93,10 @@ export default function GameSetup({
   const [isInfinite, setIsInfinite] = useState(false)
   const [isHowToPlayOpen, setIsHowToPlayOpen] = useState(false)
   
+  // Local PvP player names
+  const [player1Name, setPlayer1Name] = useState('1. Oyuncu')
+  const [player2Name, setPlayer2Name] = useState('2. Oyuncu')
+  
   // Online states
   const [createPlayerName, setCreatePlayerName] = useState('')
   const [joinPlayerName, setJoinPlayerName] = useState('')
@@ -225,7 +229,19 @@ export default function GameSetup({
       targetValue: isInfinite ? null : targetValue,
       isInfinite,
       opponentType,
+      player1Name: opponentType === 'ai' ? 'Oyuncu' : (player1Name.trim() || '1. Oyuncu'),
+      player2Name: opponentType === 'ai' ? 'Bot' : (player2Name.trim() || '2. Oyuncu'),
     })
+  }
+
+  function handleConfigSubmit() {
+    registerUserGesture()
+    playSound('click')
+    if (opponentType === 'human') {
+      setActiveModal('player_names')
+    } else {
+      handleStartGame()
+    }
   }
 
   function saveOnlineLobby(room, player, playerName, playerSecret) {
@@ -683,11 +699,67 @@ export default function GameSetup({
             </div>
 
             <div className="viral-modal-actions">
-              <button type="button" className="viral-btn-secondary" onClick={closeModal}>
-                Vazgeç
-              </button>
-              <button type="button" className="start-game-button" onClick={handleStartGame}>
+              <button type="button" className="start-game-button" onClick={handleConfigSubmit}>
                 ▶ OYUNA BAŞLA
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════
+          MODAL A.2: LOCAL PVP PLAYER NAMES MINI MODAL
+         ════════════════════════════════════════════════════════ */}
+      {activeModal === 'player_names' && (
+        <div className="viral-modal-overlay" role="presentation" onClick={closeModal}>
+          <div
+            className="viral-modal-card viral-modal-card--compact"
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button type="button" className="viral-modal-close" onClick={closeModal}>×</button>
+
+            <div className="viral-modal-header">
+              <span className="viral-modal-icon">👥</span>
+              <h2>OYUNCU İSİMLERİ</h2>
+              <p>İsimleri belirle ve maça başla</p>
+            </div>
+
+            <div className="setup-group player-names-setup-group">
+              <div className="setup-player-names-grid">
+                <div className="setup-name-input-wrapper setup-name-input-wrapper--p1">
+                  <span className="setup-name-badge setup-name-badge--p1">1</span>
+                  <input
+                    type="text"
+                    className="setup-name-input"
+                    value={player1Name}
+                    onChange={(e) => setPlayer1Name(sanitizePlayerName(e.target.value))}
+                    placeholder="1. Oyuncu (1. Tur X)"
+                    maxLength={MAX_NAME_LENGTH}
+                    autoFocus
+                  />
+                </div>
+                <div className="setup-name-input-wrapper setup-name-input-wrapper--p2">
+                  <span className="setup-name-badge setup-name-badge--p2">2</span>
+                  <input
+                    type="text"
+                    className="setup-name-input"
+                    value={player2Name}
+                    onChange={(e) => setPlayer2Name(sanitizePlayerName(e.target.value))}
+                    placeholder="2. Oyuncu (1. Tur O)"
+                    maxLength={MAX_NAME_LENGTH}
+                  />
+                </div>
+              </div>
+              <small className="setup-rotation-hint">
+                🔄 Her tur X ve O sırası değişir; oyuna her zaman X başlar.
+              </small>
+            </div>
+
+            <div className="viral-modal-actions">
+              <button type="button" className="start-game-button" onClick={handleStartGame}>
+                ▶ MAÇI BAŞLAT
               </button>
             </div>
           </div>

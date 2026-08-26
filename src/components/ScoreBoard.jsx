@@ -1,4 +1,6 @@
-export default function ScoreBoard({ scores, scoreLabel = 'Skor', onResetScores }) {
+import { memo } from 'react'
+
+const ScoreBoard = memo(function ScoreBoard({ scores, scoreLabel = 'Skor', onResetScores }) {
   return (
     <section className="score-board" aria-label={`${scoreLabel} tablosu`}>
       <div className="score-card x-score">
@@ -16,4 +18,6 @@ export default function ScoreBoard({ scores, scoreLabel = 'Skor', onResetScores 
       </div>
     </section>
   )
-}
+})
+
+export default ScoreBoard
