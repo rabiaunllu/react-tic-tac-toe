@@ -88,11 +88,9 @@ export default function PowerPanel({
         <small>
           {statusText ?? (isPowersEnabled
             ? isActivePlayer
-              ? hasUsedPowerThisTurn
-                ? '🔒 Güç kullanıldı! Şimdi tahtaya normal taşını koy.'
-                : activePower
-                  ? 'Aktif güç seçildi. Hedef kareye tıkla.'
-                  : 'Hamle sende. Güç seç veya taş koy.'
+              ? activePower
+                ? 'Aktif güç seçildi. Hedef kareye tıkla.'
+                : 'Hamle sende. Güç seç veya taş koy.'
               : 'Rakibin hamlesi bekleniyor.'
             : isActivePlayer
               ? 'Hamle sende. En iyi çizgiyi kur.'

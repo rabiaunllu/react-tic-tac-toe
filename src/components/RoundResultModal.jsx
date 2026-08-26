@@ -5,6 +5,7 @@ import WinConfetti from './WinConfetti'
 export default function RoundResultModal({
   roundNumber,
   winner,
+  winningSymbol = winner,
   isDraw,
   matchWinner,
   isForfeit = false,
@@ -12,6 +13,8 @@ export default function RoundResultModal({
   scoreLabel,
   resultMessage,
   loserMessage,
+  player1Name,
+  player2Name,
   onNextRound,
   onNewMatch,
   onMenu,
@@ -59,17 +62,22 @@ export default function RoundResultModal({
         ? `${displayedWinner} MAÇI KAZANDI`
         : `${displayedWinner} TURU KAZANDI`
 
-  const symbol = isForfeitWin ? '🏆' : isDraw ? '=' : displayedWinner
+  const symbol = isForfeitWin ? '🏆' : isDraw ? '=' : (winningSymbol || '🏆')
   const symbolModifier = isForfeitWin
     ? 'x'
     : isDraw
       ? 'draw'
-      : displayedWinner?.toLowerCase() ?? 'x'
+      : (winningSymbol?.toLowerCase() || 'x')
+
+  const p1ScoreVal = scores?.p1 ?? scores?.X ?? 0
+  const p2ScoreVal = scores?.p2 ?? scores?.O ?? 0
+  const p1Label = player1Name ? `${player1Name}` : `X ${scoreLabel}`
+  const p2Label = player2Name ? `${player2Name}` : `O ${scoreLabel}`
 
   async function handleShareScore() {
     registerUserGesture()
     playSound('click')
-    const shareText = `🎮 XO ARENA ${heading}! ${resultLabel} (${scores.X} - ${scores.O}). Sen de meydan oku: ${window.location.href}`
+    const shareText = `🎮 XO ARENA ${heading}! ${resultLabel} (${p1Label}: ${p1ScoreVal} - ${p2Label}: ${p2ScoreVal}). Sen de meydan oku: ${window.location.href}`
 
     if (typeof navigator !== 'undefined' && navigator.share) {
       try {
@@ -136,17 +144,17 @@ export default function RoundResultModal({
 
         <h2 id="round-result-title">{resultLabel}</h2>
 
-        <div className="round-result-score" aria-label={`Skor ${scores.X} - ${scores.O}`}>
+        <div className="round-result-score" aria-label={`Skor ${p1ScoreVal} - ${p2ScoreVal}`}>
           <div>
-            <strong>{scores.X}</strong>
-            <span>X {scoreLabel}</span>
+            <strong>{p1ScoreVal}</strong>
+            <span>{p1Label}</span>
           </div>
 
           <span aria-hidden="true">VS</span>
 
           <div>
-            <strong>{scores.O}</strong>
-            <span>O {scoreLabel}</span>
+            <strong>{p2ScoreVal}</strong>
+            <span>{p2Label}</span>
           </div>
         </div>
 

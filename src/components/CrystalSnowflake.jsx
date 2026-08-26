@@ -3,7 +3,7 @@ import { memo } from 'react'
 const CrystalSnowflake = memo(function CrystalSnowflake({
   className = '',
   size = '100%',
-  style = {},
+  style,
 }) {
   return (
     <svg

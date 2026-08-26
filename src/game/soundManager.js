@@ -35,7 +35,7 @@ function playTone({ frequency, duration, delay = 0, type = 'sine', volume = 0.04
     return
   }
 
-  const startTime = context.currentTime + delay
+  const startTime = Math.max(context.currentTime + delay, context.currentTime + 0.005)
   const oscillator = context.createOscillator()
   const gainNode = context.createGain()
 
@@ -54,6 +54,11 @@ function playTone({ frequency, duration, delay = 0, type = 'sine', volume = 0.04
   gainNode.connect(context.destination)
   oscillator.start(startTime)
   oscillator.stop(startTime + duration + 0.02)
+
+  oscillator.onended = () => {
+    oscillator.disconnect()
+    gainNode.disconnect()
+  }
 }
 
 export function isSoundEnabled() {
@@ -92,6 +97,11 @@ export function triggerHaptic(type) {
     else if (type === 'bomb') navigator.vibrate([40, 30, 60])
     else if (type === 'blackhole') navigator.vibrate([60, 40, 80])
     else if (type === 'power') navigator.vibrate(30)
+    else if (type === 'shield') navigator.vibrate(15)
+    else if (type === 'freezeActivate') navigator.vibrate([20, 10, 20])
+    else if (type === 'vampireDrain') navigator.vibrate([25, 15, 35])
+    else if (type === 'nearMiss') navigator.vibrate([30, 20, 50])
+    else if (type === 'streak') navigator.vibrate([50, 30, 50, 30, 80])
     else if (type === 'win') navigator.vibrate([80, 50, 80, 50, 120])
     else if (type === 'draw') navigator.vibrate([40, 40, 40])
   } catch {
@@ -153,6 +163,45 @@ export function playSound(effect) {
     if (effect === 'blackhole') {
       playTone({ frequency: 360, slideTo: 92, duration: 0.16, type: 'sine', volume: 0.026 })
       playTone({ frequency: 180, slideTo: 68, duration: 0.14, delay: 0.035, type: 'triangle', volume: 0.018 })
+      return
+    }
+
+    // ── Yeni ses efektleri ──────────────────────────────────────────────────
+
+    // Kalkan aktifleştirme: kristal glissando (880 → 1760 Hz)
+    if (effect === 'shield') {
+      playTone({ frequency: 880, slideTo: 1760, duration: 0.055, type: 'sine', volume: 0.018 })
+      playTone({ frequency: 1320, duration: 0.04, delay: 0.04, type: 'triangle', volume: 0.010 })
+      return
+    }
+
+    // Freeze aktifleştirme: kısa noise burst hissi + kristal blip
+    if (effect === 'freezeActivate') {
+      playTone({ frequency: 1800, slideTo: 2400, duration: 0.03, type: 'triangle', volume: 0.014 })
+      playTone({ frequency: 2000, duration: 0.02, delay: 0.025, type: 'sine', volume: 0.012 })
+      playTone({ frequency: 1400, slideTo: 900, duration: 0.06, delay: 0.045, type: 'sine', volume: 0.010 })
+      return
+    }
+
+    // Vampir emme: enerji sweep (200 → 800 Hz, belirgin yükseliş)
+    if (effect === 'vampireDrain') {
+      playTone({ frequency: 200, slideTo: 800, duration: 0.11, type: 'sine', volume: 0.022 })
+      playTone({ frequency: 300, slideTo: 1000, duration: 0.09, delay: 0.03, type: 'triangle', volume: 0.014 })
+      return
+    }
+
+    // Near-miss: dramatik düşüş (440 → 220 Hz) — 1 hamle kalsaydı kazanıyordun hissi
+    if (effect === 'nearMiss') {
+      playTone({ frequency: 440, slideTo: 220, duration: 0.14, type: 'sine', volume: 0.022 })
+      playTone({ frequency: 330, slideTo: 165, duration: 0.12, delay: 0.06, type: 'triangle', volume: 0.014 })
+      return
+    }
+
+    // Seri galibiyet (3+): majör arpej C5 → E5 → G5
+    if (effect === 'streak') {
+      playTone({ frequency: 523.25, duration: 0.07, type: 'sine', volume: 0.026 })         // C5
+      playTone({ frequency: 659.25, duration: 0.08, delay: 0.065, type: 'sine', volume: 0.028 }) // E5
+      playTone({ frequency: 783.99, duration: 0.10, delay: 0.135, type: 'triangle', volume: 0.030 }) // G5
       return
     }
 

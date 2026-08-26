@@ -30,29 +30,21 @@ The repository's SEO files use `https://xo-arena.azurewebsites.net` as the produ
 
 In Google Search Console, add and verify the exact production site property, submit the deployed `/sitemap.xml` in **Sitemaps**, then inspect the home URL with **URL Inspection** and choose **Request indexing**. Indexing is not immediate or guaranteed; Google decides when to crawl and show the site.
 
-## Exact local build and publish commands
+## Local build and publish command
 
-Run these from the repository root in PowerShell:
-
-```powershell
-$env:VITE_BASE_PATH = '/'
-$env:VITE_ENABLE_ONLINE = 'true'
-Remove-Item Env:VITE_API_BASE_URL -ErrorAction SilentlyContinue
-npm run build
-
-Remove-Item .\server\XoArena.Api\wwwroot -Recurse -Force -ErrorAction SilentlyContinue
-New-Item -ItemType Directory .\server\XoArena.Api\wwwroot | Out-Null
-Copy-Item .\dist\* .\server\XoArena.Api\wwwroot -Recurse -Force
-
-dotnet publish .\server\XoArena.Api -c Release -o .\server\XoArena.Api\publish -p:UseAppHost=false
-Test-Path .\server\XoArena.Api\publish\wwwroot\index.html
-```
-
-The final command must return `True`. Alternatively, the repository script performs the same sequence and verifies the file:
+Run this single command from the repository root in PowerShell:
 
 ```powershell
 .\scripts\Publish-AppService.ps1
 ```
+
+Or via npm:
+
+```powershell
+npm run publish:azure
+```
+
+The script automatically sets the required environment variables (`VITE_ENABLE_ONLINE=true`, `VITE_BASE_PATH=/`, `VITE_API_BASE_URL=''`), builds the frontend, copies the assets to `server\XoArena.Api\wwwroot`, runs `dotnet publish`, verifies that `publish\wwwroot\index.html` exists, and restores your original environment variables.
 
 `wwwroot` and `publish` are generated and ignored by Git. Do not commit them.
 
