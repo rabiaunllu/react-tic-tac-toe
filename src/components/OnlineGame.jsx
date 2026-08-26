@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   getRoomStatusText,
-  isConnectionError,
   isRoomNotFoundError,
   leaveRoom,
   requestRoomJson,
   startRoom,
 } from '../api/roomsApi'
+import { useGameSync } from '../api/useGameSync'
 import { clearOnlineSession, writeOnlineSession } from '../sessionStorage'
 import Board from './Board'
 import PowerPanel from './PowerPanel'
@@ -593,75 +593,30 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
     previousRoomRef.current = room
   }, [room])
 
-  // Adaptive Polling Effect: Fast detection when waiting for opponent, reduced server load on my turn or completed game
-  useEffect(() => {
-    let isPollingActive = true
-    let timeoutId = null
-
-    async function pollRoom() {
-      // Security/Performance: Skip polling when tab is hidden
-      if (document.visibilityState === 'hidden') {
-        scheduleNextPoll()
-        return
+  // Hybrid Real-time Synchronization (SignalR WebSocket + Adaptive Polling Fallback)
+  useGameSync({
+    roomCode,
+    playerId,
+    playerSecret,
+    onRoomUpdate: applyRoom,
+    onConnectionMessage: setConnectionMessage,
+    onRoomInactive: (inactive) => {
+      if (inactive) {
+        clearOnlineSession()
+        setIsRoomInactive(true)
+        setConnectionMessage('')
+        setActionError(ROOM_INACTIVE_MESSAGE)
+      } else {
+        setIsRoomInactive(false)
       }
-
-      try {
-        const nextRoom = await requestRoomJson(`/api/rooms/${roomCode}`)
-
-        if (isPollingActive && !isMovePendingRef.current && !isPowerPendingRef.current) {
-          applyRoom(nextRoom)
-          setConnectionMessage('')
-          setIsRoomInactive(false)
-        }
-      } catch (error) {
-        if (isPollingActive) {
-          if (isRoomNotFoundError(error)) {
-            clearOnlineSession()
-            setIsRoomInactive(true)
-            setConnectionMessage('')
-            setActionError(ROOM_INACTIVE_MESSAGE)
-            return
-          }
-
-          if (isConnectionError(error)) {
-            setConnectionMessage(error.message)
-          } else {
-            setActionError(error.message)
-          }
-        }
-      } finally {
-        if (isPollingActive) {
-          scheduleNextPoll()
-        }
-      }
-    }
-
-    function scheduleNextPoll() {
-      if (!isPollingActive) return
-
-      // Adaptive polling delay:
-      // - Opponent turn (waiting for move): 1200ms (fast response!)
-      // - My turn (thinking): 3500ms (cuts server traffic in half)
-      // - Completed / Inactive: 8000ms (minimizes idle traffic)
-      let delay = 2000
-      if (room.status === 'completed' || isRoomInactive) {
-        delay = 8000
-      } else if (mySymbol === currentSymbol && room.status === 'playing') {
-        delay = 3500
-      } else if (mySymbol !== currentSymbol && room.status === 'playing') {
-        delay = 1200
-      }
-
-      timeoutId = window.setTimeout(pollRoom, delay)
-    }
-
-    scheduleNextPoll()
-
-    return () => {
-      isPollingActive = false
-      if (timeoutId) window.clearTimeout(timeoutId)
-    }
-  }, [applyRoom, roomCode, room.status, isRoomInactive, mySymbol, currentSymbol])
+    },
+    onError: (msg) => setActionError(msg),
+    isMovePendingRef,
+    isPowerPendingRef,
+    enabled: Boolean(roomCode) && !isRoomInactive,
+    roomStatus: room.status,
+    isMyTurn: mySymbol === currentSymbol,
+  })
 
   useEffect(() => {
     if (!bombEvent) {
