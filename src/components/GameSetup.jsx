@@ -17,8 +17,8 @@ import PowerSimulation from './PowerSimulation'
 
 const boardOptions = [
   { size: 3, label: '3x3', description: 'Klasik hızlı oyun', winLength: 3 },
-  { size: 4, label: '4x4', description: 'Dengeli arena', winLength: 3 },
-  { size: 5, label: '5x5', description: 'Stratejik büyük tahta', winLength: 4 },
+  { size: 4, label: '4x4', description: 'Taktiksel arena (4 taş)', winLength: 4 },
+  { size: 5, label: '5x5', description: 'Stratejik büyük tahta (4 taş)', winLength: 4 },
 ]
 
 const classicTargets = [3, 5, 7, 9]
