@@ -94,7 +94,22 @@ builder.Services.AddRateLimiter(options =>
 });
 
 // ── Services ──────────────────────────────────────────────────────────────────
-builder.Services.AddSignalR();
+var signalRBuilder = builder.Services.AddSignalR(options =>
+{
+    options.EnableDetailedErrors = builder.Environment.IsDevelopment();
+    options.KeepAliveInterval = TimeSpan.FromSeconds(10);
+    options.ClientTimeoutInterval = TimeSpan.FromSeconds(25);
+    options.MaximumReceiveMessageSize = 64 * 1024; // 64 KB defensive message limit
+});
+
+// Production Multi-Instance Scale-Out Configuration:
+// 1) Redis Backplane:
+//    var redisConnection = builder.Configuration.GetConnectionString("Redis");
+//    if (!string.IsNullOrWhiteSpace(redisConnection)) { signalRBuilder.AddStackExchangeRedis(redisConnection); }
+// 2) Azure SignalR Service:
+//    var azureSignalR = builder.Configuration.GetConnectionString("Azure:SignalR:ConnectionString");
+//    if (!string.IsNullOrWhiteSpace(azureSignalR)) { signalRBuilder.AddAzureSignalR(azureSignalR); }
+
 builder.Services.AddSingleton<IRoomStore, InMemoryRoomStore>();
 builder.Services.AddHostedService<RoomCleanupService>();
 
@@ -165,7 +180,11 @@ app.MapGet("/api/rooms/{roomCode}", (string roomCode, IRoomStore roomStore) =>
         : Results.Ok(RoomResponse.FromRoom(room));
 });
 
-app.MapPost("/api/rooms/{roomCode}/join", (string roomCode, JoinRoomRequest request, IRoomStore roomStore) =>
+app.MapPost("/api/rooms/{roomCode}/join", async (
+    string roomCode,
+    JoinRoomRequest request,
+    IRoomStore roomStore,
+    IHubContext<RoomsHub> roomsHub) =>
 {
     if (string.IsNullOrWhiteSpace(request.PlayerName))
     {
@@ -177,11 +196,17 @@ app.MapPost("/api/rooms/{roomCode}/join", (string roomCode, JoinRoomRequest requ
 
     var result = roomStore.Join(roomCode, request.PlayerName.Trim());
 
+    if (result.Status is JoinRoomStatus.Joined)
+    {
+        await BroadcastRoomStateAsync(roomsHub, result.Room!);
+
+        return Results.Ok(new RoomAccessResponse(
+            RoomResponse.FromRoom(result.Room!),
+            result.PlayerSecret!));
+    }
+
     return result.Status switch
     {
-        JoinRoomStatus.Joined => Results.Ok(new RoomAccessResponse(
-            RoomResponse.FromRoom(result.Room!),
-            result.PlayerSecret!)),
         JoinRoomStatus.NotFound => Results.NotFound(),
         JoinRoomStatus.Conflict => Results.Conflict(new
         {
@@ -191,7 +216,11 @@ app.MapPost("/api/rooms/{roomCode}/join", (string roomCode, JoinRoomRequest requ
     };
 }).RequireRateLimiting("join-room");
 
-app.MapPost("/api/rooms/{roomCode}/leave", (string roomCode, LeaveRoomRequest request, IRoomStore roomStore) =>
+app.MapPost("/api/rooms/{roomCode}/leave", async (
+    string roomCode,
+    LeaveRoomRequest request,
+    IRoomStore roomStore,
+    IHubContext<RoomsHub> roomsHub) =>
 {
     if (!Guid.TryParse(request.PlayerId, out var playerId))
     {
@@ -202,7 +231,19 @@ app.MapPost("/api/rooms/{roomCode}/leave", (string roomCode, LeaveRoomRequest re
     }
 
     var success = roomStore.Leave(roomCode, playerId, request.PlayerSecret, request.IsSurrender);
-    return success ? Results.Ok() : Results.StatusCode(StatusCodes.Status403Forbidden);
+
+    if (success)
+    {
+        var updatedRoom = roomStore.GetByCode(roomCode);
+        if (updatedRoom is not null)
+        {
+            await BroadcastRoomStateAsync(roomsHub, updatedRoom);
+        }
+
+        return Results.Ok();
+    }
+
+    return Results.StatusCode(StatusCodes.Status403Forbidden);
 });
 
 app.MapPost("/api/rooms/{roomCode}/moves", async (
@@ -223,10 +264,8 @@ app.MapPost("/api/rooms/{roomCode}/moves", async (
 
     if (result.Status is MoveRoomStatus.Moved)
     {
-        var roomResponse = RoomResponse.FromRoom(result.Room!);
-        await roomsHub.Clients.Group(result.Room!.Code).SendAsync("RoomUpdated", roomResponse);
-
-        return Results.Ok(roomResponse);
+        await BroadcastRoomStateAsync(roomsHub, result.Room!);
+        return Results.Ok(RoomResponse.FromRoom(result.Room!));
     }
 
     return result.Status switch
@@ -263,9 +302,8 @@ app.MapPost("/api/rooms/{roomCode}/powers", async (
 
     if (result.Status is PowerRoomStatus.Used)
     {
-        var roomResponse = RoomResponse.FromRoom(result.Room!);
-        await roomsHub.Clients.Group(result.Room!.Code).SendAsync("RoomUpdated", roomResponse);
-        return Results.Ok(roomResponse);
+        await BroadcastRoomStateAsync(roomsHub, result.Room!);
+        return Results.Ok(RoomResponse.FromRoom(result.Room!));
     }
 
     return result.Status switch
@@ -299,10 +337,8 @@ app.MapPost("/api/rooms/{roomCode}/start", async (
 
     if (result.Status is StartRoomStatus.Started)
     {
-        var roomResponse = RoomResponse.FromRoom(result.Room!);
-        await roomsHub.Clients.Group(result.Room!.Code).SendAsync("RoomUpdated", roomResponse);
-
-        return Results.Ok(roomResponse);
+        await BroadcastRoomStateAsync(roomsHub, result.Room!);
+        return Results.Ok(RoomResponse.FromRoom(result.Room!));
     }
 
     return result.Status switch
@@ -335,10 +371,8 @@ app.MapPost("/api/rooms/{roomCode}/next-round", async (
 
     if (result.Status is NextRoundStatus.Pending or NextRoundStatus.Started)
     {
-        var roomResponse = RoomResponse.FromRoom(result.Room!);
-        await roomsHub.Clients.Group(result.Room!.Code).SendAsync("RoomUpdated", roomResponse);
-
-        return Results.Ok(roomResponse);
+        await BroadcastRoomStateAsync(roomsHub, result.Room!);
+        return Results.Ok(RoomResponse.FromRoom(result.Room!));
     }
 
     return result.Status switch
@@ -352,6 +386,19 @@ app.MapPost("/api/rooms/{roomCode}/next-round", async (
         _ => Results.Problem("Unexpected next round result.")
     };
 });
+
+/// <summary>
+/// Centralized, defensive helper to broadcast sanitized game room state DTO to the SignalR group.
+/// Ensures private tokens and secrets are never sent over the real-time wire.
+/// </summary>
+static async Task BroadcastRoomStateAsync(
+    IHubContext<RoomsHub> roomsHub,
+    Room room,
+    CancellationToken cancellationToken = default)
+{
+    var cleanStateDto = RoomResponse.FromRoom(room);
+    await roomsHub.Clients.Group(room.Code).SendAsync("RoomUpdated", cleanStateDto, cancellationToken);
+}
 
 if (!app.Environment.IsDevelopment())
 {

@@ -783,21 +783,24 @@ public sealed class InMemoryRoomStore : IRoomStore
 
     private static IReadOnlyDictionary<int, int> CreateArenaMultipliers(int boardSize)
     {
-        var multiplierCount = boardSize switch
+        var multiplierValues = boardSize switch
         {
-            3 => 2,
-            4 => 3,
-            _ => 4
+            3 => new[] { 2, 3 },
+            4 => new[] { 2, 2, 3 },
+            5 => new[] { 2, 2, 3, 3 },
+            _ => new[] { 2, 2, 3 }
         };
+
         var indexes = Enumerable.Range(0, boardSize * boardSize).ToList();
         var result = new Dictionary<int, int>();
 
-        for (var position = 0; position < multiplierCount; position++)
+        foreach (var value in multiplierValues)
         {
+            if (indexes.Count == 0) break;
             var randomPosition = RandomNumberGenerator.GetInt32(indexes.Count);
             var index = indexes[randomPosition];
             indexes.RemoveAt(randomPosition);
-            result[index] = position == multiplierCount - 1 ? 3 : 2;
+            result[index] = value;
         }
 
         return result;

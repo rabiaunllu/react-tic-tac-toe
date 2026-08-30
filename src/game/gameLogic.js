@@ -63,13 +63,24 @@ export function isBoardFull(squares) {
 }
 
 export function createBoardMultipliers(boardSize = 3) {
+  const multiplierConfigs = {
+    3: [2, 3],
+    4: [2, 2, 3],
+    5: [2, 2, 3, 3],
+  }
+
+  const values = multiplierConfigs[boardSize] || [2, 2, 3]
   const cellIndexes = [...Array(boardSize * boardSize).keys()]
   const shuffledIndexes = cellIndexes.sort(() => Math.random() - 0.5)
 
-  return {
-    [shuffledIndexes[0]]: 2,
-    [shuffledIndexes[1]]: 3,
-  }
+  const result = {}
+  values.forEach((value, idx) => {
+    if (idx < shuffledIndexes.length) {
+      result[shuffledIndexes[idx]] = value
+    }
+  })
+
+  return result
 }
 
 export function calculateRoundScore(
