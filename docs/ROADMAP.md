@@ -144,26 +144,37 @@ Yapay zekanın yenilmez, hatasız ve viral seviyede bir büyükusta zekasıyla o
 - [x] **7.1 — Bitwise Zobrist Hashing:** 32-bit integer XOR tabanlı önbellekleme ile sıfır GC yükü ve mikrosaniye önbellek erişimi.
 - [x] **7.2 — Dinamik Kaynak Çarpanı (Phase Multipliers):** Açılışta güç harcamama ($0.25\times$), oyun sonu tam leverage ($2.0\times$).
 - [x] **7.3 — Normalize Heuristic Skalası:** Puan uçurumu kapatıldı (Mat: 100K, Açık Tehdit: 5K, Fork: 3.5K, Fork Hub: 1.2K, Kalkan: 300-600).
-## Faz 8 · Çoklu Dil Desteği (i18n Localization) ⏳ SIRADA
+## Faz 8 · Hamle Sayacı (Turn Timer / Shot Clock) 🟢 TAMAMLANDI
 
-- [ ] **8.1 — Çift Dilli Sözlük Modülü:** `src/i18n/` sözlük yapısı (Türkçe / İngilizce).
-- [ ] **8.2 — Dil Değiştirici UI:** Menü ve ayarlar paneline bayrak/dil seçici.
-- [ ] **8.3 — Otomatik Tarayıcı Dili Tespiti:** CrazyGames global kullanıcıları için otomatik İngilizce açılış.
-
----
-
-## Faz 9 · Hamle Sayacı (Turn Timer / Shot Clock) ⏳ SIRADA
-
-- [ ] **9.1 — 20/30 Saniye Hamle Sayacı:** Online ve yerel PvP modları için canlı HUD geri sayım sayacı.
-- [ ] **9.2 — AFK / Zaman Aşımı Kuralı:** Süre bitince sıranın boş geçmesi ve 2. ihlalde hükmen mağlubiyet.
+- [x] **8.1 — 10s, 15s, 20s & Süresiz Modlar:** Online, Bota Karşı ve Yan Yana modları için seçimli hamle süresi limitleri.
+- [x] **8.2 — Panele Entegre Siber Sayaç HUD:** Oyuncu panellerine entegre şık süre rozeti ve tema uyumlu dinamik lazer ilerleme çizgisi.
+- [x] **8.3 — Evrensel Kırmızı Nabız Alarmı:** Son 5 saniyede alev kırmızısı nabız (`pulse`) ve prosedürel geri sayım uyarısı.
+- [x] **8.4 — Zaman Aşımı Galibiyeti & Hile Koruması:** Süre bittiğinde turu rakibe verme ve onay pencerelerinde süreyi durdurup sınırsız düşünme açığının (Pause-to-Think Exploit) kapatılması.
+- [x] **8.5 — Online Çok Oyunculu Senkronizasyonu:** Oda kurulumunda seçilen sürenin her iki oyuncuda gerçek zamanlı senkronize edilmesi.
 
 ---
 
-## Faz 10 · Güvenlik Denetimi & CrazyGames v3 SDK Yayını 🚀 HEDEF
+## Faz 9 · Güvenlik Denetimi & Zafiyet Taraması 🟢 TAMAMLANDI
 
-- [ ] **10.1 — Güvenlik Zafiyet Taraması:** XSS, injection ve rate limit son kontrolleri.
-- [ ] **10.2 — CrazyGames v3 SDK Entegrasyonu:** Gameplay Start/Stop, HappyTime ve Adbreak tetikleyicileri.
-- [ ] **10.3 — Yayınlama & Test:** CrazyGames portalında canlı test.
+- [x] **9.1 — XSS & Girdi Sanitizasyonu:** Oyuncu adları ve oda kodları için sıkı sanitizasyon ve uzunluk sınırları.
+- [x] **9.2 — Race Condition & State Güvenliği:** Süre aşımı, yapay zeka ve eşzamanlı tıklamalara karşı kilitli guard mekanizmaları (`effectiveWinner`).
+- [x] **9.3 — Online Yetkilendirme:** Kriptografik `playerSecret` ile yetkisiz eylem ve hile girişimlerinin engellenmesi.
+- [x] **9.4 — Performans ve Bellek Sızıntısı Koruması:** 60-120 FPS akıcılık, `backdrop-filter` arındırması ve bellek temizleme garantisi.
+
+---
+
+## Faz 10 · Çoklu Dil Desteği (i18n Localization) ⏳ SIRADA
+
+- [ ] **10.1 — Çift Dilli Sözlük Modülü:** `src/i18n/` sözlük yapısı (Türkçe / İngilizce).
+- [ ] **10.2 — Dil Değiştirici UI:** Menü ve ayarlar paneline bayrak/dil seçici.
+- [ ] **10.3 — Otomatik Tarayıcı Dili Tespiti:** CrazyGames global kullanıcıları için otomatik İngilizce açılış.
+
+---
+
+## Faz 11 · CrazyGames v3 SDK Yayını 🚀 HEDEF
+
+- [ ] **11.1 — CrazyGames v3 SDK Entegrasyonu:** Gameplay Start/Stop, HappyTime ve Adbreak tetikleyicileri.
+- [ ] **11.2 — Yayınlama & Test:** CrazyGames portalında canlı test.
 
 ---
 

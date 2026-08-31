@@ -320,6 +320,9 @@ export default function App() {
     (timedOutPlayer) => {
       if (winner || matchWinner || isDraw || timeoutWinner || resultMessage) return
 
+      setShowSetupReturnConfirm(false)
+      setShowScoreResetConfirm(false)
+
       const winningSymbol = timedOutPlayer === 'X' ? 'O' : 'X'
       const timeoutScore = gameMode === 'arena' ? 5 : 1
       const winningPlayerKey = (winningSymbol === 'X' ? isP1X : !isP1X) ? 'p1' : 'p2'
@@ -344,7 +347,7 @@ export default function App() {
     [winner, matchWinner, isDraw, timeoutWinner, resultMessage, gameMode, isP1X, xPlayerName, oPlayerName]
   )
 
-  // Turn timer countdown effect
+  // Turn timer countdown effect (Devamlı akar — onay kutularında durdurulamaz!)
   useEffect(() => {
     if (
       turnTimeLimit <= 0 ||
@@ -352,8 +355,6 @@ export default function App() {
       matchWinner ||
       isDraw ||
       resultMessage ||
-      showSetupReturnConfirm ||
-      showScoreResetConfirm ||
       (opponentType === 'ai' && !xIsNext)
     ) {
       return
@@ -397,8 +398,6 @@ export default function App() {
     matchWinner,
     isDraw,
     resultMessage,
-    showSetupReturnConfirm,
-    showScoreResetConfirm,
     opponentType,
     currentPlayer,
     handleTimeOut,
@@ -1739,10 +1738,10 @@ export default function App() {
               setShowSetupReturnConfirm(true)
             }}
           >
-            Menü
+            Ana Menü
           </button>
           <button className="score-reset-button" onClick={handleRequestScoreReset}>
-            Puan sıfırla
+            Yeniden Başlat
           </button>
           <SoundToggle>
             {gameMode === 'arena' && (
@@ -1758,8 +1757,9 @@ export default function App() {
         </div>
 
         {showSetupReturnConfirm && (
-          <div className="setup-return-confirm">
-            <strong>Ayarlara dönülsün mü?</strong>
+          <div className="setup-return-confirm" role="alertdialog" aria-modal="true">
+            <strong>Ana Menüye dönülsün mü?</strong>
+            <p>Mevcut maç sonlandırılacak ve ana menüye dönülecektir.</p>
 
             <div className="setup-return-actions">
               <button
@@ -1783,26 +1783,27 @@ export default function App() {
                   clearLocalSession()
                 }}
               >
-                Ayarlara dön
+                Menüye Dön
               </button>
             </div>
           </div>
         )}
 
         {showScoreResetConfirm && (
-          <div className="setup-return-confirm">
-            <strong>Puanlar sıfırlansın mı?</strong>
+          <div className="setup-return-confirm" role="alertdialog" aria-modal="true">
+            <strong>Maç yeniden başlatılsın mı?</strong>
+            <p>Tüm skorlar ve tahta sıfırlanıp yeni bir maç başlatılacak.</p>
 
             <div className="setup-return-actions">
               <button type="button" onClick={handleCancelScoreReset}>
-                Hayır
+                Vazgeç
               </button>
               <button
                 type="button"
                 className="danger-action"
                 onClick={handleConfirmScoreReset}
               >
-                Evet
+                Yeniden Başlat
               </button>
             </div>
           </div>

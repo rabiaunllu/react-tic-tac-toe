@@ -716,14 +716,15 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
               setIsMenuConfirmOpen(true)
             }}
           >
-            Menü
+            Ana Menü
           </button>
           <SoundToggle />
         </div>
 
         {isMenuConfirmOpen && (
-          <div className="setup-return-confirm">
-            <strong>Menüye dönülsün mü?</strong>
+          <div className="setup-return-confirm" role="alertdialog" aria-modal="true">
+            <strong>Ana Menüye dönülsün mü?</strong>
+            <p>Odadan ayrılacaksın ve maç sonlandırılacak.</p>
 
             <div className="setup-return-actions">
               <button
@@ -741,7 +742,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
                 className="danger-action"
                 onClick={handleOnlineMenuWithLeave}
               >
-                Menü
+                Menüye Dön
               </button>
             </div>
           </div>

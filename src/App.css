@@ -3125,39 +3125,79 @@ button,
 }
 
 .setup-return-confirm {
-  max-width: 420px;
-  gap: 7px;
-  padding: 12px 13px;
-  border-color: rgba(255, 209, 102, 0.24);
-  border-radius: 16px;
-  background:
-    radial-gradient(circle at 14% 0%, rgba(255, 209, 102, 0.13), transparent 52%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 30%),
-    rgba(13, 17, 29, 0.9);
+  width: min(100%, 420px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 209, 102, 0.3);
+  border-radius: 14px;
+  background: #0d121f;
   color: #fff0bd;
-  box-shadow:
-    0 18px 48px rgba(0, 0, 0, 0.24),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  animation: confirm-pop-in 0.15s ease-out;
+}
+
+@keyframes confirm-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .setup-return-confirm strong {
   font-size: 13px;
+  font-weight: 800;
+  color: #fef08a;
+  letter-spacing: 0.02em;
 }
 
 .setup-return-confirm p {
-  color: #dacfae;
-  font-size: 12px;
+  margin: 0;
+  color: #94a3b8;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.setup-return-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 3px;
 }
 
 .setup-return-actions button {
-  padding: 8px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 6px 14px;
+  background: rgba(255, 255, 255, 0.07);
+  color: #e2e8f0;
   font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.setup-return-actions button:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
 }
 
 .setup-return-actions .danger-action {
-  border-color: rgba(255, 209, 102, 0.32);
-  background: rgba(255, 209, 102, 0.16);
-  color: #fff5cc;
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.18);
+  color: #fca5a5;
+}
+
+.setup-return-actions .danger-action:hover {
+  border-color: rgba(239, 68, 68, 0.6);
+  background: rgba(239, 68, 68, 0.28);
+  color: #ffffff;
 }
 
 .power-button::after {
