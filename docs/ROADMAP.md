@@ -133,7 +133,37 @@ Ortama ve oynanış tipine göre optimize edilmiş, hatasız ve dengeli güç da
 - [x] **Adım 3:** `hasUsedPowerThisTurn` kontrolünü ekleyerek aynı turda çoklu güç kullanım açığını (Power Chaining) kapat.
 - [x] **Adım 4:** Yan Yana modunda `Dondur` gücünün tahtada dondurma ve 1-tur sonra çözülme akışını test et.
 - [x] **Adım 5:** Vampir gücünün UI üzerindeki çalışmasını ve görsel geri bildirimini doğrula.
-- [ ] **Adım 6:** LinkedIn demosu için 20 saniyelik kusursuz gameplay akışını doğrula.
+- [x] **Adım 6:** LinkedIn demosu için 20 saniyelik kusursuz gameplay akışını doğrula.
+
+---
+
+## Faz 7 · Grandmaster AI Arena Motoru 🟢 TAMAMLANDI
+
+Yapay zekanın yenilmez, hatasız ve viral seviyede bir büyükusta zekasıyla oynaması için Minimax mimarisinin en üst seviyeye çıkarılması.
+
+- [x] **7.1 — Bitwise Zobrist Hashing:** 32-bit integer XOR tabanlı önbellekleme ile sıfır GC yükü ve mikrosaniye önbellek erişimi.
+- [x] **7.2 — Dinamik Kaynak Çarpanı (Phase Multipliers):** Açılışta güç harcamama ($0.25\times$), oyun sonu tam leverage ($2.0\times$).
+- [x] **7.3 — Normalize Heuristic Skalası:** Puan uçurumu kapatıldı (Mat: 100K, Açık Tehdit: 5K, Fork: 3.5K, Fork Hub: 1.2K, Kalkan: 300-600).
+## Faz 8 · Çoklu Dil Desteği (i18n Localization) ⏳ SIRADA
+
+- [ ] **8.1 — Çift Dilli Sözlük Modülü:** `src/i18n/` sözlük yapısı (Türkçe / İngilizce).
+- [ ] **8.2 — Dil Değiştirici UI:** Menü ve ayarlar paneline bayrak/dil seçici.
+- [ ] **8.3 — Otomatik Tarayıcı Dili Tespiti:** CrazyGames global kullanıcıları için otomatik İngilizce açılış.
+
+---
+
+## Faz 9 · Hamle Sayacı (Turn Timer / Shot Clock) ⏳ SIRADA
+
+- [ ] **9.1 — 20/30 Saniye Hamle Sayacı:** Online ve yerel PvP modları için canlı HUD geri sayım sayacı.
+- [ ] **9.2 — AFK / Zaman Aşımı Kuralı:** Süre bitince sıranın boş geçmesi ve 2. ihlalde hükmen mağlubiyet.
+
+---
+
+## Faz 10 · Güvenlik Denetimi & CrazyGames v3 SDK Yayını 🚀 HEDEF
+
+- [ ] **10.1 — Güvenlik Zafiyet Taraması:** XSS, injection ve rate limit son kontrolleri.
+- [ ] **10.2 — CrazyGames v3 SDK Entegrasyonu:** Gameplay Start/Stop, HappyTime ve Adbreak tetikleyicileri.
+- [ ] **10.3 — Yayınlama & Test:** CrazyGames portalında canlı test.
 
 ---
 
@@ -143,7 +173,7 @@ Ortama ve oynanış tipine göre optimize edilmiş, hatasız ve dengeli güç da
 |---|---|
 | Frontend | React 19, Vite 8, Vanilla CSS |
 | Backend | .NET 9, ASP.NET Core Minimal API, SignalR |
-| Online İletişim | Adaptive HTTP Polling |
-| State Yönetimi | React useState |
+| Online İletişim | SignalR WebSockets + Akıllı Polling Yedekleme |
+| AI Motoru | Alpha-Beta Minimax + Bitwise Zobrist Hashing + Hard Guards |
+| State Yönetimi | React useState + Session Storage |
 | Ses & Titreşim | Web Audio API (prosedürel sentez) + Navigator Haptic |
-| Arşiv Dokümanı | `docs/archive/EXPERIMENTAL_IDEAS_ARCHIVE.md` |

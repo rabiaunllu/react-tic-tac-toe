@@ -70,15 +70,21 @@ export function createBoardMultipliers(boardSize = 3) {
   }
 
   const values = multiplierConfigs[boardSize] || [2, 2, 3]
-  const cellIndexes = [...Array(boardSize * boardSize).keys()]
-  const shuffledIndexes = cellIndexes.sort(() => Math.random() - 0.5)
+  const totalCells = boardSize * boardSize
+  const cellIndexes = Array.from({ length: totalCells }, (_, i) => i)
+
+  // Fisher-Yates (Knuth) Shuffle — O(N) unbiased uniform distribution
+  for (let i = cellIndexes.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1))
+    const temp = cellIndexes[i]
+    cellIndexes[i] = cellIndexes[j]
+    cellIndexes[j] = temp
+  }
 
   const result = {}
-  values.forEach((value, idx) => {
-    if (idx < shuffledIndexes.length) {
-      result[shuffledIndexes[idx]] = value
-    }
-  })
+  for (let i = 0; i < values.length && i < cellIndexes.length; i += 1) {
+    result[cellIndexes[i]] = values[i]
+  }
 
   return result
 }
