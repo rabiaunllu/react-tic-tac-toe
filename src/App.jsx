@@ -1097,6 +1097,54 @@ export default function App() {
           return
         }
 
+        if (aiPowerAction?.type === 'freeze') {
+          setFrozenSquares([aiPowerAction.index])
+          setFrozenBy('O')
+          spendAiPower('freeze')
+          playSound('power')
+          setLockedSquares([])
+          setActivePower(null)
+          placeAiStone(aiPowerAction.moveIndex)
+          return
+        }
+
+        if (aiPowerAction?.type === 'vampire') {
+          const sourceIndex = aiPowerAction.index
+          const transferredMultiplier = multipliers[sourceIndex]
+          if (transferredMultiplier) {
+            const targetIndex = aiPowerAction.moveIndex
+            spendAiPower('vampire')
+            playSound('power')
+            setActivePower(null)
+
+            setVampireTransferEvent({
+              sourceIndex,
+              targetIndex,
+              multiplier: transferredMultiplier,
+              id: Date.now(),
+            })
+
+            safeSetTimeout(() => {
+              setMultipliers((currentMultipliers) => {
+                const nextMultipliers = { ...currentMultipliers, [targetIndex]: transferredMultiplier }
+                delete nextMultipliers[sourceIndex]
+                return nextMultipliers
+              })
+              setStolenSquares((currentStolen) => [
+                ...currentStolen.filter((squareIndex) => squareIndex !== sourceIndex),
+                targetIndex,
+              ])
+              safeSetTimeout(() => {
+                setVampireTransferEvent(null)
+              }, 350)
+            }, 650)
+
+            placeAiStone(targetIndex)
+            return
+          }
+          // Vampire had no valid multiplier source — fall through to normal move
+        }
+
         // Fallback: null action durumunda normal hamle iste
         aiWorkerRef.current?.postMessage({
           type: 'ADAPTIVE_MOVE',
@@ -1150,13 +1198,49 @@ export default function App() {
             setShieldedSquares((current) => [...current, aiPowerAction.index])
             spendAiPower('shield')
             playSound('power')
-            const fallbackMove = getAdaptiveAiMove({
+            const aiMove = aiPowerAction.followUpMove ?? getAdaptiveAiMove({
               squares, boardSize, winLength, humanWinStreak,
               blockedIndexes: [...lockedSquares, ...frozenSquares],
               multipliers: gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
             })
-            if (fallbackMove !== null) placeAiStone(fallbackMove)
+            if (aiMove !== null && aiMove !== undefined) placeAiStone(aiMove)
             return
+          }
+          if (aiPowerAction?.type === 'bomb') {
+            const nextSquares = squares.slice()
+            nextSquares[aiPowerAction.index] = null
+            setSquares(nextSquares)
+            setLockedSquares([aiPowerAction.index])
+            spendAiPower('bomb')
+            playSound('bomb')
+            setXIsNext(true)
+            return
+          }
+          if (aiPowerAction?.type === 'trap') {
+            setTraps((currentTraps) => [
+              ...currentTraps, { index: aiPowerAction.index, owner: 'O' },
+            ])
+            spendAiPower('trap')
+            playSound('blackhole')
+            setXIsNext(true)
+            return
+          }
+          if (aiPowerAction?.type === 'freeze') {
+            setFrozenSquares([aiPowerAction.index])
+            setFrozenBy('O')
+            spendAiPower('freeze')
+            playSound('power')
+            placeAiStone(aiPowerAction.moveIndex)
+            return
+          }
+          if (aiPowerAction?.type === 'vampire') {
+            const sourceIndex = aiPowerAction.index
+            if (multipliers[sourceIndex]) {
+              spendAiPower('vampire')
+              playSound('power')
+              placeAiStone(aiPowerAction.moveIndex)
+              return
+            }
           }
         }
         const fallbackMove = getAdaptiveAiMove({
