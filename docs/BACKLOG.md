@@ -66,7 +66,7 @@ Bu dosya, **XO Arena** projesinde tamamlanan tüm özellikleri, mimari sistemler
 
 ### 2. Hamle Sayacı / Turn Timer (Shot Clock)
 - [ ] Online ve PvP maçlar için tur başına 20-30 saniyelik geri sayım sayacı
-- [ ] Süre dolduğunda sıranın boş geçmesi veya 2. ihlalde hükmen mağlubiyet kuralı
+- [ ] Süre dolduğunda kaybetme
 
 ### 3. Güvenlik & Kod Zafiyet Denetimi (Security Audit)
 - [ ] API endpoint'leri ve girdi doğrulama (XSS, Injection, Room Flooding) kontrolleri
@@ -77,3 +77,7 @@ Bu dosya, **XO Arena** projesinde tamamlanan tüm özellikleri, mimari sistemler
 - [ ] Gameplay Start / Gameplay Stop sinyalleri
 - [ ] HappyTime ve Reklam (Adbreak) tetikleyicileri
 - [ ] CrazyGames portalına yükleme ve test
+
+### 5. Rastgele online odaya girme
+### 6. Online chat-sadece emoji veya hem emoji hem de sohbet
+### 7. ai sadece o olmak yerine x de olabilir mi?

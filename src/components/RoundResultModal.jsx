@@ -164,6 +164,11 @@ export default function RoundResultModal({
               <strong>Sen kazandın!</strong>
               <small>Rakip oyundan ayrıldığı için zafer senindir.</small>
             </>
+          ) : Array.isArray(resultMessage) ? (
+            <>
+              <strong>{resultMessage[0]} {resultMessage[1]}</strong>
+              {resultMessage[2] && <small>{resultMessage[2]}</small>}
+            </>
           ) : (
             <>
               {resultMessage && <strong>{resultMessage}</strong>}
