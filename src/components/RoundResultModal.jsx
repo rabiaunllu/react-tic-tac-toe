@@ -19,11 +19,11 @@ export default function RoundResultModal({
   onNewMatch,
   onMenu,
   onClose,
-  nextRoundLabel = 'Sonraki tur',
+  nextRoundLabel = 'Sonraki Tur',
   isNextRoundDisabled = false,
   nextRoundTitle,
-  menuConfirmTitle = 'Ayarlara dönülsün mü?',
-  menuConfirmActionLabel = 'Ayarlara dön',
+  menuConfirmTitle = 'Ana Menüye dönülsün mü?',
+  menuConfirmActionLabel = 'Menüye Dön',
 }) {
   const [isMenuConfirmOpen, setIsMenuConfirmOpen] = useState(false)
   const [isCopied, setIsCopied] = useState(false)
@@ -164,6 +164,11 @@ export default function RoundResultModal({
               <strong>Sen kazandın!</strong>
               <small>Rakip oyundan ayrıldığı için zafer senindir.</small>
             </>
+          ) : Array.isArray(resultMessage) ? (
+            <>
+              <strong>{resultMessage[0]} {resultMessage[1]}</strong>
+              {resultMessage[2] && <small>{resultMessage[2]}</small>}
+            </>
           ) : (
             <>
               {resultMessage && <strong>{resultMessage}</strong>}
@@ -225,7 +230,7 @@ export default function RoundResultModal({
                 }}
                 autoFocus
               >
-                Yeni maç
+                Yeni Maç
               </button>
             ) : (
               <button
@@ -258,7 +263,7 @@ export default function RoundResultModal({
                 setIsMenuConfirmOpen(true)
               }}
             >
-              Menü
+              Ana Menü
             </button>
           </div>
         )}

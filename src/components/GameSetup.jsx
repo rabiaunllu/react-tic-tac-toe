@@ -24,6 +24,13 @@ const boardOptions = [
 const classicTargets = [3, 5, 7, 9]
 const arenaTargets = [15, 30, 50, 100]
 
+const turnTimeOptions = [
+  { value: 10, label: '10s', sublabel: 'hızlı' },
+  { value: 15, label: '15s', sublabel: 'standart' },
+  { value: 20, label: '20s', sublabel: 'rahat' },
+  { value: 0, label: '∞', sublabel: 'sınırsız' },
+]
+
 const SKINS = [
   { id: 'neon', name: 'Siber Neon', icon: '⚡', isFree: true },
   { id: 'gold', name: 'Altın Efsane', icon: '🌟', isFree: true },
@@ -91,6 +98,7 @@ export default function GameSetup({
   const [opponentType, setOpponentType] = useState(() => (initialDeepLinkRoom ? 'online' : 'ai'))
   const [targetValue, setTargetValue] = useState(5)
   const [isInfinite, setIsInfinite] = useState(false)
+  const [turnTimeLimit, setTurnTimeLimit] = useState(15)
   const [isHowToPlayOpen, setIsHowToPlayOpen] = useState(false)
   
   // Local PvP player names
@@ -148,6 +156,7 @@ export default function GameSetup({
     targetValue,
     isInfinite,
     opponentType,
+    turnTimeLimit,
   }
 
   // ── Mode Card Click Handlers ──
@@ -229,6 +238,7 @@ export default function GameSetup({
       targetValue: isInfinite ? null : targetValue,
       isInfinite,
       opponentType,
+      turnTimeLimit,
       player1Name: opponentType === 'ai' ? 'Oyuncu' : (player1Name.trim() || '1. Oyuncu'),
       player2Name: opponentType === 'ai' ? 'Bot' : (player2Name.trim() || '2. Oyuncu'),
     })
@@ -288,6 +298,7 @@ export default function GameSetup({
           boardSize,
           winLength: selectedBoard.winLength,
           targetValue,
+          turnTimeLimit,
           boostMode: gameMode === 'arena' ? onlineBoostMode : null,
         }),
       })
@@ -668,6 +679,28 @@ export default function GameSetup({
               </div>
             </div>
 
+            {/* ── Hamle Süresi ── */}
+            <div className="setup-group">
+              <span className="setup-label">Hamle Süresi</span>
+              <div className="setup-options turn-time-options">
+                {turnTimeOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    className={turnTimeLimit === opt.value ? 'setup-option turn-time-option active' : 'setup-option turn-time-option'}
+                    type="button"
+                    onClick={() => {
+                      registerUserGesture()
+                      playSound('click')
+                      setTurnTimeLimit(opt.value)
+                    }}
+                  >
+                    <span className="turn-time-label">{opt.label}</span>
+                    <span className="turn-time-sublabel">{opt.sublabel}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* ── Single-Row Non-Wrapping Skin / Theme Selector ── */}
             <div className="setup-group">
               <span className="setup-label">Taş & Tema Görünümü</span>
@@ -876,6 +909,28 @@ export default function GameSetup({
                         >
                           Arena
                         </button>
+                      </div>
+                    </div>
+
+                    {/* ── Hamle Süresi ── */}
+                    <div className="setup-group">
+                      <span className="setup-label">Hamle Süresi</span>
+                      <div className="setup-options turn-time-options">
+                        {turnTimeOptions.map((opt) => (
+                          <button
+                            key={opt.value}
+                            className={turnTimeLimit === opt.value ? 'setup-option turn-time-option active' : 'setup-option turn-time-option'}
+                            type="button"
+                            onClick={() => {
+                              registerUserGesture()
+                              playSound('click')
+                              setTurnTimeLimit(opt.value)
+                            }}
+                          >
+                            <span className="turn-time-label">{opt.label}</span>
+                            <span className="turn-time-sublabel">{opt.sublabel}</span>
+                          </button>
+                        ))}
                       </div>
                     </div>
 

@@ -104,6 +104,9 @@ export default function App() {
   const [rewardedPowerMessage, setRewardedPowerMessage] = useState('')
   const [isRewardedPowerPickerOpen, setIsRewardedPowerPickerOpen] = useState(false)
   const [hasUsedPowerThisTurn, setHasUsedPowerThisTurn] = useState(false)
+  const [timeoutWinner, setTimeoutWinner] = useState(null)
+  const [turnTimeLeft, setTurnTimeLeft] = useState(15)
+  const lastTickSecondRef = useRef(15)
 
   const activeTimeoutsRef = useRef(new Set())
 
@@ -176,7 +179,8 @@ export default function App() {
   const p1Score = scores.p1 ?? scores.X ?? 0
   const p2Score = scores.p2 ?? scores.O ?? 0
 
-  const winnerPlayerName = winner === 'X' ? xPlayerName : winner === 'O' ? oPlayerName : null
+  const effectiveWinner = winner || timeoutWinner
+  const winnerPlayerName = effectiveWinner === 'X' ? xPlayerName : effectiveWinner === 'O' ? oPlayerName : null
 
   const matchWinner =
     gameConfig && !gameConfig.isInfinite
@@ -191,10 +195,11 @@ export default function App() {
     (gameMode === 'classic' || gameMode === 'arena') &&
     opponentType === 'ai' &&
     !xIsNext &&
-    !winner &&
+    !effectiveWinner &&
     !matchWinner &&
     !isDraw
   )
+  const turnTimeLimit = gameConfig?.turnTimeLimit ?? 0
   const isAiThinking = isAiTurn
   const hasGameStarted =
     squares.some(Boolean) ||
@@ -310,6 +315,94 @@ export default function App() {
     },
     [boardSize, winLength, multipliers, multipliersEnabled, boostedSquares, opponentType, gameMode, isP1X]
   )
+
+  const handleTimeOut = useCallback(
+    (timedOutPlayer) => {
+      if (winner || matchWinner || isDraw || timeoutWinner || resultMessage) return
+
+      setShowSetupReturnConfirm(false)
+      setShowScoreResetConfirm(false)
+
+      const winningSymbol = timedOutPlayer === 'X' ? 'O' : 'X'
+      const timeoutScore = gameMode === 'arena' ? 5 : 1
+      const winningPlayerKey = (winningSymbol === 'X' ? isP1X : !isP1X) ? 'p1' : 'p2'
+      const timedOutPlayerName = timedOutPlayer === 'X' ? xPlayerName : oPlayerName
+      const winnerName = winningSymbol === 'X' ? xPlayerName : oPlayerName
+
+      setTimeoutWinner(winningSymbol)
+
+      setScores((currentScores) => ({
+        ...currentScores,
+        [winningSymbol]: (currentScores[winningSymbol] ?? 0) + timeoutScore,
+        [winningPlayerKey]:
+          (currentScores[winningPlayerKey] ??
+            (winningPlayerKey === 'p1' ? (currentScores.X ?? 0) : (currentScores.O ?? 0))) +
+          timeoutScore,
+      }))
+
+      setResultMessage(['⏰', `${timedOutPlayerName} Süresi Bitti!`, `Turu ${winnerName} kazandı.`])
+      setLoserMessage(null)
+      playSound('win')
+    },
+    [winner, matchWinner, isDraw, timeoutWinner, resultMessage, gameMode, isP1X, xPlayerName, oPlayerName]
+  )
+
+  // Turn timer countdown effect (Devamlı akar — onay kutularında durdurulamaz!)
+  useEffect(() => {
+    if (
+      turnTimeLimit <= 0 ||
+      effectiveWinner ||
+      matchWinner ||
+      isDraw ||
+      resultMessage ||
+      (opponentType === 'ai' && !xIsNext)
+    ) {
+      return
+    }
+
+    lastTickSecondRef.current = turnTimeLimit
+    let currentRemaining = turnTimeLimit
+
+    const timerId = setTimeout(() => {
+      setTurnTimeLeft(turnTimeLimit)
+    }, 0)
+
+    const interval = setInterval(() => {
+      currentRemaining = Math.max(0, currentRemaining - 0.1)
+      const currentWhole = Math.ceil(currentRemaining)
+
+      // Subtle warning tick in the last 5 seconds
+      if (currentRemaining <= 5 && currentRemaining > 0 && currentWhole !== lastTickSecondRef.current) {
+        lastTickSecondRef.current = currentWhole
+        playSound('click')
+      }
+
+      setTurnTimeLeft(currentRemaining)
+
+      // Time ran out!
+      if (currentRemaining <= 0) {
+        clearInterval(interval)
+        handleTimeOut(currentPlayer)
+      }
+    }, 100)
+
+    return () => {
+      clearTimeout(timerId)
+      clearInterval(interval)
+    }
+  }, [
+    turnTimeLimit,
+    xIsNext,
+    roundNumber,
+    effectiveWinner,
+    matchWinner,
+    isDraw,
+    resultMessage,
+    opponentType,
+    currentPlayer,
+    handleTimeOut,
+  ])
+
   function spendPlayerPower(player, powerId) {
     setPlayerPowers((currentPowers) => ({
       ...currentPowers,
@@ -322,6 +415,8 @@ export default function App() {
 
   function resetGame(nextSettings = arenaSettings, nextGameMode = gameMode) {
     clearAllTimeouts()
+    setTimeoutWinner(null)
+    setTurnTimeLeft(turnTimeLimit)
     const shouldUseMultipliers =
       nextGameMode === 'arena' && nextSettings.multipliersEnabled
 
@@ -911,7 +1006,7 @@ export default function App() {
       isAiSupportedMode &&
       opponentType === 'ai' &&
       !xIsNext &&
-      !winner &&
+      !effectiveWinner &&
       !matchWinner &&
       !isDraw
 
@@ -1323,7 +1418,7 @@ export default function App() {
     gameMode,
     opponentType,
     xIsNext,
-    winner,
+    effectiveWinner,
     matchWinner,
     isDraw,
     squares,
@@ -1391,7 +1486,7 @@ export default function App() {
       resultMessage,
       loserMessage,
       roundNumber,
-      isRoundResultOpen: Boolean((winner || isDraw) && !showSetupReturnConfirm),
+      isRoundResultOpen: Boolean((effectiveWinner || isDraw) && !showSetupReturnConfirm),
       matchWinner,
       isMatchCompleted: Boolean(matchWinner),
       humanWinStreak,
@@ -1425,7 +1520,7 @@ export default function App() {
     resultMessage,
     loserMessage,
     roundNumber,
-    winner,
+    effectiveWinner,
     isDraw,
     showSetupReturnConfirm,
     matchWinner,
@@ -1456,6 +1551,8 @@ export default function App() {
   function handleNewMatch() {
     registerUserGesture()
     playSound('click')
+    setTimeoutWinner(null)
+    setTurnTimeLeft(turnTimeLimit)
     setSquares(createEmptyBoard(boardSize))
     setXIsNext(true)
     setRoundNumber(1)
@@ -1492,6 +1589,7 @@ export default function App() {
   }
 
   function handleResultMenu() {
+    setTimeoutWinner(null)
     setShowSetupReturnConfirm(false)
     setShowScoreResetConfirm(false)
     setGameConfig(null)
@@ -1526,6 +1624,8 @@ export default function App() {
     setOnlineGame(null)
     setSetupRestoreMessage('')
     setGameConfig(config)
+    setTimeoutWinner(null)
+    setTurnTimeLeft(config.turnTimeLimit ?? 0)
     setGameMode(config.gameMode)
     setSquares(createEmptyBoard(config.boardSize))
     setMultipliers(
@@ -1638,10 +1738,10 @@ export default function App() {
               setShowSetupReturnConfirm(true)
             }}
           >
-            Ayarlara dön
+            Ana Menü
           </button>
           <button className="score-reset-button" onClick={handleRequestScoreReset}>
-            Puan sıfırla
+            Yeniden Başlat
           </button>
           <SoundToggle>
             {gameMode === 'arena' && (
@@ -1657,8 +1757,9 @@ export default function App() {
         </div>
 
         {showSetupReturnConfirm && (
-          <div className="setup-return-confirm">
-            <strong>Ayarlara dönülsün mü?</strong>
+          <div className="setup-return-confirm" role="alertdialog" aria-modal="true">
+            <strong>Ana Menüye dönülsün mü?</strong>
+            <p>Mevcut maç sonlandırılacak ve ana menüye dönülecektir.</p>
 
             <div className="setup-return-actions">
               <button
@@ -1682,26 +1783,27 @@ export default function App() {
                   clearLocalSession()
                 }}
               >
-                Ayarlara dön
+                Menüye Dön
               </button>
             </div>
           </div>
         )}
 
         {showScoreResetConfirm && (
-          <div className="setup-return-confirm">
-            <strong>Puanlar sıfırlansın mı?</strong>
+          <div className="setup-return-confirm" role="alertdialog" aria-modal="true">
+            <strong>Maç yeniden başlatılsın mı?</strong>
+            <p>Tüm skorlar ve tahta sıfırlanıp yeni bir maç başlatılacak.</p>
 
             <div className="setup-return-actions">
               <button type="button" onClick={handleCancelScoreReset}>
-                Hayır
+                Vazgeç
               </button>
               <button
                 type="button"
                 className="danger-action"
                 onClick={handleConfirmScoreReset}
               >
-                Evet
+                Yeniden Başlat
               </button>
             </div>
           </div>
@@ -1746,7 +1848,7 @@ export default function App() {
               isRewardedPowerAvailable
                 ? {
                     claimed: rewardedPowerClaimed,
-                    disabled: rewardedPowerClaimed || Boolean(winner) || Boolean(matchWinner),
+                    disabled: rewardedPowerClaimed || Boolean(effectiveWinner) || Boolean(matchWinner),
                     isRewarding,
                     isPickerOpen: isRewardedPowerPickerOpen,
                     message: isRewarding ? rewardedPowerMessage : '',
@@ -1756,8 +1858,8 @@ export default function App() {
                   }
                 : null
             }
-            isActivePlayer={currentPlayer === p1Symbol && !winner && !matchWinner && !isDraw}
-            canInteract={(!isAiTurn || opponentType === 'human') && currentPlayer === p1Symbol && !winner && !matchWinner && !isDraw}
+            isActivePlayer={currentPlayer === p1Symbol && !effectiveWinner && !matchWinner && !isDraw}
+            canInteract={(!isAiTurn || opponentType === 'human') && currentPlayer === p1Symbol && !effectiveWinner && !matchWinner && !isDraw}
             isPowersEnabled={powersEnabled && !matchWinner}
             powerCounts={playerPowers[p1Symbol]}
             activePower={activePower}
@@ -1765,6 +1867,9 @@ export default function App() {
             hasUsedPowerThisTurn={hasUsedPowerThisTurn && currentPlayer === p1Symbol}
             onSelectPower={handleSelectHumanPower}
             onUseRandomBoost={handleRandomBoostPower}
+            timeLimit={turnTimeLimit}
+            timeLeft={turnTimeLeft}
+            isWarning={turnTimeLeft <= 5}
           />
 
           <Board
@@ -1798,8 +1903,8 @@ export default function App() {
             score={p2Score}
             scoreLabel={scoreLabel}
             powerOptions={powerOptions}
-            isActivePlayer={currentPlayer === p2Symbol && !winner && !matchWinner && !isDraw}
-            canInteract={opponentType !== 'ai' && !isAiTurn && currentPlayer === p2Symbol && !winner && !matchWinner && !isDraw}
+            isActivePlayer={currentPlayer === p2Symbol && !effectiveWinner && !matchWinner && !isDraw}
+            canInteract={opponentType !== 'ai' && !isAiTurn && currentPlayer === p2Symbol && !effectiveWinner && !matchWinner && !isDraw}
             isPowersEnabled={powersEnabled && !matchWinner}
             powerCounts={playerPowers[p2Symbol]}
             activePower={activePower}
@@ -1807,9 +1912,12 @@ export default function App() {
             hasUsedPowerThisTurn={hasUsedPowerThisTurn && currentPlayer === p2Symbol}
             onSelectPower={handleSelectHumanPower}
             onUseRandomBoost={handleRandomBoostPower}
+            timeLimit={turnTimeLimit}
+            timeLeft={turnTimeLeft}
+            isWarning={turnTimeLeft <= 5}
           />
 
-          {(winner || isDraw) && !matchWinner && isRoundResultDismissed && (
+          {(effectiveWinner || isDraw) && !matchWinner && isRoundResultDismissed && (
             <RoundResultPreviewBar
               onNextRound={handleNextRound}
             />
@@ -1819,13 +1927,13 @@ export default function App() {
 
       </section>
 
-      {(winner || isDraw) &&
+      {(effectiveWinner || isDraw) &&
         !showSetupReturnConfirm &&
         (!isRoundResultDismissed || Boolean(matchWinner)) && (
         <RoundResultModal
           roundNumber={roundNumber}
           winner={winnerPlayerName}
-          winningSymbol={winner}
+          winningSymbol={effectiveWinner}
           isDraw={isDraw}
           matchWinner={matchWinner}
           scores={{ p1: p1Score, p2: p2Score }}

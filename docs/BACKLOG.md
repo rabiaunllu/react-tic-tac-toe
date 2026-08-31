@@ -52,8 +52,19 @@ Bu dosya, **XO Arena** projesinde tamamlanan tüm özellikleri, mimari sistemler
 ### 5. Ses & Hissiyat (Audio & Feedback)
 - [x] Web Audio API prosedürel ses sentezleyici (`soundManager.js`)
 - [x] Taş koyma, bomba patlama, kalkan, dondur, vampir, kara delik, tur ve maç zafer sesleri
-- [x] Mobil dokunmatik titreşim (Navigator Haptic Feedback)
-- [x] Sesleri açma/kapatma ayarı
+### 6. Hamle Sayacı / Turn Timer (Shot Clock)
+- [x] 10s, 15s, 20s ve ∞ (Süresiz) seçenekleri
+- [x] Panele entegre siber neon süre rozeti ve tema uyumlu lazer ilerleme çizgisi
+- [x] Son 5 saniyede evrensel alev kırmızısı nabız alarmı (`#ff4757`) ve geri sayım uyarısı
+- [x] Zaman aşımı durumunda turu rakibe devretme ve galibiyet modalı akışı
+- [x] Online çok oyunculu senkronizasyonu
+- [x] Onay kutularında süreyi dondurup sınırsız düşünme açığı (Pause-to-Think Exploit) kapatıldı
+
+### 7. Güvenlik & Kod Zafiyet Denetimi (Security Audit)
+- [x] API endpoint'leri ve girdi doğrulama (XSS, Injection, Max Length Sanitization)
+- [x] İstemci tarafı state manipülasyonu ve localStorage schema validation (`isValidLocalSession`)
+- [x] Çoklu tıklama ve eşzamanlı yarış durumu (Race Condition) korumaları (`effectiveWinner`)
+- [x] 60 FPS performans ve bellek sızıntısı (Memory Leak) arındırması
 
 ---
 
@@ -64,16 +75,15 @@ Bu dosya, **XO Arena** projesinde tamamlanan tüm özellikleri, mimari sistemler
 - [ ] Ayarlar menüsünden ve ana ekrandan dil değiştirme seçeneği (TR / EN)
 - [ ] CrazyGames için otomatik tarayıcı dili algılama
 
-### 2. Hamle Sayacı / Turn Timer (Shot Clock)
-- [ ] Online ve PvP maçlar için tur başına 20-30 saniyelik geri sayım sayacı
-- [ ] Süre dolduğunda sıranın boş geçmesi veya 2. ihlalde hükmen mağlubiyet kuralı
-
-### 3. Güvenlik & Kod Zafiyet Denetimi (Security Audit)
-- [ ] API endpoint'leri ve girdi doğrulama (XSS, Injection, Room Flooding) kontrolleri
-- [ ] İstemci tarafı state manipülasyonu engelleme kontrolleri
-
-### 4. CrazyGames v3 SDK Entegrasyonu & Yayın
+### 2. CrazyGames v3 SDK Entegrasyonu & Yayın
 - [ ] CrazyGames v3 SDK script yüklemesi
 - [ ] Gameplay Start / Gameplay Stop sinyalleri
 - [ ] HappyTime ve Reklam (Adbreak) tetikleyicileri
 - [ ] CrazyGames portalına yükleme ve test
+
+---
+
+## 💡 Gelecek / İsteğe Bağlı Özellikler (Post-Release)
+- [ ] Rastgele online odaya girme (Quick Matchmaking)
+- [ ] Online chat (sadece emoji veya hızlı mesajlar)
+- [ ] AI modunda oyuncunun O olup botun X başlayabilmesi seçeneği

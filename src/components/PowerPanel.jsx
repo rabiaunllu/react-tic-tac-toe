@@ -21,6 +21,9 @@ export default function PowerPanel({
   extraPowerIds = [],
   rewardedPack,
   statusText,
+  timeLimit = 0,
+  timeLeft = 0,
+  isWarning = false,
 }) {
   const basePowers = getAvailablePowerDefinitions(powerOptions)
   const extraPowers = getPowerDefinitions(extraPowerIds)
@@ -64,6 +67,13 @@ export default function PowerPanel({
         <div className="player-identity">
           <span className="player-symbol">{currentPlayer}</span>
           <span className="player-name">{playerName ?? `Oyuncu ${currentPlayer}`}</span>
+          {timeLimit > 0 && (
+            <div className={`panel-timer-badge ${isActivePlayer ? 'active' : 'idle'} ${isActivePlayer && isWarning ? 'warning' : ''}`}>
+              <span className="panel-timer-digits">
+                {isActivePlayer ? `${Math.ceil(Math.max(0, timeLeft))}s` : `${timeLimit}s`}
+              </span>
+            </div>
+          )}
           {rewardedPack && (
             <button
               type="button"
@@ -82,6 +92,17 @@ export default function PowerPanel({
           <strong>{score}</strong>
         </div>
       </div>
+
+      {timeLimit > 0 && (
+        <div className="panel-timer-track">
+          <div
+            className={`panel-timer-fill ${isActivePlayer ? 'active' : 'idle'} ${isActivePlayer && isWarning ? 'warning' : ''}`}
+            style={{
+              width: isActivePlayer ? `${Math.min(100, Math.max(0, (timeLeft / timeLimit) * 100))}%` : '100%',
+            }}
+          />
+        </div>
+      )}
 
       <div className="power-panel-header">
         {!isPowersEnabled && <span>Klasik mod</span>}

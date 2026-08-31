@@ -192,6 +192,29 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
   const mySymbol = myPlayer?.symbol ?? ''
   const currentSymbol = room.game.xIsNext ? 'X' : 'O'
   const isArena = room.gameMode === 'arena'
+  const turnTimeLimit = room.turnTimeLimit ?? room.game?.turnTimeLimit ?? 15
+  const [turnTimeLeft, setTurnTimeLeft] = useState(turnTimeLimit)
+
+  useEffect(() => {
+    if (turnTimeLimit <= 0 || room.status !== 'playing' || room.game.winner || room.game.isDraw) {
+      return
+    }
+
+    let currentRemaining = turnTimeLimit
+    const timerId = setTimeout(() => {
+      setTurnTimeLeft(turnTimeLimit)
+    }, 0)
+
+    const interval = setInterval(() => {
+      currentRemaining = Math.max(0, currentRemaining - 0.1)
+      setTurnTimeLeft(currentRemaining)
+    }, 100)
+
+    return () => {
+      clearTimeout(timerId)
+      clearInterval(interval)
+    }
+  }, [turnTimeLimit, currentSymbol, room.game.roundNumber, room.status, room.game.winner, room.game.isDraw])
   const isRoundFinished = Boolean(room.game.winner) || room.game.isDraw || room.status === 'completed'
   const nextRoundPlayerIds = room.game.nextRoundPlayerIds ?? []
   const hasRequestedNextRound = nextRoundPlayerIds.includes(playerId)
@@ -693,14 +716,15 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
               setIsMenuConfirmOpen(true)
             }}
           >
-            Menüye dön
+            Ana Menü
           </button>
           <SoundToggle />
         </div>
 
         {isMenuConfirmOpen && (
-          <div className="setup-return-confirm">
-            <strong>Menüye dönülsün mü?</strong>
+          <div className="setup-return-confirm" role="alertdialog" aria-modal="true">
+            <strong>Ana Menüye dönülsün mü?</strong>
+            <p>Odadan ayrılacaksın ve maç sonlandırılacak.</p>
 
             <div className="setup-return-actions">
               <button
@@ -718,7 +742,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
                 className="danger-action"
                 onClick={handleOnlineMenuWithLeave}
               >
-                Menüye dön
+                Menüye Dön
               </button>
             </div>
           </div>
@@ -814,6 +838,9 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
                 hasUsedPowerThisTurn={hasUsedPowerThisTurn}
                 onSelectPower={setActivePower}
                 onUseRandomBoost={handleRandomBoostPower}
+                timeLimit={turnTimeLimit}
+                timeLeft={turnTimeLeft}
+                isWarning={turnTimeLeft <= 5}
               />
 
               <Board
@@ -863,6 +890,9 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
                 }
                 onSelectPower={setActivePower}
                 onUseRandomBoost={handleRandomBoostPower}
+                timeLimit={turnTimeLimit}
+                timeLeft={turnTimeLeft}
+                isWarning={turnTimeLeft <= 5}
               />
             </>
           ) : (
@@ -884,6 +914,9 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
                       : 'Rakibin hamlesi bekleniyor.'
                     : 'Sıranı bekle, tahtayı oku.'
                 }
+                timeLimit={turnTimeLimit}
+                timeLeft={turnTimeLeft}
+                isWarning={turnTimeLeft <= 5}
               />
               <Board
                 boardSize={room.boardSize}
@@ -921,6 +954,9 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
                         : 'Rakibin hamlesi bekleniyor.'
                       : 'Sıranı bekle, tahtayı oku.'
                 }
+                timeLimit={turnTimeLimit}
+                timeLeft={turnTimeLeft}
+                isWarning={turnTimeLeft <= 5}
               />
             </>
           )}
@@ -969,7 +1005,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
                 : undefined
           }
           menuConfirmTitle="Menüye dönülsün mü?"
-          menuConfirmActionLabel="Menüye dön"
+          menuConfirmActionLabel="Menü"
           onClose={() => setIsRoundResultDismissed(true)}
         />
       )}
