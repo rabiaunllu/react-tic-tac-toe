@@ -68,14 +68,18 @@ Bu dosya, **XO Arena** projesinde tamamlanan tüm özellikleri, mimari sistemler
 
 ---
 
-## 🎯 Kalan Son Adımlar (Yayına Çıkış Planı)
+### 8. Çoklu Dil Desteği (i18n Localization)
+- [x] Türkçe ve İngilizce sözlük modülleri (`src/i18n/tr.js` ve `en.js`, 0 KB harici paket)
+- [x] Hızlı menüye siber neon bayrak ve dil değiştirici (`🇹🇷 TR` / `🇬🇧 EN`)
+- [x] CrazyGames ve global oyuncular için otomatik İngilizce, yerel oyuncular için Türkçe açılış
+- [x] `localStorage` kalıcılığı ve tarayıcı dili algılama
+- [x] Kurallar (`HowToPlay`), güçler, paneller, online lobi ve tüm modalların çift dilli entegrasyonu
 
-### 1. İngilizce Dil Desteği (i18n & Localization)
-- [ ] Türkçe ve İngilizce dil sözlüğü (`src/i18n/`)
-- [ ] Ayarlar menüsünden ve ana ekrandan dil değiştirme seçeneği (TR / EN)
-- [ ] CrazyGames için otomatik tarayıcı dili algılama
+---
 
-### 2. CrazyGames v3 SDK Entegrasyonu & Yayın
+## 🎯 Kalan Son Adım (Yayına Çıkış Planı)
+
+### 1. CrazyGames v3 SDK Entegrasyonu & Yayın
 - [ ] CrazyGames v3 SDK script yüklemesi
 - [ ] Gameplay Start / Gameplay Stop sinyalleri
 - [ ] HappyTime ve Reklam (Adbreak) tetikleyicileri

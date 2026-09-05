@@ -11,6 +11,7 @@ import {
 import { clearOnlineSession } from '../sessionStorage'
 import HowToPlay from './HowToPlay'
 import SoundToggle from './SoundToggle'
+import { useTranslation } from '../i18n'
 import { playSound, registerUserGesture } from '../game/soundManager'
 import SetupHeroBanner from './SetupHeroBanner'
 import PowerSimulation from './PowerSimulation'
@@ -90,6 +91,8 @@ export default function GameSetup({
   restoreMessage,
 }) {
   const initialDeepLinkRoom = getInitialDeepLinkRoom()
+  const { t, language } = useTranslation()
+  const isTr = language === 'tr'
 
   // Mode selection modal states
   const [activeModal, setActiveModal] = useState(() => (initialDeepLinkRoom ? 'online_modal' : null))
@@ -102,8 +105,8 @@ export default function GameSetup({
   const [isHowToPlayOpen, setIsHowToPlayOpen] = useState(false)
   
   // Local PvP player names
-  const [player1Name, setPlayer1Name] = useState('1. Oyuncu')
-  const [player2Name, setPlayer2Name] = useState('2. Oyuncu')
+  const [player1Name, setPlayer1Name] = useState(() => (isTr ? '1. Oyuncu' : 'Player 1'))
+  const [player2Name, setPlayer2Name] = useState(() => (isTr ? '2. Oyuncu' : 'Player 2'))
   
   // Online states
   const [createPlayerName, setCreatePlayerName] = useState('')
@@ -144,7 +147,7 @@ export default function GameSetup({
 
   const selectedBoard = boardOptions.find((board) => board.size === boardSize)
   const targetOptions = gameMode === 'classic' ? classicTargets : arenaTargets
-  const targetLabel = gameMode === 'classic' ? 'Tur Sayısı' : 'Hedef Puan'
+  const targetLabel = gameMode === 'classic' ? t('setup.settingsModal.targetRound') : t('setup.settingsModal.targetScore')
   const isOnlineMode = opponentType === 'online'
   const isOnlineLoading = onlineLoadingAction !== null
   const canStartOnlineRoom = onlineLobby?.room.status === 'ready' && onlineLobby.symbol === 'X'
@@ -230,6 +233,12 @@ export default function GameSetup({
   function handleStartGame() {
     registerUserGesture()
     playSound('click')
+    const defaultHuman = isTr ? 'Oyuncu' : 'Player'
+    const defaultP1 = isTr ? '1. Oyuncu' : 'Player 1'
+    const defaultP2 = isTr ? '2. Oyuncu' : 'Player 2'
+    const cleanP1 = player1Name.trim()
+    const cleanP2 = player2Name.trim()
+
     onStartGame({
       boardSize,
       winLength: selectedBoard.winLength,
@@ -239,8 +248,12 @@ export default function GameSetup({
       isInfinite,
       opponentType,
       turnTimeLimit,
-      player1Name: opponentType === 'ai' ? 'Oyuncu' : (player1Name.trim() || '1. Oyuncu'),
-      player2Name: opponentType === 'ai' ? 'Bot' : (player2Name.trim() || '2. Oyuncu'),
+      player1Name: opponentType === 'ai'
+        ? defaultHuman
+        : (!cleanP1 || cleanP1 === '1. Oyuncu' || cleanP1 === 'Player 1' ? defaultP1 : cleanP1),
+      player2Name: opponentType === 'ai'
+        ? 'Bot'
+        : (!cleanP2 || cleanP2 === '2. Oyuncu' || cleanP2 === 'Player 2' ? defaultP2 : cleanP2),
     })
   }
 
@@ -503,7 +516,7 @@ export default function GameSetup({
   return (
     <main className="app-shell">
       <section className="game-card setup-card viral-hub-card">
-        {/* Top Sound Action */}
+        {/* Top Sound & Settings Action */}
         <div className="setup-quick-actions">
           <SoundToggle />
         </div>
@@ -517,7 +530,7 @@ export default function GameSetup({
         {/* ── Brand Hero Header ── */}
         <header className="game-header brand-header setup-brand-header">
           <h1>XO ARENA</h1>
-          <p>Taşını koy. Gücünü kullan. Rövanşı al.</p>
+          <p>{t('setup.slogan')}</p>
         </header>
 
         <SetupHeroBanner />
@@ -531,8 +544,8 @@ export default function GameSetup({
           >
             <div className="viral-card-icon">🤖</div>
             <div className="viral-card-content">
-              <h3>BOT'A KARŞI</h3>
-              <p>Yapay zekâ ile hızlı maç oyna</p>
+              <h3>{t('setup.modes.ai')}</h3>
+              <p>{t('setup.modes.aiDesc')}</p>
             </div>
             <div className="viral-card-arrow">→</div>
           </button>
@@ -544,8 +557,8 @@ export default function GameSetup({
           >
             <div className="viral-card-icon">👥</div>
             <div className="viral-card-content">
-              <h3>YAN YANA</h3>
-              <p>Tek cihazda arkadaşınla kapış</p>
+              <h3>{t('setup.modes.human')}</h3>
+              <p>{t('setup.modes.humanDesc')}</p>
             </div>
             <div className="viral-card-arrow">→</div>
           </button>
@@ -558,8 +571,8 @@ export default function GameSetup({
           >
             <div className="viral-card-icon">🌐</div>
             <div className="viral-card-content">
-              <h3>ÇEVRİMİÇİ ODA</h3>
-              <p>Uzaktan arkadaşınla oda kur veya katıl</p>
+              <h3>{t('setup.modes.online')}</h3>
+              <p>{t('setup.modes.onlineDesc')}</p>
             </div>
             <div className="viral-card-arrow">→</div>
           </button>
@@ -569,18 +582,44 @@ export default function GameSetup({
             className="viral-mode-card viral-mode-card--tournament is-disabled"
             disabled
           >
-            <div className="viral-card-badge viral-card-badge--soon">YAKINDA</div>
+            <div className="viral-card-badge viral-card-badge--soon">{t('setup.modes.comingSoon')}</div>
             <div className="viral-card-icon">🏆</div>
             <div className="viral-card-content">
-              <h3>TURNUVA MODU</h3>
-              <p>Çok oyunculu lig turnuvası</p>
+              <h3>{t('setup.modes.tournament')}</h3>
+              <p>{t('setup.modes.tournamentDesc')}</p>
             </div>
           </button>
         </div>
 
         {/* ── Interactive Power Section ── */}
         <div className="setup-sim-section">
-          <span className="setup-sim-label">⚡ ARENA GÜÇLERİ</span>
+          <span className="setup-sim-label">
+            <svg
+              className="setup-sim-icon"
+              viewBox="0 0 24 24"
+              width="18"
+              height="18"
+              aria-hidden="true"
+            >
+              <defs>
+                <linearGradient id="arenaPowerBoltGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#ffffff" />
+                  <stop offset="30%" stopColor="#ff8fc5" />
+                  <stop offset="70%" stopColor="#c084fc" />
+                  <stop offset="100%" stopColor="#a855f7" />
+                </linearGradient>
+                <filter id="arenaPowerGlow" x="-30%" y="-30%" width="160%" height="160%">
+                  <feDropShadow dx="0" dy="0" stdDeviation="2.5" floodColor="#c084fc" floodOpacity="0.85" />
+                </filter>
+              </defs>
+              <path
+                d="M13.5 1.5L3.5 13.5h7l-2 9 11-12h-7.5l2-9z"
+                fill="url(#arenaPowerBoltGrad)"
+                filter="url(#arenaPowerGlow)"
+              />
+            </svg>
+            <span>{t('setup.arenaPowers')}</span>
+          </span>
           <PowerSimulation />
         </div>
 
@@ -591,7 +630,7 @@ export default function GameSetup({
             className="viral-footer-btn viral-footer-btn--prominent"
             onClick={() => setIsHowToPlayOpen(true)}
           >
-            <span> Nasıl Oynanır?</span>
+            <span>{t('setup.rulesButton')}</span>
           </button>
         </footer>
       </section>
@@ -613,12 +652,12 @@ export default function GameSetup({
               <span className="viral-modal-icon">
                 {opponentType === 'ai' ? '🤖' : '👥'}
               </span>
-              <h2>{opponentType === 'ai' ? "BOT'A KARŞI" : 'YAN YANA'}</h2>
-              <p>Maç ayarlarını seç ve oyuna başla</p>
+              <h2>{opponentType === 'ai' ? t('setup.modes.ai') : t('setup.modes.human')}</h2>
+              <p>{t('setup.settingsModal.subtitle')}</p>
             </div>
 
             <div className="setup-group">
-              <span className="setup-label">Izgara Boyutu</span>
+              <span className="setup-label">{t('setup.settingsModal.boardSize')}</span>
               <div className="setup-options">
                 {boardOptions.map((board) => (
                   <button
@@ -634,21 +673,21 @@ export default function GameSetup({
             </div>
 
             <div className="setup-group">
-              <span className="setup-label">Oyun Türü</span>
+              <span className="setup-label">{t('setup.settingsModal.gameMode')}</span>
               <div className="setup-options">
                 <button
                   className={gameMode === 'classic' ? 'setup-option active' : 'setup-option'}
                   type="button"
                   onClick={() => handleModeChange('classic')}
                 >
-                  Klasik
+                  {t('setup.settingsModal.classic')}
                 </button>
                 <button
                   className={gameMode === 'arena' ? 'setup-option active' : 'setup-option'}
                   type="button"
                   onClick={() => handleModeChange('arena')}
                 >
-                  Arena
+                  {t('setup.settingsModal.arena')}
                 </button>
               </div>
             </div>
@@ -666,7 +705,9 @@ export default function GameSetup({
                       setIsInfinite(false)
                     }}
                   >
-                    {gameMode === 'classic' ? `${target} Tur` : `${target} Puan`}
+                    {gameMode === 'classic'
+                      ? t('setup.settingsModal.roundsCount', { count: target })
+                      : t('setup.settingsModal.pointsCount', { count: target })}
                   </button>
                 ))}
                 <button
@@ -681,29 +722,40 @@ export default function GameSetup({
 
             {/* ── Hamle Süresi ── */}
             <div className="setup-group">
-              <span className="setup-label">Hamle Süresi</span>
+              <span className="setup-label">{t('setup.settingsModal.turnTime')}</span>
               <div className="setup-options turn-time-options">
-                {turnTimeOptions.map((opt) => (
-                  <button
-                    key={opt.value}
-                    className={turnTimeLimit === opt.value ? 'setup-option turn-time-option active' : 'setup-option turn-time-option'}
-                    type="button"
-                    onClick={() => {
-                      registerUserGesture()
-                      playSound('click')
-                      setTurnTimeLimit(opt.value)
-                    }}
-                  >
-                    <span className="turn-time-label">{opt.label}</span>
-                    <span className="turn-time-sublabel">{opt.sublabel}</span>
-                  </button>
-                ))}
+                {turnTimeOptions.map((opt) => {
+                  const sublabel =
+                    opt.value === 10
+                      ? t('setup.settingsModal.timeFast')
+                      : opt.value === 15
+                        ? t('setup.settingsModal.timeStandard')
+                        : opt.value === 20
+                          ? t('setup.settingsModal.timeTactical')
+                          : t('setup.settingsModal.timeInfinite')
+
+                  return (
+                    <button
+                      key={opt.value}
+                      className={turnTimeLimit === opt.value ? 'setup-option turn-time-option active' : 'setup-option turn-time-option'}
+                      type="button"
+                      onClick={() => {
+                        registerUserGesture()
+                        playSound('click')
+                        setTurnTimeLimit(opt.value)
+                      }}
+                    >
+                      <span className="turn-time-label">{opt.label}</span>
+                      <span className="turn-time-sublabel">{sublabel}</span>
+                    </button>
+                  )
+                })}
               </div>
             </div>
 
             {/* ── Single-Row Non-Wrapping Skin / Theme Selector ── */}
             <div className="setup-group">
-              <span className="setup-label">Taş & Tema Görünümü</span>
+              <span className="setup-label">{t('setup.settingsModal.skinTheme')}</span>
               <div className="skin-options-row">
                 {SKINS.map((skin) => {
                   const isActive = selectedSkin === skin.id
@@ -716,7 +768,7 @@ export default function GameSetup({
                       onClick={() => handleSelectSkin(skin)}
                     >
                       <span className="skin-btn-content">
-                        {skin.icon} {skin.name}
+                        {skin.icon} {t(`skins.${skin.id}`) || skin.name}
                       </span>
                       {isActive && <span className="skin-check-badge">✓</span>}
                     </button>
@@ -727,13 +779,24 @@ export default function GameSetup({
 
             <div className={`setup-summary ${gameMode}`}>
               {gameMode === 'classic'
-                ? `Klasik mod: ${isInfinite ? 'Sonsuz oyun' : `${targetValue} tur hedefi`}. ${selectedBoard.label} ızgarada ${selectedBoard.winLength} yan yana kazandırır.`
-                : `Arena mod: ${isInfinite ? 'Sonsuz puan' : `${targetValue} puan hedefi`}. ${selectedBoard.label} ızgarada güçler ve çarpanlar aktif.`}
+                ? t('setup.settingsModal.summaryClassic', {
+                    target: isInfinite
+                      ? t('setup.settingsModal.infiniteTargetRounds')
+                      : t('setup.settingsModal.targetRoundsDesc', { count: targetValue }),
+                    size: selectedBoard.label,
+                    winLength: selectedBoard.winLength,
+                  })
+                : t('setup.settingsModal.summaryArena', {
+                    target: isInfinite
+                      ? t('setup.settingsModal.infiniteTargetPoints')
+                      : t('setup.settingsModal.targetPointsDesc', { count: targetValue }),
+                    size: selectedBoard.label,
+                  })}
             </div>
 
             <div className="viral-modal-actions">
               <button type="button" className="start-game-button" onClick={handleConfigSubmit}>
-                ▶ OYUNA BAŞLA
+                ▶ {t('common.play')}
               </button>
             </div>
           </div>
@@ -755,8 +818,8 @@ export default function GameSetup({
 
             <div className="viral-modal-header">
               <span className="viral-modal-icon">👥</span>
-              <h2>OYUNCU İSİMLERİ</h2>
-              <p>İsimleri belirle ve maça başla</p>
+              <h2>{t('setup.playerNamesModal.title')}</h2>
+              <p>{t('setup.playerNamesModal.subtitle')}</p>
             </div>
 
             <div className="setup-group player-names-setup-group">
@@ -768,7 +831,7 @@ export default function GameSetup({
                     className="setup-name-input"
                     value={player1Name}
                     onChange={(e) => setPlayer1Name(sanitizePlayerName(e.target.value))}
-                    placeholder="1. Oyuncu (1. Tur X)"
+                    placeholder={`${t('setup.playerNamesModal.defaultP1')} (${isTr ? '1. Tur X' : 'Round 1 X'})`}
                     maxLength={MAX_NAME_LENGTH}
                     autoFocus
                   />
@@ -780,19 +843,21 @@ export default function GameSetup({
                     className="setup-name-input"
                     value={player2Name}
                     onChange={(e) => setPlayer2Name(sanitizePlayerName(e.target.value))}
-                    placeholder="2. Oyuncu (1. Tur O)"
+                    placeholder={`${t('setup.playerNamesModal.defaultP2')} (${isTr ? '1. Tur O' : 'Round 1 O'})`}
                     maxLength={MAX_NAME_LENGTH}
                   />
                 </div>
               </div>
               <small className="setup-rotation-hint">
-                🔄 Her tur X ve O sırası değişir; oyuna her zaman X başlar.
+                {isTr
+                  ? '🔄 Her tur X ve O sırası değişir; oyuna her zaman X başlar.'
+                  : '🔄 Roles swap every round; X always starts the game.'}
               </small>
             </div>
 
             <div className="viral-modal-actions">
               <button type="button" className="start-game-button" onClick={handleStartGame}>
-                ▶ MAÇI BAŞLAT
+                ▶ {t('setup.playerNamesModal.startMatch')}
               </button>
             </div>
           </div>
@@ -814,8 +879,8 @@ export default function GameSetup({
 
             <div className="viral-modal-header">
               <span className="viral-modal-icon">🌐</span>
-              <h2>ÇEVRİMİÇİ ODA</h2>
-              <p>Arkadaşınla uzaktan oyna</p>
+              <h2>{t('setup.onlineModal.title')}</h2>
+              <p>{t('setup.onlineModal.subtitle')}</p>
             </div>
 
             <div className="online-lobby-panel">
@@ -827,8 +892,8 @@ export default function GameSetup({
                     onClick={() => setOnlineFlow('create')}
                   >
                     <span className="online-choice-icon">🏠</span>
-                    <span className="online-choice-title">Oda Kur</span>
-                    <small>Maç kurallarını sen belirle</small>
+                    <span className="online-choice-title">{t('setup.onlineModal.createRoom')}</span>
+                    <small>{isTr ? 'Maç kurallarını sen belirle' : 'Host and set custom rules'}</small>
                   </button>
 
                   <button
@@ -837,8 +902,8 @@ export default function GameSetup({
                     onClick={() => setOnlineFlow('join')}
                   >
                     <span className="online-choice-icon">🔑</span>
-                    <span className="online-choice-title">Odaya Katıl</span>
-                    <small>Arkadaşının kodunu gir</small>
+                    <span className="online-choice-title">{t('setup.onlineModal.joinRoom')}</span>
+                    <small>{isTr ? 'Arkadaşının kodunu gir' : "Enter friend's room code"}</small>
                   </button>
                 </div>
               )}
@@ -849,8 +914,8 @@ export default function GameSetup({
                   <div className="online-flow-card">
                     <header className="online-flow-header online-flow-card-header">
                       <div>
-                        <h2>Odanı kur</h2>
-                        <p>Oyuncu adını yaz ve maç ayarlarını yap.</p>
+                        <h2>{isTr ? 'Odanı kur' : 'Host a Room'}</h2>
+                        <p>{isTr ? 'Oyuncu adını yaz ve maç ayarlarını yap.' : 'Enter your name and customize match rules.'}</p>
                       </div>
                       <button
                         type="button"
@@ -862,13 +927,13 @@ export default function GameSetup({
                     </header>
 
                     <div className="online-field">
-                      <label htmlFor="create-player-name">Oyuncu Adın</label>
+                      <label htmlFor="create-player-name">{t('setup.onlineModal.yourName')}</label>
                       <input
                         id="create-player-name"
                         type="text"
                         value={createPlayerName}
                         onChange={(e) => setCreatePlayerName(sanitizePlayerName(e.target.value))}
-                        placeholder="Adını yaz"
+                        placeholder={isTr ? 'Adını yaz' : 'Your name'}
                         maxLength={MAX_NAME_LENGTH}
                         disabled={isOnlineLoading}
                         autoComplete="off"
@@ -877,7 +942,7 @@ export default function GameSetup({
 
                     {/* Room Host Settings */}
                     <div className="setup-group">
-                      <span className="setup-label">Izgara Boyutu</span>
+                      <span className="setup-label">{t('setup.settingsModal.boardSize')}</span>
                       <div className="setup-options">
                         {boardOptions.map((board) => (
                           <button
@@ -893,52 +958,61 @@ export default function GameSetup({
                     </div>
 
                     <div className="setup-group">
-                      <span className="setup-label">Oyun Türü</span>
+                      <span className="setup-label">{t('setup.settingsModal.gameMode')}</span>
                       <div className="setup-options">
                         <button
                           className={gameMode === 'classic' ? 'setup-option active' : 'setup-option'}
                           type="button"
                           onClick={() => handleModeChange('classic')}
                         >
-                          Klasik
+                          {t('setup.settingsModal.classic')}
                         </button>
                         <button
                           className={gameMode === 'arena' ? 'setup-option active' : 'setup-option'}
                           type="button"
                           onClick={() => handleModeChange('arena')}
                         >
-                          Arena
+                          {t('setup.settingsModal.arena')}
                         </button>
                       </div>
                     </div>
 
                     {/* ── Hamle Süresi ── */}
                     <div className="setup-group">
-                      <span className="setup-label">Hamle Süresi</span>
+                      <span className="setup-label">{t('setup.settingsModal.turnTime')}</span>
                       <div className="setup-options turn-time-options">
-                        {turnTimeOptions.map((opt) => (
-                          <button
-                            key={opt.value}
-                            className={turnTimeLimit === opt.value ? 'setup-option turn-time-option active' : 'setup-option turn-time-option'}
-                            type="button"
-                            onClick={() => {
-                              registerUserGesture()
-                              playSound('click')
-                              setTurnTimeLimit(opt.value)
-                            }}
-                          >
-                            <span className="turn-time-label">{opt.label}</span>
-                            <span className="turn-time-sublabel">{opt.sublabel}</span>
-                          </button>
-                        ))}
+                        {turnTimeOptions.map((opt) => {
+                          const sublabel =
+                            opt.value === 10
+                              ? t('setup.settingsModal.timeFast')
+                              : opt.value === 15
+                                ? t('setup.settingsModal.timeStandard')
+                                : opt.value === 20
+                                  ? t('setup.settingsModal.timeTactical')
+                                  : t('setup.settingsModal.timeInfinite')
+
+                          return (
+                            <button
+                              key={opt.value}
+                              className={turnTimeLimit === opt.value ? 'setup-option turn-time-option active' : 'setup-option turn-time-option'}
+                              type="button"
+                              onClick={() => {
+                                registerUserGesture()
+                                playSound('click')
+                                setTurnTimeLimit(opt.value)
+                              }}
+                            >
+                              <span className="turn-time-label">{opt.label}</span>
+                              <span className="turn-time-sublabel">{sublabel}</span>
+                            </button>
+                          )
+                        })}
                       </div>
                     </div>
 
-                    {/* BoostModeSetting: Boost arka planda hazır, şimdilik UI'da gösterilmiyor */}
-
                     {/* Theme Skin Setting for Host */}
                     <div className="setup-group">
-                      <span className="setup-label">Taş & Tema Görünümü</span>
+                      <span className="setup-label">{t('setup.settingsModal.skinTheme')}</span>
                       <div className="skin-options-row">
                         {SKINS.map((skin) => {
                           const isActive = selectedSkin === skin.id
@@ -951,7 +1025,7 @@ export default function GameSetup({
                               onClick={() => handleSelectSkin(skin)}
                             >
                               <span className="skin-btn-content">
-                                {skin.icon} {skin.name}
+                                {skin.icon} {t(`skins.${skin.id}`) || skin.name}
                               </span>
                               {isActive && <span className="skin-check-badge">✓</span>}
                             </button>
@@ -966,7 +1040,7 @@ export default function GameSetup({
                       onClick={handleCreateOnlineRoom}
                       disabled={isOnlineLoading}
                     >
-                      {onlineLoadingAction === 'create' ? 'Oluşturuluyor...' : '🏠 Oda Oluştur'}
+                      {onlineLoadingAction === 'create' ? t('common.loading') : (isTr ? '🏠 Oda Oluştur' : '🏠 Create Room')}
                     </button>
                   </div>
                 </div>
@@ -978,8 +1052,8 @@ export default function GameSetup({
                   <div className="online-flow-card">
                     <header className="online-flow-header online-flow-card-header">
                       <div>
-                        <h2>Odaya katıl</h2>
-                        <p>Adını ve oda kodunu girerek maça dahil ol.</p>
+                        <h2>{isTr ? 'Odaya katıl' : 'Join Room'}</h2>
+                        <p>{isTr ? 'Adını ve oda kodunu girerek maça dahil ol.' : 'Enter your name and room code to join.'}</p>
                       </div>
                       <button
                         type="button"
@@ -991,13 +1065,13 @@ export default function GameSetup({
                     </header>
 
                     <div className="online-field">
-                      <label htmlFor="join-player-name">Oyuncu Adın</label>
+                      <label htmlFor="join-player-name">{t('setup.onlineModal.yourName')}</label>
                       <input
                         id="join-player-name"
                         type="text"
                         value={joinPlayerName}
                         onChange={(e) => setJoinPlayerName(sanitizePlayerName(e.target.value))}
-                        placeholder="Adını yaz"
+                        placeholder={isTr ? 'Adını yaz' : 'Your name'}
                         maxLength={MAX_NAME_LENGTH}
                         disabled={isOnlineLoading}
                         autoComplete="off"
@@ -1005,7 +1079,7 @@ export default function GameSetup({
                     </div>
 
                     <div className="online-field">
-                      <label htmlFor="join-room-code">Oda Kodu</label>
+                      <label htmlFor="join-room-code">{t('setup.onlineModal.roomCode')}</label>
                       <input
                         id="join-room-code"
                         type="text"
@@ -1015,7 +1089,7 @@ export default function GameSetup({
                           const cleaned = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8)
                           setJoinRoomCode(cleaned)
                         }}
-                        placeholder="Kodu gir (ör: XA89)"
+                        placeholder={isTr ? 'Kodu gir (ör: XA89)' : 'Enter code (e.g. XA89)'}
                         maxLength={8}
                         disabled={isOnlineLoading}
                         autoComplete="off"
@@ -1024,7 +1098,7 @@ export default function GameSetup({
 
                     {/* Theme Skin Setting for Guest */}
                     <div className="setup-group">
-                      <span className="setup-label">Taş & Tema Görünümü</span>
+                      <span className="setup-label">{t('setup.settingsModal.skinTheme')}</span>
                       <div className="skin-options-row">
                         {SKINS.map((skin) => {
                           const isActive = selectedSkin === skin.id
@@ -1037,7 +1111,7 @@ export default function GameSetup({
                               onClick={() => handleSelectSkin(skin)}
                             >
                               <span className="skin-btn-content">
-                                {skin.icon} {skin.name}
+                                {skin.icon} {t(`skins.${skin.id}`) || skin.name}
                               </span>
                               {isActive && <span className="skin-check-badge">✓</span>}
                             </button>
@@ -1052,7 +1126,7 @@ export default function GameSetup({
                       onClick={handleJoinOnlineRoom}
                       disabled={isOnlineLoading}
                     >
-                      {onlineLoadingAction === 'join' ? 'Katılıyor...' : '🔑 Odaya Katıl'}
+                      {onlineLoadingAction === 'join' ? t('common.loading') : (isTr ? '🔑 Odaya Katıl' : '🔑 Join Room')}
                     </button>
                   </div>
                 </div>
@@ -1077,7 +1151,7 @@ export default function GameSetup({
                   aria-live="polite"
                 >
                   <div className="online-room-code online-room-code--large">
-                    <span>Oda Kodu</span>
+                    <span>{t('setup.onlineModal.roomCode')}</span>
                     <strong className="online-code-display">{onlineLobby.room.roomCode}</strong>
 
                     {/* Copy buttons only render for the Host (Oda Sahibi) */}
@@ -1089,7 +1163,7 @@ export default function GameSetup({
                           onClick={handleCopyRoomCode}
                           disabled={isRoomCodeCopied}
                         >
-                          {isRoomCodeCopied ? '✓ Kopyalandı' : '📋 Kodu Kopyala'}
+                          {isRoomCodeCopied ? t('setup.onlineModal.copiedCode') : t('setup.onlineModal.copyCode')}
                         </button>
                         <button
                           type="button"
@@ -1104,7 +1178,7 @@ export default function GameSetup({
                             }
                           }}
                         >
-                          💬 WhatsApp Linki Kopyala
+                          {isTr ? '💬 WhatsApp Linki Kopyala' : '💬 Copy WhatsApp Link'}
                         </button>
                       </div>
                     )}
@@ -1112,11 +1186,11 @@ export default function GameSetup({
 
                   <div className="online-room-details">
                     <div>
-                      <span>Rolün</span>
-                      <strong>{onlineLobby.symbol === 'X' ? 'Oda sahibi' : 'Misafir'}</strong>
+                      <span>{isTr ? 'Rolün' : 'Role'}</span>
+                      <strong>{onlineLobby.symbol === 'X' ? (isTr ? 'Oda sahibi' : 'Host') : (isTr ? 'Misafir' : 'Guest')}</strong>
                     </div>
                     <div>
-                      <span>Durum</span>
+                      <span>{isTr ? 'Durum' : 'Status'}</span>
                       <strong>{getRoomStatusText(onlineLobby.room.status)}</strong>
                     </div>
                   </div>
@@ -1138,31 +1212,31 @@ export default function GameSetup({
                         onClick={handleStartOnlineRoom}
                         disabled={isOnlineLoading}
                       >
-                        <span>{onlineLoadingAction === 'start' ? 'Başlatılıyor...' : '▶ Oyunu Başlat'}</span>
+                        <span>{onlineLoadingAction === 'start' ? t('common.loading') : (isTr ? '▶ Oyunu Başlat' : '▶ Start Game')}</span>
                       </button>
                     )}
 
                     {isLeaveConfirmOpen ? (
                       <div className="online-leave-confirm-card">
-                        <strong>Odayı kapatmak istediğinden emin misin?</strong>
+                        <strong>{isTr ? 'Odayı kapatmak istediğinden emin misin?' : 'Are you sure you want to leave the room?'}</strong>
                         <div className="online-leave-confirm-actions">
                           <button
                             type="button"
-                            className="online-leave-confirm-btn online-leave-confirm-btn--cancel"
+                            className="online-leave-cancel-btn"
                             onClick={() => {
                               registerUserGesture()
                               playSound('click')
                               setIsLeaveConfirmOpen(false)
                             }}
                           >
-                            Vazgeç
+                            {t('common.cancel')}
                           </button>
                           <button
                             type="button"
-                            className="online-leave-confirm-btn online-leave-confirm-btn--danger"
+                            className="online-leave-confirm-btn"
                             onClick={handleLeaveOnlineLobby}
                           >
-                            Evet, Odayı Kapat
+                            {isTr ? 'Evet, Ayrıl' : 'Yes, Leave'}
                           </button>
                         </div>
                       </div>
@@ -1191,7 +1265,7 @@ export default function GameSetup({
             {!onlineLobby && (
               <div className="viral-modal-actions">
                 <button type="button" className="viral-btn-secondary" onClick={closeModal}>
-                  Kapat
+                  {t('common.close')}
                 </button>
               </div>
             )}

@@ -56,6 +56,27 @@ export const ARENA_POWER_NAMES = {
   vampire: 'Vampir',
 }
 
+export function getPowerName(powerId, t) {
+  if (!powerId) return ''
+  if (typeof t === 'function') {
+    const localized = t(`powers.${powerId}.name`)
+    if (localized && !localized.startsWith('powers.')) {
+      return localized
+    }
+  }
+  return ARENA_POWER_NAMES[powerId] || powerId
+}
+
+export function getLocalizedPowerDefinition(power, t) {
+  if (!power) return null
+  if (typeof t !== 'function') return power
+  return {
+    ...power,
+    name: t(`powers.${power.id}.name`) || power.name,
+    description: t(`powers.${power.id}.desc`) || power.description,
+  }
+}
+
 // Yan Yana (Local Human vs Human): Freeze + Vampir aktif, Boost/Joker yok
 const localHumanPowerIds = ['bomb', 'shield', 'freeze', 'vampire']
 // Bota Karşı (Local PvC): Kara Delik + Vampir aktif, Boost/Joker yok

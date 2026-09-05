@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
+import { LanguageProvider } from './i18n'
 
 if (typeof window !== 'undefined') {
   const savedSkin = window.localStorage.getItem('xo-arena-skin') || 'neon'
@@ -12,7 +13,9 @@ if (typeof window !== 'undefined') {
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ErrorBoundary>
-      <App />
+      <LanguageProvider>
+        <App />
+      </LanguageProvider>
     </ErrorBoundary>
   </StrictMode>,
 )

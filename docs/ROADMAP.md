@@ -163,11 +163,12 @@ Yapay zekanın yenilmez, hatasız ve viral seviyede bir büyükusta zekasıyla o
 
 ---
 
-## Faz 10 · Çoklu Dil Desteği (i18n Localization) ⏳ SIRADA
+## Faz 10 · Çoklu Dil Desteği (i18n Localization) 🟢 TAMAMLANDI
 
-- [ ] **10.1 — Çift Dilli Sözlük Modülü:** `src/i18n/` sözlük yapısı (Türkçe / İngilizce).
-- [ ] **10.2 — Dil Değiştirici UI:** Menü ve ayarlar paneline bayrak/dil seçici.
-- [ ] **10.3 — Otomatik Tarayıcı Dili Tespiti:** CrazyGames global kullanıcıları için otomatik İngilizce açılış.
+- [x] **10.1 — Çift Dilli Sözlük Modülü:** `src/i18n/` sözlük yapısı (`tr.js` ve `en.js`) ile 0 KB harici bağımlılık.
+- [x] **10.2 — Dil Değiştirici UI:** Hızlı menüye siber neon tasarımlı bayrak ve dil butonu (`LanguageToggle`).
+- [x] **10.3 — Otomatik Tarayıcı Dili Tespiti & Kalıcılık:** CrazyGames ve global kullanıcılar için otomatik İngilizce, yerel kullanıcılar için Türkçe açılış + `localStorage` senkronizasyonu.
+- [x] **10.4 — Tüm Bileşenlerin Çift Dilli Entegrasyonu:** Kurulum, kurallar akordeonu (`HowToPlay`), güçler, paneller, online lobi ve sonuç modalları çift dile bağlandı.
 
 ---
 

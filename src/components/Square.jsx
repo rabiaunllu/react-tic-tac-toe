@@ -2,6 +2,7 @@ import { memo } from 'react'
 import CrystalSnowflake from './CrystalSnowflake'
 import EnergyShieldIcon from './EnergyShieldIcon'
 import ExplosionBlast from './ExplosionBlast'
+import { useTranslation } from '../i18n'
 
 const Square = memo(function Square({
   index,
@@ -23,6 +24,9 @@ const Square = memo(function Square({
   isLastPlaced,
   onSquareClick,
 }) {
+  const { language } = useTranslation()
+  const isTr = language === 'tr'
+
   const className = [
     'square',
     value ? 'square-filled' : '',
@@ -53,17 +57,17 @@ const Square = memo(function Square({
       disabled={isLocked || isFrozen}
       aria-label={
         isFrozen
-          ? 'Donmuş kare'
+          ? (isTr ? 'Donmuş kare' : 'Frozen cell')
           : isPowerTarget
-            ? `${powerTargetLabel ?? 'Güç'} için uygun kare`
+            ? (isTr ? `${powerTargetLabel ?? 'Güç'} için uygun kare` : `Eligible cell for ${powerTargetLabel ?? 'Power'}`)
             : undefined
       }
     >
       {multiplier && <span className="multiplier-badge">{multiplier}x</span>}
-      {isBoosted && <span className="boost-badge" aria-label="Boostlu kare">⚡</span>}
+      {isBoosted && <span className="boost-badge" aria-label={isTr ? 'Boostlu kare' : 'Boosted cell'}>⚡</span>}
       {isShielded && (
         <>
-          <span className="shield-icon-badge" aria-label="Korumalı taş">
+          <span className="shield-icon-badge" aria-label={isTr ? 'Korumalı taş' : 'Shielded mark'}>
             <EnergyShieldIcon size={16} />
           </span>
           <span className="shield-energy-aura" aria-hidden="true">
@@ -75,7 +79,7 @@ const Square = memo(function Square({
       {isTrapped && <span className="trap-badge">🕳️</span>}
       {isBlackHoleTriggered && (
         <>
-          <span className="black-hole-badge" aria-label="Kara delik tetiklendi">
+          <span className="black-hole-badge" aria-label={isTr ? 'Kara delik tetiklendi' : 'Black hole triggered'}>
             🕳️
           </span>
           <span className="blackhole-vortex" aria-hidden="true" />

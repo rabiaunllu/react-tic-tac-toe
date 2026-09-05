@@ -29,15 +29,22 @@ export function isConnectionError(error) {
   return error instanceof RoomRequestError && error.status === 0
 }
 
-export function getRoomStatusText(status) {
-  const statusMap = {
-    waiting: 'Rakip bekleniyor',
-    ready: 'Oyun hazır',
-    playing: 'Maç devam ediyor',
-    completed: 'Tamamlandı',
-  }
+export function getRoomStatusText(status, isTr = true) {
+  const statusMap = isTr
+    ? {
+        waiting: 'Rakip bekleniyor',
+        ready: 'Oyun hazır',
+        playing: 'Maç devam ediyor',
+        completed: 'Tamamlandı',
+      }
+    : {
+        waiting: 'Waiting for opponent',
+        ready: 'Game ready',
+        playing: 'Match in progress',
+        completed: 'Completed',
+      }
 
-  return statusMap[status] ?? 'Durum bilinmiyor'
+  return statusMap[status] ?? (isTr ? 'Durum bilinmiyor' : 'Unknown status')
 }
 
 export async function requestRoomJson(path, options = {}) {

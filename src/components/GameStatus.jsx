@@ -1,4 +1,5 @@
 import { memo } from 'react'
+import { useTranslation } from '../i18n'
 
 const GameStatus = memo(function GameStatus({
   winner,
@@ -9,6 +10,8 @@ const GameStatus = memo(function GameStatus({
   matchWinner,
   isAiThinking,
 }) {
+  const { t } = useTranslation()
+
   if (matchWinner) {
     return null
   }
@@ -20,8 +23,8 @@ const GameStatus = memo(function GameStatus({
       <div className="status winner result-status round-result">
         <span className="result-icon">{icon}</span>
         <div className="result-copy">
-          <strong>{winner} turu aldı</strong>
-          <span>+{roundScore} puan</span>
+          <strong>{t('game.tookRound', { player: winner })}</strong>
+          <span>+{roundScore} {t('game.pts')}</span>
           <small>{loserMessage || subtitle || title}</small>
         </div>
       </div>
@@ -43,16 +46,16 @@ const GameStatus = memo(function GameStatus({
   }
 
   if (isDraw) {
-    return <div className="status draw">Berabere.</div>
+    return <div className="status draw">{t('game.drawText')}</div>
   }
 
   if (isAiThinking) {
     return (
-      <div className="status ai-thinking" aria-live="polite" aria-label="Yapay zeka düşünüyor">
+      <div className="status ai-thinking" aria-live="polite" aria-label={t('game.aiThinkingAria')}>
         <span className="ai-thinking-dots" aria-hidden="true">
           <span></span><span></span><span></span>
         </span>
-        AI düşünüyor…
+        {t('game.aiThinkingText')}
       </div>
     )
   }
