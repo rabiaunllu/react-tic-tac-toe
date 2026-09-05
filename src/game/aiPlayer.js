@@ -1,4 +1,4 @@
-import { calculateWinner } from './gameLogic'
+import { calculateWinner } from './gameLogic.js'
 
 const aiPlayerDefault = 'O'
 const humanPlayerDefault = 'X'
@@ -196,6 +196,107 @@ function getPositionalScore(index, squares, boardSize, winLength, multipliers, a
   return centerBonus + multiplierBonus + lineScore
 }
 
+export function getDdaConfig(humanWinStreak = 0, roundNumber = 1, consecutiveDraws = 0) {
+  // 1. BERABERLİK KIRICI (DRAW BREAKOUT) ADAPTASYONU
+  // Klasik modda veya dengeli eşleşmelerde peş peşe berabere kalındığında kullanıcının
+  // oyundan sıkılmasını önlemek ve maçın bir kazanan bulmasını sağlamak için bot esner:
+  if (consecutiveDraws >= 2) {
+    return {
+      mode: 'breakout',
+      depthOffset: 0,
+      suboptimalMoveChance: 0.25,
+      forkHesitationChance: 0.35,
+      powerHesitationChance: 0.30,
+      randomTopPick: true,
+    }
+  }
+
+  if (consecutiveDraws === 1 && roundNumber > 1) {
+    return {
+      mode: 'contested',
+      depthOffset: 0,
+      suboptimalMoveChance: 0.15,
+      forkHesitationChance: 0.20,
+      powerHesitationChance: 0.15,
+      randomTopPick: true,
+    }
+  }
+
+  // 2. OYUNCU ÜSTÜNLÜK SERİSİ (Oyuncu art arda 2+ kez kazandıysa)
+  // Tam kapasite tavizsiz Grandmaster Modu
+  if (humanWinStreak >= 2) {
+    return {
+      mode: 'grandmaster',
+      depthOffset: 0,
+      suboptimalMoveChance: 0,
+      forkHesitationChance: 0,
+      powerHesitationChance: 0,
+      randomTopPick: false,
+    }
+  }
+
+  // Oyuncu 1 kez kazandıysa: Güçlü kal, hafif taktik varyasyon
+  if (humanWinStreak === 1) {
+    return {
+      mode: 'challenging',
+      depthOffset: 0,
+      suboptimalMoveChance: 0.08,
+      forkHesitationChance: 0.10,
+      powerHesitationChance: 0.10,
+      randomTopPick: true,
+    }
+  }
+
+  // 3. BAŞLANGIÇ VE EŞİT PUAN DURUMU (humanWinStreak === 0)
+  // İlk 2 turda bot güçlü oynasın (kullanıcı direktifi: "başlangıçta birkaç tur zor oynasın")
+  if (roundNumber <= 2) {
+    return {
+      mode: 'grandmaster',
+      depthOffset: 0,
+      suboptimalMoveChance: 0.02,
+      forkHesitationChance: 0,
+      powerHesitationChance: 0,
+      randomTopPick: true,
+    }
+  }
+
+  // 3+ tur ve skor nötr ise: Akışkan dengeli mod
+  if (humanWinStreak === 0) {
+    return {
+      mode: 'balanced',
+      depthOffset: 0,
+      suboptimalMoveChance: 0.12,
+      forkHesitationChance: 0.15,
+      powerHesitationChance: 0.15,
+      randomTopPick: true,
+    }
+  }
+
+  // 4. OYUNCU MAĞLUBİYET DURUMLARI
+  // Oyuncu 1 kez kaybetmişse:
+  if (humanWinStreak === -1) {
+    return {
+      mode: 'expert',
+      depthOffset: 0,
+      suboptimalMoveChance: 0.18,
+      forkHesitationChance: 0.25,
+      powerHesitationChance: 0.20,
+      randomTopPick: true,
+    }
+  }
+
+  // Oyuncu 2 veya daha fazla kez art arda kaybetmişse (streak <= -2):
+  // Retention / Comeback Modu: Kullanıcıyı oyunda tutmak için kontrollü fırsat tanı
+  return {
+    mode: 'retention',
+    depthOffset: -1,
+    suboptimalMoveChance: 0.30,
+    forkHesitationChance: 0.40,
+    powerHesitationChance: 0.35,
+    randomTopPick: true,
+  }
+}
+
 export function getAdaptiveAiMove({
   squares,
   boardSize,
@@ -204,22 +305,76 @@ export function getAdaptiveAiMove({
   multipliers,
   aiPlayer = aiPlayerDefault,
   humanPlayer = humanPlayerDefault,
+  humanWinStreak = 0,
+  roundNumber = 1,
+  consecutiveDraws = 0,
 }) {
-  // L1: Kendi Kazanma Hamlesi
+  const dda = getDdaConfig(humanWinStreak, roundNumber, consecutiveDraws)
+
+  // L1: Kendi Kazanma Hamlesi (Her zaman %100 infaz edilir)
   const winningMove = findWinningMove(squares, boardSize, winLength, aiPlayer, blockedIndexes)
   if (winningMove !== null) return winningMove
 
-  // L2: Rakibin Kazanma Hamlesini KESİN Bloke Et
+  // L2: Rakibin Kazanma Hamlesini KESİN Bloke Et (Bot asla aptal görünmez)
   const blockingMove = findWinningMove(squares, boardSize, winLength, humanPlayer, blockedIndexes)
   if (blockingMove !== null) return blockingMove
 
+  // L2.5: 3x3 Klasik Teori Kalkanı (Anti-Exploit Guards)
+  if (boardSize === 3 && winLength === 3) {
+    const totalStones = squares.filter(Boolean).length
+    // Kural A: Rakip ilk hamlesinde merkeze (4) oynadıysa, bot ZORUNLU olarak bir KÖŞE (0, 2, 6, 8) oynamalıdır.
+    // Kenara oynarsa rakip karşı köşeyi alıp kaçınılmaz çatal kurar!
+    if (totalStones === 1 && squares[4] === humanPlayer) {
+      const corners = [0, 2, 6, 8].filter((idx) => !squares[idx] && !blockedIndexes.includes(idx))
+      if (corners.length > 0) {
+        // Her maç aynı köşeyi (0) oynamak yerine boş köşelerden birini seçerek monotonluğu kır
+        return corners[Math.floor(Math.random() * corners.length)]
+      }
+    }
+
+    // Kural B: Rakip zıt köşeleri tutmuşsa (0-8 veya 2-6) ve merkez botta ise (4),
+    // bot köşeye oynamayıp ZORUNLU olarak kenarlardan birine (1, 3, 5, 7) oynar.
+    if (squares[4] === aiPlayer) {
+      const hasOppositeCorners =
+        (squares[0] === humanPlayer && squares[8] === humanPlayer) ||
+        (squares[2] === humanPlayer && squares[6] === humanPlayer)
+      if (hasOppositeCorners) {
+        const edges = [1, 3, 5, 7].filter((idx) => !squares[idx] && !blockedIndexes.includes(idx))
+        if (edges.length > 0) {
+          const scoredEdges = edges.map((edgeIdx) => ({
+            index: edgeIdx,
+            score: getPositionalScore(edgeIdx, squares, boardSize, winLength, multipliers, aiPlayer),
+          }))
+          scoredEdges.sort((a, b) => b.score - a.score)
+          const bestScore = scoredEdges[0].score
+          const topEdges = scoredEdges.filter((e) => e.score >= bestScore - 5)
+          return topEdges[Math.floor(Math.random() * topEdges.length)].index
+        }
+      }
+    }
+  }
+
   // L3: Rakibin Çift Taraflı Tehdidini (Fork) Engelle
   const multipleThreatBlock = getMultipleThreatPositions(squares, boardSize, winLength, humanPlayer, blockedIndexes)
-  if (multipleThreatBlock !== null) return multipleThreatBlock
+  if (multipleThreatBlock !== null) {
+    // DDA: Eğer DDA seviyesinde forkHesitationChance tanımlıysa ve tetiklenirse,
+    // bot bu çatalı hemen sezmemiş gibi davranıp L5/L6 pozisyonel hamleye devam eder.
+    // Böylece oyuncu çatal kurarak galibiyet alabilir ve Klasik moddaki sonsuz beraberlik kırılır.
+    // (ÖNEMLİ: L1 ve L2'deki doğrudan kazanma ve mat engelleme korumaları tavizsiz %100 çalışır!)
+    if (!dda.forkHesitationChance || Math.random() >= dda.forkHesitationChance) {
+      return multipleThreatBlock
+    }
+  }
 
   // L4: Kendi Çift Taraflı Tehdidini (Fork) Kur
   const botFork = getMultipleThreatPositions(squares, boardSize, winLength, aiPlayer, blockedIndexes)
-  if (botFork !== null) return botFork
+  if (botFork !== null) {
+    // DDA: Eğer oyuncu üst üste kaybetmişse (retention), bot hemen her fırsatta çatal
+    // kurup oyunu erken bitirmek yerine %25 ihtimalle normal konumsal hamle yapar.
+    if (dda.suboptimalMoveChance === 0 || Math.random() >= dda.suboptimalMoveChance) {
+      return botFork
+    }
+  }
 
   // L5: Merkez Kareyi Ele Geçir (Eğer boşsa)
   const centerIdx = getCenterIndex(boardSize)
@@ -231,18 +386,36 @@ export function getAdaptiveAiMove({
   const emptyIndexes = getEmptyIndexes(squares, blockedIndexes)
   if (emptyIndexes.length === 0) return null
 
-  let bestIndex = emptyIndexes[0]
-  let bestScore = -Infinity
+  const scoredMoves = emptyIndexes.map((index) => ({
+    index,
+    score: getPositionalScore(index, squares, boardSize, winLength, multipliers, aiPlayer),
+  }))
+  scoredMoves.sort((a, b) => b.score - a.score)
 
-  for (const index of emptyIndexes) {
-    const score = getPositionalScore(index, squares, boardSize, winLength, multipliers, aiPlayer)
-    if (score > bestScore) {
-      bestScore = score
-      bestIndex = index
+  // DDA: Retention/esnek modlarda 2. hamle doğrudan mat riski taşımıyorsa suboptimalMoveChance ihtimalle seçilebilir
+  if (
+    scoredMoves.length > 1 &&
+    dda.suboptimalMoveChance > 0 &&
+    Math.random() < dda.suboptimalMoveChance
+  ) {
+    const secondMove = scoredMoves[1].index
+    const testSquares = squares.slice()
+    testSquares[secondMove] = aiPlayer
+    if (findWinningMove(testSquares, boardSize, winLength, humanPlayer, blockedIndexes) === null) {
+      return secondMove
     }
   }
 
-  return bestIndex
+  // DDA: Eşit veya çok yakın skordaki en iyi hamleler arasında organik seçim (monotonluğu önler)
+  if (dda.randomTopPick && scoredMoves.length > 1) {
+    const bestScore = scoredMoves[0].score
+    const topMoves = scoredMoves.filter((m) => m.score >= bestScore - 4)
+    if (topMoves.length > 1) {
+      return topMoves[Math.floor(Math.random() * topMoves.length)].index
+    }
+  }
+
+  return scoredMoves[0].index
 }
 
 // ── Arena AI Bulletproof Grandmaster Engine ─────────────────────────────────
@@ -722,10 +895,14 @@ export function getArenaAiPowerAction({
   multipliers = {},
   aiPlayer = aiPlayerDefault,
   humanPlayer = humanPlayerDefault,
+  humanWinStreak = 0,
+  roundNumber = 1,
+  consecutiveDraws = 0,
 }) {
   transpositionTable.clear()
+  const dda = getDdaConfig(humanWinStreak, roundNumber, consecutiveDraws)
   const lines = getBoardLines(boardSize, winLength)
-  const context = { boardSize, winLength, multipliers, aiPlayer, humanPlayer, lines }
+  const context = { boardSize, winLength, multipliers, aiPlayer, humanPlayer, lines, dda }
   const zeroPowers = { bomb: 0, shield: 0, trap: 0, freeze: 0, vampire: 0, boost: 0 }
 
   const initialState = {
@@ -885,9 +1062,10 @@ export function getArenaAiPowerAction({
 
   // 4. Search Depth Configuration
   const remainingCells = getEmptyIndexes(squares, blockedIndexes).length
-  const searchDepth = boardSize === 3
+  const baseDepth = boardSize === 3
     ? Math.min(6, remainingCells + 1)
     : boardSize === 4 ? 4 : 3
+  const searchDepth = Math.max(2, baseDepth + dda.depthOffset)
 
   const orderedRoot = orderAndPrune(candidateActions, initialState, context, 0)
 
@@ -907,7 +1085,27 @@ export function getArenaAiPowerAction({
 
   ranked.sort((a, b) => b.score - a.score)
 
-  const chosen = ranked[0].action
+  let chosen = ranked[0].action
+
+  // DDA: Eğer oyuncu üst üste kaybetmişse (retention modu) ve 2. hamle o tur botu
+  // kaybettirmiyorsa (%100 mat değilse), oyuncuya geri dönüş şansı vermek için
+  // kontrollü olarak 2. hamleyi seç.
+  if (
+    ranked.length > 1 &&
+    dda.suboptimalMoveChance > 0 &&
+    Math.random() < dda.suboptimalMoveChance
+  ) {
+    const secondBest = ranked[1]
+    if (secondBest.score > -ARENA_WIN / 2) {
+      chosen = secondBest.action
+    }
+  } else if (dda.randomTopPick && ranked.length > 1) {
+    const bestScore = ranked[0].score
+    const topActions = ranked.filter((r) => r.score >= bestScore - 15)
+    if (topActions.length > 1) {
+      chosen = topActions[Math.floor(Math.random() * topActions.length)].action
+    }
+  }
 
   // 6. Format Conversion
   if (chosen.type === 'shield') {

@@ -104,6 +104,7 @@ export default function App() {
   const [isRoundResultDismissed, setIsRoundResultDismissed] = useState(false)
   const [roundNumber, setRoundNumber] = useState(1)
   const [humanWinStreak, setHumanWinStreak] = useState(0)
+  const [consecutiveDraws, setConsecutiveDraws] = useState(0)
   const [rewardedPowerClaimed, setRewardedPowerClaimed] = useState(false)
   const [isRewarding, setIsRewarding] = useState(false)
   const [rewardedPowerMessage, setRewardedPowerMessage] = useState('')
@@ -111,6 +112,8 @@ export default function App() {
   const [hasUsedPowerThisTurn, setHasUsedPowerThisTurn] = useState(false)
   const [timeoutWinner, setTimeoutWinner] = useState(null)
   const [turnTimeLeft, setTurnTimeLeft] = useState(15)
+  const turnDeadlineRef = useRef(null)
+  const lastTurnKeyRef = useRef('')
   const lastTickSecondRef = useRef(15)
 
   const activeTimeoutsRef = useRef(new Set())
@@ -180,10 +183,18 @@ export default function App() {
   // Yan Yana (human vs human) modunda:
   // 1, 3, 5... (Tek) turlarda: 1. Oyuncu = X (başlar), 2. Oyuncu = O
   // 2, 4, 6... (Çift) turlarda: 2. Oyuncu = X (başlar), 1. Oyuncu = O
-  // Bot modunda: Oyuncu daima X, Bot daima O
-  const isP1X = opponentType === 'human' ? (roundNumber % 2 === 1) : true
+  // Bot modunda: firstMove seçimine göre ('alternating', 'human', 'ai')
+  const isP1X = opponentType === 'human'
+    ? (roundNumber % 2 === 1)
+    : gameConfig?.firstMove === 'ai'
+      ? false
+      : gameConfig?.firstMove === 'human'
+        ? true
+        : (roundNumber % 2 === 1)
   const p1Symbol = isP1X ? 'X' : 'O'
   const p2Symbol = isP1X ? 'O' : 'X'
+  const aiSymbol = p2Symbol       // Bot her zaman Oyuncu 2
+  const humanSymbol = p1Symbol    // İnsan her zaman Oyuncu 1
   const xPlayerName = isP1X ? player1Name : player2Name
   const oPlayerName = isP1X ? player2Name : player1Name
 
@@ -208,7 +219,7 @@ export default function App() {
     gameConfig &&
     (gameMode === 'classic' || gameMode === 'arena') &&
     opponentType === 'ai' &&
-    !xIsNext &&
+    currentPlayer === aiSymbol &&
     !effectiveWinner &&
     !matchWinner &&
     !isDraw
@@ -303,18 +314,19 @@ export default function App() {
             nextRoundScore,
         }))
         if (opponentType === 'ai' && (gameMode === 'classic' || gameMode === 'arena')) {
-  setHumanWinStreak((currentStreak) => {
-    if (nextWinner === 'X') {
-      return Math.min(currentStreak + 1, 3)
-    }
+          setHumanWinStreak((currentStreak) => {
+            if (nextWinner === humanSymbol) {
+              return Math.min(currentStreak + 1, 3)
+            }
 
-    if (nextWinner === 'O') {
-      return Math.max(currentStreak - 1, -3)
-    }
+            if (nextWinner === aiSymbol) {
+              return Math.max(currentStreak - 1, -3)
+            }
 
-    return currentStreak
-  })
-}
+            return currentStreak
+          })
+          setConsecutiveDraws(0)
+        }
         setResultMessage(getRandomMessage(winnerMessages, language))
         setLoserMessage(getRandomMessage(loserMessages, language))
         playSound('win')
@@ -322,20 +334,25 @@ export default function App() {
       }
 
       if (isBoardFull(nextSquares)) {
+        if (opponentType === 'ai' && (gameMode === 'classic' || gameMode === 'arena')) {
+          setConsecutiveDraws((prev) => prev + 1)
+        }
         setResultMessage(getRandomMessage(drawMessages, language))
         setLoserMessage(null)
         playSound('draw')
       }
     },
-    [boardSize, winLength, multipliers, multipliersEnabled, boostedSquares, opponentType, gameMode, isP1X, language]
+    [boardSize, winLength, multipliers, multipliersEnabled, boostedSquares, opponentType, gameMode, isP1X, humanSymbol, aiSymbol, language]
   )
 
   const handleTimeOut = useCallback(
     (timedOutPlayer) => {
       if (winner || matchWinner || isDraw || timeoutWinner || resultMessage) return
 
+      setConsecutiveDraws(0)
       setShowSetupReturnConfirm(false)
       setShowScoreResetConfirm(false)
+      turnDeadlineRef.current = null
 
       const winningSymbol = timedOutPlayer === 'X' ? 'O' : 'X'
       const timeoutScore = gameMode === 'arena' ? 5 : 1
@@ -361,7 +378,7 @@ export default function App() {
     [winner, matchWinner, isDraw, timeoutWinner, resultMessage, gameMode, isP1X, xPlayerName, oPlayerName]
   )
 
-  // Turn timer countdown effect (Devamlı akar — onay kutularında durdurulamaz!)
+  // Turn timer countdown effect (Mutlak zaman damgası ile sayfa yenileme hilesi engellendi)
   useEffect(() => {
     if (
       turnTimeLimit <= 0 ||
@@ -369,51 +386,82 @@ export default function App() {
       matchWinner ||
       isDraw ||
       resultMessage ||
-      (opponentType === 'ai' && !xIsNext)
+      (opponentType === 'ai' && currentPlayer === aiSymbol)
     ) {
+      turnDeadlineRef.current = null
       return
     }
 
-    lastTickSecondRef.current = turnTimeLimit
-    let currentRemaining = turnTimeLimit
+    const movesCount = squares.filter(Boolean).length
+    const currentTurnKey = `${roundNumber}-${currentPlayer}-${movesCount}`
 
-    const timerId = setTimeout(() => {
-      setTurnTimeLeft(turnTimeLimit)
+    if (currentTurnKey !== lastTurnKeyRef.current) {
+      lastTurnKeyRef.current = currentTurnKey
+
+      const hasValidRestoredDeadline =
+        turnDeadlineRef.current && turnDeadlineRef.current > Date.now()
+
+      if (!hasValidRestoredDeadline) {
+        if (turnDeadlineRef.current && turnDeadlineRef.current <= Date.now()) {
+          handleTimeOut(currentPlayer)
+          return
+        }
+        turnDeadlineRef.current = Date.now() + turnTimeLimit * 1000
+      }
+    }
+
+    if (!turnDeadlineRef.current) {
+      turnDeadlineRef.current = Date.now() + turnTimeLimit * 1000
+    }
+
+    const activeDeadline = turnDeadlineRef.current
+    const initialRemaining = Math.max(0, (activeDeadline - Date.now()) / 1000)
+
+    if (initialRemaining <= 0) {
+      handleTimeOut(currentPlayer)
+      return
+    }
+
+    lastTickSecondRef.current = Math.ceil(initialRemaining)
+
+    // Asynchronously update initial turnTimeLeft to avoid setState directly in effect
+    const initialTimerId = setTimeout(() => {
+      setTurnTimeLeft(initialRemaining)
     }, 0)
 
     const interval = setInterval(() => {
-      currentRemaining = Math.max(0, currentRemaining - 0.1)
-      const currentWhole = Math.ceil(currentRemaining)
+      const remainingSec = (activeDeadline - Date.now()) / 1000
+      const clampedRemaining = Math.max(0, remainingSec)
+      const currentWhole = Math.ceil(clampedRemaining)
 
-      // Subtle warning tick in the last 5 seconds
-      if (currentRemaining <= 5 && currentRemaining > 0 && currentWhole !== lastTickSecondRef.current) {
+      if (clampedRemaining <= 5 && clampedRemaining > 0 && currentWhole !== lastTickSecondRef.current) {
         lastTickSecondRef.current = currentWhole
         playSound('click')
       }
 
-      setTurnTimeLeft(currentRemaining)
+      setTurnTimeLeft(clampedRemaining)
 
-      // Time ran out!
-      if (currentRemaining <= 0) {
+      if (clampedRemaining <= 0) {
         clearInterval(interval)
         handleTimeOut(currentPlayer)
       }
     }, 100)
 
     return () => {
-      clearTimeout(timerId)
+      clearTimeout(initialTimerId)
       clearInterval(interval)
     }
   }, [
     turnTimeLimit,
-    xIsNext,
     roundNumber,
+    currentPlayer,
+    squares,
     effectiveWinner,
     matchWinner,
     isDraw,
     resultMessage,
     opponentType,
-    currentPlayer,
+    aiSymbol,
     handleTimeOut,
   ])
 
@@ -430,6 +478,8 @@ export default function App() {
   function resetGame(nextSettings = arenaSettings, nextGameMode = gameMode) {
     clearAllTimeouts()
     setTimeoutWinner(null)
+    turnDeadlineRef.current = null
+    lastTurnKeyRef.current = ''
     setTurnTimeLeft(turnTimeLimit)
     const shouldUseMultipliers =
       nextGameMode === 'arena' && nextSettings.multipliersEnabled
@@ -452,9 +502,9 @@ export default function App() {
     setPlayerPowers((currentPowers) => {
       const nextPowers = createInitialPlayerPowers({ gameMode: nextGameMode, opponentType })
       rewardedPowerIds.forEach((powerId) => {
-        const retainedRewardCount = currentPowers.X[powerId] ?? 0
+        const retainedRewardCount = currentPowers[humanSymbol]?.[powerId] ?? currentPowers.X?.[powerId] ?? 0
         if (retainedRewardCount > 0) {
-          nextPowers.X[powerId] = retainedRewardCount
+          nextPowers[humanSymbol][powerId] = retainedRewardCount
         }
       })
 
@@ -477,9 +527,9 @@ export default function App() {
     safeSetTimeout(() => {
       setPlayerPowers((currentPowers) => ({
         ...currentPowers,
-        X: {
-          ...currentPowers.X,
-          [powerId]: (currentPowers.X[powerId] ?? 0) + 1,
+        [humanSymbol]: {
+          ...currentPowers[humanSymbol],
+          [powerId]: (currentPowers[humanSymbol]?.[powerId] ?? 0) + 1,
         },
       }))
       setRewardedPowerClaimed(true)
@@ -900,12 +950,15 @@ export default function App() {
     setXIsNext(session.xIsNext)
     setRoundNumber(session.roundNumber)
     setHumanWinStreak(session.humanWinStreak ?? 0)
+    setConsecutiveDraws(session.consecutiveDraws ?? 0)
     setRewardedPowerClaimed(session.rewardedPowerClaimed ?? false)
     setIsRewarding(false)
     setRewardedPowerMessage(session.rewardedPowerMessage ?? '')
     setIsRewardedPowerPickerOpen(false)
     setShowSetupReturnConfirm(false)
     setShowScoreResetConfirm(false)
+    turnDeadlineRef.current = session.turnDeadline ?? null
+    lastTurnKeyRef.current = ''
   }, [])
 
   useEffect(() => {
@@ -1019,7 +1072,7 @@ export default function App() {
       gameConfig &&
       isAiSupportedMode &&
       opponentType === 'ai' &&
-      !xIsNext &&
+      currentPlayer === aiSymbol &&
       !effectiveWinner &&
       !matchWinner &&
       !isDraw
@@ -1031,9 +1084,9 @@ export default function App() {
     const spendAiPower = (powerId) => {
       setPlayerPowers((currentPowers) => ({
         ...currentPowers,
-        O: {
-          ...currentPowers.O,
-          [powerId]: currentPowers.O[powerId] - 1,
+        [aiSymbol]: {
+          ...currentPowers[aiSymbol],
+          [powerId]: currentPowers[aiSymbol][powerId] - 1,
         },
       }))
     }
@@ -1044,13 +1097,13 @@ export default function App() {
       }
 
       const triggeredTrap = traps.find(
-        (trap) => trap.index === index && trap.owner !== 'O'
+        (trap) => trap.index === index && trap.owner !== aiSymbol
       )
 
       if (triggeredTrap) {
         setBlackHoleEvent({
           index,
-          player: 'O',
+          player: aiSymbol,
           id: Date.now(),
         })
         setTraps((currentTraps) =>
@@ -1058,7 +1111,7 @@ export default function App() {
         )
         setLockedSquares([])
         if (frozenSquares.length > 0) {
-          if (frozenBy === 'O') {
+          if (frozenBy === aiSymbol) {
             setFrozenBy(null)
           } else {
             setFrozenSquares([])
@@ -1066,13 +1119,13 @@ export default function App() {
           }
         }
         setActivePower(null)
-        setXIsNext(true)
+        setXIsNext(aiSymbol === 'X' ? false : true)
         playSound('blackhole')
         return
       }
 
       const nextSquares = squares.slice()
-      nextSquares[index] = 'O'
+      nextSquares[index] = aiSymbol
 
       setSquares(nextSquares)
       if (
@@ -1088,14 +1141,14 @@ export default function App() {
       finishRound(nextSquares, nextBoostedSquares)
       setLockedSquares([])
       if (frozenSquares.length > 0) {
-        if (frozenBy === 'O') {
+        if (frozenBy === aiSymbol) {
           setFrozenBy(null)
         } else {
           setFrozenSquares([])
           setFrozenBy(null)
         }
       }
-      setXIsNext(true)
+      setXIsNext(aiSymbol === 'X' ? false : true)
     }
 
     latestAiHandlerRef.current.onMessage = (data) => {
@@ -1124,7 +1177,7 @@ export default function App() {
             currentVisibleBoostedSquares.filter((squareIndex) => squareIndex !== aiPowerAction.index)
           )
           setLockedSquares([aiPowerAction.index])
-          if (frozenSquares.length > 0 && frozenBy !== 'O') {
+          if (frozenSquares.length > 0 && frozenBy !== aiSymbol) {
             setFrozenSquares([])
             setFrozenBy(null)
           }
@@ -1135,7 +1188,7 @@ export default function App() {
           safeSetTimeout(() => {
             setBombEvent(null)
           }, 650)
-          setXIsNext(true)
+          setXIsNext(aiSymbol === 'X' ? false : true)
           return
         }
 
@@ -1159,14 +1212,17 @@ export default function App() {
             winLength,
             humanWinStreak,
             roundNumber,
+            consecutiveDraws,
             blockedIndexes: [...lockedSquares, ...frozenSquares],
             multipliers:
               gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
+            aiPlayer: aiSymbol,
+            humanPlayer: humanSymbol,
           })
           if (aiMove !== null && aiMove !== undefined) {
             placeAiStone(aiMove)
           } else {
-            setXIsNext(true)
+            setXIsNext(aiSymbol === 'X' ? false : true)
           }
           return
         }
@@ -1176,18 +1232,18 @@ export default function App() {
             ...currentTraps,
             {
               index: aiPowerAction.index,
-              owner: 'O',
+              owner: aiSymbol,
             },
           ])
           spendAiPower('trap')
           playSound('blackhole')
           setLockedSquares([])
-          if (frozenSquares.length > 0 && frozenBy !== 'O') {
+          if (frozenSquares.length > 0 && frozenBy !== aiSymbol) {
             setFrozenSquares([])
             setFrozenBy(null)
           }
           setActivePower(null)
-          setXIsNext(true)
+          setXIsNext(aiSymbol === 'X' ? false : true)
           return
         }
 
@@ -1208,7 +1264,7 @@ export default function App() {
 
         if (aiPowerAction?.type === 'freeze') {
           setFrozenSquares([aiPowerAction.index])
-          setFrozenBy('O')
+          setFrozenBy(aiSymbol)
           spendAiPower('freeze')
           playSound('power')
           setLockedSquares([])
@@ -1263,9 +1319,12 @@ export default function App() {
             winLength,
             humanWinStreak,
             roundNumber,
+            consecutiveDraws,
             blockedIndexes: [...lockedSquares, ...frozenSquares],
             multipliers:
               gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
+            aiPlayer: aiSymbol,
+            humanPlayer: humanSymbol,
           },
         })
         return
@@ -1284,12 +1343,14 @@ export default function App() {
       try {
         if (gameMode === 'arena' && powersEnabled) {
           const aiPowerAction = getArenaAiPowerAction({
-            squares, boardSize, winLength, humanWinStreak, roundNumber,
-            playerPowers: playerPowers.O, humanPowers: playerPowers.X,
+            squares, boardSize, winLength, humanWinStreak, roundNumber, consecutiveDraws,
+            playerPowers: playerPowers[aiSymbol], humanPowers: playerPowers[humanSymbol],
             shieldedSquares, boostedSquares,
             blockedIndexes: [...lockedSquares, ...frozenSquares],
-            aiTrapIndexes: traps.filter((trap) => trap.owner === 'O').map((trap) => trap.index),
+            aiTrapIndexes: traps.filter((trap) => trap.owner === aiSymbol).map((trap) => trap.index),
             multipliers,
+            aiPlayer: aiSymbol,
+            humanPlayer: humanSymbol,
           })
           if (aiPowerAction?.type === 'move') {
             placeAiStone(aiPowerAction.index)
@@ -1308,9 +1369,11 @@ export default function App() {
             spendAiPower('shield')
             playSound('power')
             const aiMove = aiPowerAction.followUpMove ?? getAdaptiveAiMove({
-              squares, boardSize, winLength, humanWinStreak,
+              squares, boardSize, winLength, humanWinStreak, roundNumber, consecutiveDraws,
               blockedIndexes: [...lockedSquares, ...frozenSquares],
               multipliers: gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
+              aiPlayer: aiSymbol,
+              humanPlayer: humanSymbol,
             })
             if (aiMove !== null && aiMove !== undefined) placeAiStone(aiMove)
             return
@@ -1322,21 +1385,21 @@ export default function App() {
             setLockedSquares([aiPowerAction.index])
             spendAiPower('bomb')
             playSound('bomb')
-            setXIsNext(true)
+            setXIsNext(aiSymbol === 'X' ? false : true)
             return
           }
           if (aiPowerAction?.type === 'trap') {
             setTraps((currentTraps) => [
-              ...currentTraps, { index: aiPowerAction.index, owner: 'O' },
+              ...currentTraps, { index: aiPowerAction.index, owner: aiSymbol },
             ])
             spendAiPower('trap')
             playSound('blackhole')
-            setXIsNext(true)
+            setXIsNext(aiSymbol === 'X' ? false : true)
             return
           }
           if (aiPowerAction?.type === 'freeze') {
             setFrozenSquares([aiPowerAction.index])
-            setFrozenBy('O')
+            setFrozenBy(aiSymbol)
             spendAiPower('freeze')
             playSound('power')
             placeAiStone(aiPowerAction.moveIndex)
@@ -1353,9 +1416,11 @@ export default function App() {
           }
         }
         const fallbackMove = getAdaptiveAiMove({
-          squares, boardSize, winLength, humanWinStreak,
+          squares, boardSize, winLength, humanWinStreak, roundNumber, consecutiveDraws,
           blockedIndexes: [...lockedSquares, ...frozenSquares],
           multipliers: gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
+          aiPlayer: aiSymbol,
+          humanPlayer: humanSymbol,
         })
         if (fallbackMove !== null) placeAiStone(fallbackMove)
       } catch {
@@ -1373,15 +1438,18 @@ export default function App() {
             winLength,
             humanWinStreak,
             roundNumber,
-            playerPowers: playerPowers.O,
-            humanPowers: playerPowers.X,
+            consecutiveDraws,
+            playerPowers: playerPowers[aiSymbol],
+            humanPowers: playerPowers[humanSymbol],
             shieldedSquares,
             boostedSquares,
             blockedIndexes: [...lockedSquares, ...frozenSquares],
             aiTrapIndexes: traps
-              .filter((trap) => trap.owner === 'O')
+              .filter((trap) => trap.owner === aiSymbol)
               .map((trap) => trap.index),
             multipliers,
+            aiPlayer: aiSymbol,
+            humanPlayer: humanSymbol,
           },
         })
       } else {
@@ -1393,9 +1461,12 @@ export default function App() {
             winLength,
             humanWinStreak,
             roundNumber,
+            consecutiveDraws,
             blockedIndexes: [...lockedSquares, ...frozenSquares],
             multipliers:
               gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
+            aiPlayer: aiSymbol,
+            humanPlayer: humanSymbol,
           },
         })
       }
@@ -1439,6 +1510,7 @@ export default function App() {
     boardSize,
     winLength,
     humanWinStreak,
+    consecutiveDraws,
     lockedSquares,
     frozenSquares,
     frozenBy,
@@ -1452,6 +1524,9 @@ export default function App() {
     traps,
     finishRound,
     roundNumber,
+    currentPlayer,
+    aiSymbol,
+    humanSymbol,
     safeSetTimeout,
     clearSafeTimeout,
   ])
@@ -1504,6 +1579,8 @@ export default function App() {
       matchWinner,
       isMatchCompleted: Boolean(matchWinner),
       humanWinStreak,
+      consecutiveDraws,
+      turnDeadline: turnDeadlineRef.current,
       ...(gameMode === 'arena' && opponentType === 'ai'
         ? { frozenSquares, frozenBy, rewardedPowerClaimed, rewardedPowerMessage }
         : {}),
@@ -1539,6 +1616,7 @@ export default function App() {
     showSetupReturnConfirm,
     matchWinner,
     humanWinStreak,
+    consecutiveDraws,
     rewardedPowerClaimed,
     rewardedPowerMessage,
   ])
@@ -1566,6 +1644,8 @@ export default function App() {
     registerUserGesture()
     playSound('click')
     setTimeoutWinner(null)
+    turnDeadlineRef.current = null
+    lastTurnKeyRef.current = ''
     setTurnTimeLeft(turnTimeLimit)
     setSquares(createEmptyBoard(boardSize))
     setXIsNext(true)
@@ -1590,6 +1670,7 @@ export default function App() {
     setLoserMessage(null)
     setIsRoundResultDismissed(false)
     setHumanWinStreak(0)
+    setConsecutiveDraws(0)
     setRewardedPowerClaimed(false)
     setIsRewarding(false)
     setRewardedPowerMessage('')
@@ -1676,6 +1757,7 @@ export default function App() {
     setShowSetupReturnConfirm(false)
     setShowScoreResetConfirm(false)
     setHumanWinStreak(0)
+    setConsecutiveDraws(0)
     setRewardedPowerClaimed(false)
     setIsRewarding(false)
     setRewardedPowerMessage('')
@@ -1902,7 +1984,7 @@ export default function App() {
             currentPlayer={currentPlayer}
             topPlayerSymbol={p1Symbol}
             bottomPlayerSymbol={p2Symbol}
-            visibleTrapOwner={opponentType === 'ai' ? 'X' : currentPlayer}
+            visibleTrapOwner={opponentType === 'ai' ? humanSymbol : currentPlayer}
             blackHoleEventIndex={blackHoleEvent?.index}
             bombEventIndex={bombEvent?.index}
             vampireTransferEvent={vampireTransferEvent}
