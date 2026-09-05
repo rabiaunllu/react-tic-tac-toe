@@ -1,12 +1,15 @@
 import { memo } from 'react'
+import { useTranslation } from '../i18n'
 
 const RoundResultPreviewBar = memo(function RoundResultPreviewBar({
   onNextRound,
-  nextRoundLabel = 'Sonraki Tur',
+  nextRoundLabel,
   isNextRoundDisabled = false,
   nextRoundTitle,
   statusMessage,
 }) {
+  const { t } = useTranslation()
+  const resolvedLabel = nextRoundLabel ?? t('game.nextRound')
   return (
     <section
       className={`round-result-preview${statusMessage ? '' : ' round-result-preview--action-only'}`}
@@ -24,7 +27,7 @@ const RoundResultPreviewBar = memo(function RoundResultPreviewBar({
         disabled={isNextRoundDisabled}
         title={nextRoundTitle}
       >
-        {nextRoundLabel}
+        {resolvedLabel}
       </button>
     </section>
   )

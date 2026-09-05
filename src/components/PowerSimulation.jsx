@@ -2,13 +2,14 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import CrystalSnowflake from './CrystalSnowflake';
 import EnergyShieldIcon from './EnergyShieldIcon';
 import ExplosionBlast from './ExplosionBlast';
+import { useTranslation } from '../i18n';
 
-const POWERS = [
-  { id: 'bomba', icon: '💣', name: 'Bomba', desc: 'Rakibin korumasız taşını patlatır.' },
-  { id: 'kalkan', icon: <EnergyShieldIcon size={18} />, name: 'Kalkan', desc: 'Seçilen taşı korur. Sıra geçmez.' },
-  { id: 'karadelik', icon: '🕳️', name: 'Kara Delik', desc: 'Gizli tuzak kurar. Taşı yutar.' },
-  { id: 'freeze', icon: <CrystalSnowflake size="18px" />, name: 'Dondur', desc: 'Kareyi 1 tur kilitler. Sıra geçmez.' },
-  { id: 'vampir', icon: '🧛', name: 'Vampir', desc: 'Çarpanı kendi taşına çeker.' }
+const POWER_CONFIGS = [
+  { id: 'bomba', key: 'bomb', icon: '💣' },
+  { id: 'kalkan', key: 'shield', icon: <EnergyShieldIcon size={18} /> },
+  { id: 'karadelik', key: 'trap', icon: '🕳️' },
+  { id: 'freeze', key: 'freeze', icon: <CrystalSnowflake size="18px" /> },
+  { id: 'vampir', key: 'vampire', icon: '🧛' },
 ];
 
 const INITIAL_CELL = {
@@ -83,6 +84,15 @@ const SCENARIOS = {
 };
 
 export default function PowerSimulation() {
+  const { t, language } = useTranslation();
+  const isTr = language === 'tr';
+
+  const powers = POWER_CONFIGS.map((item) => ({
+    ...item,
+    name: t(`powers.${item.key}.name`),
+    desc: t(`powers.${item.key}.desc`),
+  }));
+
   const [activePower, setActivePower] = useState('bomba');
   const [board, setBoard] = useState(Array(9).fill(null).map(() => ({ ...INITIAL_CELL })));
   const [winGlows, setWinGlows] = useState([]);
@@ -184,12 +194,12 @@ export default function PowerSimulation() {
     }
   };
 
-  const activePowerInfo = POWERS.find(p => p.id === activePower);
+  const activePowerInfo = powers.find(p => p.id === activePower);
 
   return (
     <div className="psim-container">
       <div className="psim-powers-row">
-        {POWERS.map(power => (
+        {powers.map(power => (
           <button
             key={power.id}
             className={`psim-power-btn ${activePower === power.id ? 'active' : ''}`}
@@ -275,7 +285,7 @@ export default function PowerSimulation() {
 
               {cell.isShielded && (
                 <>
-                  <span className="shield-icon-badge" aria-label="Korumalı taş">
+                  <span className="shield-icon-badge" aria-label={isTr ? 'Korumalı taş' : 'Shielded mark'}>
                     <EnergyShieldIcon size={14} />
                   </span>
                   <span className="shield-energy-aura" aria-hidden="true">
@@ -288,7 +298,7 @@ export default function PowerSimulation() {
               {cell.isTrapped && <span className="trap-badge" aria-hidden="true">🕳️</span>}
 
               {cell.isBlackHoleTriggered && (
-                <span className="black-hole-badge" aria-label="Kara delik tetiklendi">
+                <span className="black-hole-badge" aria-label={isTr ? 'Kara delik tetiklendi' : 'Black hole triggered'}>
                   🕳️
                 </span>
               )}
@@ -340,7 +350,12 @@ export default function PowerSimulation() {
       </div>
       
       <div className="psim-desc">
-        {activePowerInfo && <span><strong>{activePowerInfo.name}:</strong> {activePowerInfo.desc}</span>}
+        {activePowerInfo && (
+          <p className="psim-desc-text">
+            <strong className="psim-desc-name">{activePowerInfo.name}:</strong>{' '}
+            <span className="psim-desc-body">{activePowerInfo.desc}</span>
+          </p>
+        )}
       </div>
     </div>
   );

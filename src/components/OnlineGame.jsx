@@ -14,6 +14,7 @@ import RoundResultModal from './RoundResultModal'
 import RoundResultPreviewBar from './RoundResultPreviewBar'
 import SoundToggle from './SoundToggle'
 import { playSound, registerUserGesture } from '../game/soundManager'
+import { useTranslation } from '../i18n'
 
 const ROOM_INACTIVE_MESSAGE = 'Oda artık aktif değil. Menüye dönüp yeni oda oluşturabilirsin.'
 const ONLINE_ARENA_POWER_OPTIONS = {
@@ -38,26 +39,50 @@ function pickRandomTarget(indexes) {
   return indexes[Math.floor(Math.random() * indexes.length)]
 }
 
-const onlineWinnerMessages = [
-  ['Tempo sende.', 'Baskı hissedildi.'],
-  ['Tahta ısındı.', 'Rakip bunu unutmaz.'],
-  ['Sıra sende, baskı onda.', 'Bir hamlelik fark, büyük gürültü.'],
-  ['Temiz baskı.', 'Ritim sende kaldı.'],
-]
+const onlineWinnerMessages = {
+  tr: [
+    ['Tempo sende.', 'Baskı hissedildi.'],
+    ['Tahta ısındı.', 'Rakip bunu unutmaz.'],
+    ['Sıra sende, baskı onda.', 'Bir hamlelik fark, büyük gürültü.'],
+    ['Temiz baskı.', 'Ritim sende kaldı.'],
+  ],
+  en: [
+    ['Momentum is yours.', 'Pressure was felt.'],
+    ['Board warmed up.', 'Opponent will remember this.'],
+    ['Your turn, their pressure.', 'One move difference, big impact.'],
+    ['Clean pressure.', 'Rhythm stayed with you.'],
+  ],
+}
 
-const onlineLoserMessages = [
-  ['Plan biraz kaydı.', 'Rövanş kokusu geldi.'],
-  ['Rakip öne geçti.', 'Bir sonraki tur cevap zamanı.'],
-  ['Baskı hissedildi.', 'Tahta daha bitmedi.'],
-  ['Bu tur kaçtı.', 'Rövanş için güzel sebep.'],
-]
+const onlineLoserMessages = {
+  tr: [
+    ['Plan biraz kaydı.', 'Rövanş kokusu geldi.'],
+    ['Rakip öne geçti.', 'Bir sonraki tur cevap zamanı.'],
+    ['Baskı hissedildi.', 'Tahta daha bitmedi.'],
+    ['Bu tur kaçtı.', 'Rövanş için güzel sebep.'],
+  ],
+  en: [
+    ['Plan slipped away.', 'Revenge is brewing.'],
+    ['Opponent took the lead.', 'Time to answer next round.'],
+    ['Pressure was felt.', 'The board is not done yet.'],
+    ['Lost this round.', 'Good reason for a rematch.'],
+  ],
+}
 
-const onlineDrawMessages = [
-  ['Tahta kilitlendi.', 'Kimse düşmedi.'],
-  ['Denge bozulmadı.', 'Rövanş kokusu geldi.'],
-  ['Planlar çarpıştı.', 'Ses var, kazanan yok.'],
-  ['Beraberlik çıktı.', 'Tahta ısındı.'],
-]
+const onlineDrawMessages = {
+  tr: [
+    ['Tahta kilitlendi.', 'Kimse düşmedi.'],
+    ['Denge bozulmadı.', 'Rövanş kokusu geldi.'],
+    ['Planlar çarpıştı.', 'Ses var, kazanan yok.'],
+    ['Beraberlik çıktı.', 'Tahta ısındı.'],
+  ],
+  en: [
+    ['Board locked.', 'Nobody fell.'],
+    ['Balance unbroken.', 'Revenge is brewing.'],
+    ['Plans collided.', 'Sound and fury, no winner.'],
+    ['Round drawn.', 'Board warmed up.'],
+  ],
+}
 
 function getBoardSignature(room) {
   return `${room.game.roundNumber}:${room.game.squares.join('|')}`
@@ -68,10 +93,11 @@ function getResultSignature(room) {
 }
 
 function pickRandomMessage(messages) {
+  if (!messages || messages.length === 0) return null
   return messages[Math.floor(Math.random() * messages.length)]
 }
 
-function createOnlineRoundMessage(room, mySymbol) {
+function createOnlineRoundMessage(room, mySymbol, isTr = true) {
   if (!room.game.winner && !room.game.isDraw && room.status !== 'completed') {
     return null
   }
@@ -83,60 +109,78 @@ function createOnlineRoundMessage(room, mySymbol) {
 
   if (isForfeit) {
     if (room.game.winner === mySymbol) {
-      return ['🏆 Rakip oyundan ayrıldı ', 'Rakip maçtan çekildi. Hükmen galip ilan edildin!']
+      return isTr
+        ? ['🏆 Rakip oyundan ayrıldı ', 'Rakip maçtan çekildi. Hükmen galip ilan edildin!']
+        : ['🏆 Opponent left the match ', 'Opponent forfeited. You are declared the winner!']
     }
-    return ['🏳️ Maçtan çekilindi', 'Oyundan ayrıldığın için hükmen mağlubiyet.']
+    return isTr
+      ? ['🏳️ Maçtan çekilindi', 'Oyundan ayrıldığın için hükmen mağlubiyet.']
+      : ['🏳️ Forfeited match', 'Forfeit loss due to leaving the game.']
   }
 
+  const lang = isTr ? 'tr' : 'en'
+
   if (room.game.isDraw) {
-    return pickRandomMessage(onlineDrawMessages)
+    return pickRandomMessage(onlineDrawMessages[lang])
   }
 
   return pickRandomMessage(
-    room.game.winner === mySymbol ? onlineWinnerMessages : onlineLoserMessages
+    room.game.winner === mySymbol ? onlineWinnerMessages[lang] : onlineLoserMessages[lang]
   )
 }
 
-function getStatusMessage({ room, mySymbol, reconnectSeconds = 30 }) {
+function getStatusMessage({ room, mySymbol, reconnectSeconds = 30, isTr = true }) {
   if (room.status === 'reconnecting') {
-    return `📡 Rakibin interneti koptu. Yeniden bağlanması bekleniyor... (${reconnectSeconds}s)`
+    return isTr
+      ? `📡 Rakibin interneti koptu. Yeniden bağlanması bekleniyor... (${reconnectSeconds}s)`
+      : `📡 Opponent lost connection. Waiting for reconnect... (${reconnectSeconds}s)`
   }
 
   if (room.status === 'waiting') {
-    return 'Rakip bekleniyor'
+    return isTr ? 'Rakip bekleniyor' : 'Waiting for opponent'
   }
 
   if (room.status === 'ready') {
-    return mySymbol === 'X' ? 'Oyunu başlatabilirsin' : 'Oda sahibi oyunu başlatacak'
+    return mySymbol === 'X'
+      ? (isTr ? 'Oyunu başlatabilirsin' : 'You can start the game')
+      : (isTr ? 'Oda sahibi oyunu başlatacak' : 'Host will start the game')
   }
 
   if (room.status !== 'playing') {
-    return getRoomStatusText(room.status)
+    return getRoomStatusText(room.status, isTr)
   }
 
   if (room.game.winner) {
     if (room.gameMode === 'arena') {
       return room.game.winner === mySymbol
-        ? 'Raunt senin · Puanlar işlendi'
-        : 'Rakip raundu aldı'
+        ? (isTr ? 'Raunt senin · Puanlar işlendi' : 'Round is yours · Points scored')
+        : (isTr ? 'Rakip raundu aldı' : 'Opponent won the round')
     }
 
-    return room.game.winner === mySymbol ? 'Turu kazandın' : 'Rakip turu kazandı'
+    return room.game.winner === mySymbol
+      ? (isTr ? 'Turu kazandın' : 'You won the round')
+      : (isTr ? 'Rakip turu kazandı' : 'Opponent won the round')
   }
 
   if (room.game.isDraw) {
-    return room.gameMode === 'arena' ? 'Arena raundu berabere' : 'Tur berabere bitti'
+    return room.gameMode === 'arena'
+      ? (isTr ? 'Arena raundu berabere' : 'Arena round draw')
+      : (isTr ? 'Tur berabere bitti' : 'Round ended in a draw')
   }
 
   const currentSymbol = room.game.xIsNext ? 'X' : 'O'
 
-  return currentSymbol === mySymbol ? 'Sıra sende' : 'Sıranı bekle'
+  return currentSymbol === mySymbol
+    ? (isTr ? 'Sıra sende' : 'Your turn')
+    : (isTr ? 'Sıranı bekle' : 'Wait your turn')
 }
 
 
 
 
 export default function OnlineGame({ initialOnlineGame, onMenu }) {
+  const { t, language } = useTranslation()
+  const isTr = language === 'tr'
   const eventIdRef = useRef(1)
 
   const [room, setRoom] = useState(initialOnlineGame.room)
@@ -157,7 +201,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
   const [isRoundResultDismissed, setIsRoundResultDismissed] = useState(false)
   const [reconnectSeconds, setReconnectSeconds] = useState(30)
   const [onlineRoundMessage, setOnlineRoundMessage] = useState(() =>
-    createOnlineRoundMessage(initialOnlineGame.room, initialOnlineGame.symbol)
+    createOnlineRoundMessage(initialOnlineGame.room, initialOnlineGame.symbol, isTr)
   )
 
   const reconnectStartRef = useRef(null)
@@ -279,19 +323,19 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
     guestPlayer?.symbol === currentSymbol && !isRoundFinished && room.status === 'playing'
   const canRequestNextRound = isRoundFinished && room.status !== 'completed' && !isRoomInactive
   const winningLine = room.game.winningLine?.length > 0 ? room.game.winningLine : null
-  const roundResultMessage = onlineRoundMessage ?? ['Tahta ısındı.', 'Rövanş hazır.']
+  const roundResultMessage = onlineRoundMessage ?? (isTr ? ['Tahta ısındı.', 'Rövanş hazır.'] : ['Board warmed up.', 'Rematch ready.'])
   const nextRoundStatusMessage = hasRequestedNextRound
-    ? 'Rakip bekleniyor.'
+    ? (isTr ? 'Rakip bekleniyor.' : 'Waiting for opponent.')
     : waitingNextRoundCount > 0
-      ? 'Rakip sonraki tura hazır.'
+      ? (isTr ? 'Rakip sonraki tura hazır.' : 'Opponent ready for next round.')
       : roundResultMessage[1]
   const nextRoundLabel = room.status === 'completed'
-    ? 'Maç tamamlandı'
+    ? (isTr ? 'Maç tamamlandı' : 'Match completed')
     : hasRequestedNextRound
-      ? 'Rakip bekleniyor'
+      ? (isTr ? 'Rakip bekleniyor' : 'Waiting for opponent')
       : isNextRoundPending
-        ? 'Hazırlanıyor...'
-        : 'Sonraki tur'
+        ? (isTr ? 'Hazırlanıyor...' : 'Preparing...')
+        : (isTr ? 'Sonraki tur' : 'Next round')
   const isNextRoundDisabled =
     isNextRoundPending || hasRequestedNextRound || !canRequestNextRound
 
@@ -309,7 +353,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
 
     if (nextResultSignature !== onlineRoundMessageSignatureRef.current) {
       onlineRoundMessageSignatureRef.current = nextResultSignature
-      setOnlineRoundMessage(createOnlineRoundMessage(nextRoom, mySymbol))
+      setOnlineRoundMessage(createOnlineRoundMessage(nextRoom, mySymbol, isTr))
       setIsRoundResultDismissed(false)
     }
 
@@ -318,7 +362,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
     }
 
     setRoom(nextRoom)
-  }, [mySymbol])
+  }, [mySymbol, isTr])
 
   async function submitPowerAction(powerId, targetIndex) {
     setActionError('')
@@ -697,13 +741,13 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
       <section className="game-card online-game-card">
         <header className="game-header brand-header">
           <h1>XO ARENA</h1>
-          <p>Taşını koy. Gücünü kullan. Rövanşı al.</p>
-          <div className="match-chip-row" aria-label="Online maç bilgileri">
-            <span className={`match-chip ${room.gameMode}`}>{room.gameMode === 'arena' ? 'ARENA' : 'KLASİK'}</span>
-            <span className="match-chip">{room.targetValue} {isArena ? 'PUAN' : 'TUR'}</span>
+          <p>{t('setup.slogan')}</p>
+          <div className="match-chip-row" aria-label={t('common.matchInfo')}>
+            <span className={`match-chip ${room.gameMode}`}>{room.gameMode === 'arena' ? 'ARENA' : (isTr ? 'KLASİK' : 'CLASSIC')}</span>
+            <span className="match-chip">{room.targetValue} {isArena ? (isTr ? 'PUAN' : 'PTS') : (isTr ? 'TUR' : 'ROUNDS')}</span>
             <span className="match-chip">{room.boardSize}x{room.boardSize}</span>
-            <span className="match-chip">{room.winLength} TAŞ</span>
-            <span className="match-chip online-code-chip">ODA: <strong>{roomCode}</strong></span>
+            <span className="match-chip">{room.winLength} {isTr ? 'TAŞ' : 'IN A ROW'}</span>
+            <span className="match-chip online-code-chip">{isTr ? 'ODA' : 'ROOM'}: <strong>{roomCode}</strong></span>
           </div>
         </header>
 
@@ -716,15 +760,15 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
               setIsMenuConfirmOpen(true)
             }}
           >
-            Ana Menü
+            {t('common.mainMenu')}
           </button>
           <SoundToggle />
         </div>
 
         {isMenuConfirmOpen && (
           <div className="setup-return-confirm" role="alertdialog" aria-modal="true">
-            <strong>Ana Menüye dönülsün mü?</strong>
-            <p>Odadan ayrılacaksın ve maç sonlandırılacak.</p>
+            <strong>{t('modals.confirmMenuTitle')}</strong>
+            <p>{isTr ? 'Odadan ayrılacaksın ve maç sonlandırılacak.' : 'You will leave the room and forfeit the match.'}</p>
 
             <div className="setup-return-actions">
               <button
@@ -735,14 +779,14 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
                   setIsMenuConfirmOpen(false)
                 }}
               >
-                Vazgeç
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
                 className="danger-action"
                 onClick={handleOnlineMenuWithLeave}
               >
-                Menüye Dön
+                {t('modals.confirmMenuAction')}
               </button>
             </div>
           </div>
@@ -755,10 +799,10 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
               <span className="radar-icon">📡</span>
             </div>
             <div className="reconnect-hud-info">
-              <strong>Rakibin İnterneti Koptu</strong>
-              <small>Yeniden bağlanması bekleniyor...</small>
+              <strong>{isTr ? 'Rakibin İnterneti Koptu' : 'Opponent Disconnected'}</strong>
+              <small>{isTr ? 'Yeniden bağlanması bekleniyor...' : 'Waiting for reconnect...'}</small>
             </div>
-            <div className="reconnect-hud-timer" aria-label={`Kalan süre ${reconnectSeconds} saniye`}>
+            <div className="reconnect-hud-timer" aria-label={isTr ? `Kalan süre ${reconnectSeconds} saniye` : `${reconnectSeconds}s remaining`}>
               <svg className="reconnect-countdown-svg" viewBox="0 0 36 36">
                 <path
                   className="reconnect-circle-bg"
@@ -777,7 +821,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
 
         {!isArena && (
           <div className="online-turn-line" role="status" aria-live="polite">
-            {isRoomInactive ? 'Oda aktif değil' : getStatusMessage({ room, mySymbol, reconnectSeconds })}
+            {isRoomInactive ? (isTr ? 'Oda aktif değil' : 'Room is inactive') : getStatusMessage({ room, mySymbol, reconnectSeconds, isTr })}
           </div>
         )}
 
@@ -799,15 +843,15 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
             className="online-primary-action"
             onClick={handleStartRoom}
             disabled={isStartPending || isRoomInactive}
-            title={isRoomInactive ? 'Oda artık aktif değil.' : undefined}
+            title={isRoomInactive ? (isTr ? 'Oda artık aktif değil.' : 'Room is inactive.') : undefined}
           >
-            {isStartPending ? 'Başlatılıyor...' : 'Oyunu başlat'}
+            {isStartPending ? (isTr ? 'Başlatılıyor...' : 'Starting...') : (isTr ? 'Oyunu başlat' : 'Start Game')}
           </button>
         )}
 
         {blackHoleEvent && (
           <div className="black-hole-message" role="status" aria-live="assertive">
-            KARA DELİK! Alan büküldü.
+            {isTr ? 'KARA DELİK! Alan büküldü.' : 'BLACK HOLE! Space distorted.'}
           </div>
         )}
 
@@ -816,9 +860,9 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
             <>
               <PowerPanel
                 currentPlayer={ownerPlayer?.symbol ?? 'X'}
-                playerName={ownerPlayer?.name ?? 'Oda Sahibi'}
+                playerName={ownerPlayer?.name ?? (isTr ? 'Oda Sahibi' : 'Host')}
                 score={ownerPlayer?.score ?? 0}
-                scoreLabel="Puan"
+                scoreLabel={isTr ? 'Puan' : 'Score'}
                 powerOptions={ONLINE_ARENA_POWER_OPTIONS}
                 isActivePlayer={ownerIsActive}
                 canInteract={ownerPlayer?.id === playerId && canMove}
@@ -937,9 +981,9 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
               />
               <PowerPanel
                 currentPlayer={guestPlayer?.symbol ?? 'O'}
-                playerName={guestPlayer?.name ?? (room.status === 'waiting' ? 'Rakip Bekleniyor...' : 'Oyuncu O')}
+                playerName={guestPlayer?.name ?? (room.status === 'waiting' ? (isTr ? 'Rakip Bekleniyor...' : 'Waiting for Opponent...') : (isTr ? 'Oyuncu O' : 'Player O'))}
                 score={guestPlayer?.score ?? 0}
-                scoreLabel="Skor"
+                scoreLabel={isTr ? 'Skor' : 'Score'}
                 powerOptions={{ gameMode: 'classic' }}
                 isActivePlayer={guestIsActive}
                 canInteract={false}
@@ -947,12 +991,12 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
                 powerCounts={{}}
                 statusText={
                   !guestPlayer
-                    ? 'Rakip katılması bekleniyor...'
+                    ? (isTr ? 'Rakip katılması bekleniyor...' : 'Waiting for opponent to join...')
                     : guestIsActive
                       ? guestPlayer?.id === playerId
-                        ? 'Hamle sende. En iyi çizgiyi kur.'
-                        : 'Rakibin hamlesi bekleniyor.'
-                      : 'Sıranı bekle, tahtayı oku.'
+                        ? t('game.turnActionHintClassic')
+                        : t('game.waitActionHintArena')
+                      : t('game.waitActionHintClassic')
                 }
                 timeLimit={turnTimeLimit}
                 timeLeft={turnTimeLeft}
@@ -969,9 +1013,9 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
             isNextRoundDisabled={isNextRoundDisabled}
             nextRoundTitle={
               room.status === 'completed'
-                ? 'Maç tamamlandı.'
+                ? (isTr ? 'Maç tamamlandı.' : 'Match completed.')
                 : isRoomInactive
-                  ? 'Oda artık aktif değil.'
+                  ? (isTr ? 'Oda artık aktif değil.' : 'Room is inactive.')
                   : undefined
             }
             statusMessage={nextRoundStatusMessage}

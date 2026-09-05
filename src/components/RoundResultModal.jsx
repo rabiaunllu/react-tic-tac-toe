@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { playSound, registerUserGesture } from '../game/soundManager'
+import { useTranslation } from '../i18n'
 import WinConfetti from './WinConfetti'
 
 export default function RoundResultModal({
@@ -19,14 +20,20 @@ export default function RoundResultModal({
   onNewMatch,
   onMenu,
   onClose,
-  nextRoundLabel = 'Sonraki Tur',
+  nextRoundLabel,
   isNextRoundDisabled = false,
   nextRoundTitle,
-  menuConfirmTitle = 'Ana Menüye dönülsün mü?',
-  menuConfirmActionLabel = 'Menüye Dön',
+  menuConfirmTitle,
+  menuConfirmActionLabel,
 }) {
+  const { t, language } = useTranslation()
+  const isTr = language === 'tr'
   const [isMenuConfirmOpen, setIsMenuConfirmOpen] = useState(false)
   const [isCopied, setIsCopied] = useState(false)
+
+  const resolvedNextRoundLabel = nextRoundLabel ?? t('common.nextRound')
+  const resolvedMenuConfirmTitle = menuConfirmTitle ?? t('modals.confirmMenuTitle')
+  const resolvedMenuConfirmAction = menuConfirmActionLabel ?? t('modals.confirmMenuAction')
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow
@@ -44,23 +51,25 @@ export default function RoundResultModal({
     resultMessage?.includes('Pes Etti') ||
     resultMessage?.includes('çekildi') ||
     resultMessage?.includes('Hükmen') ||
-    resultMessage?.includes('hükmen')
+    resultMessage?.includes('hükmen') ||
+    resultMessage?.includes('forfeit') ||
+    resultMessage?.includes('left')
   )
   const isMatchOver = Boolean(matchWinner) || isForfeitWin
 
   const heading = isForfeitWin
-    ? 'HÜKMEN GALİBİYET'
+    ? (isTr ? 'HÜKMEN GALİBİYET' : 'FORFEIT VICTORY')
     : isMatchOver
-      ? 'MAÇ SONUCU'
-      : `TUR ${roundNumber} SONUCU`
+      ? (isTr ? 'MAÇ SONUCU' : 'MATCH RESULT')
+      : (isTr ? `TUR ${roundNumber} SONUCU` : `ROUND ${roundNumber} RESULT`)
 
   const resultLabel = isForfeitWin
-    ? '🏆 RAKİP OYUNDAN AYRILDI '
+    ? (isTr ? '🏆 RAKİP OYUNDAN AYRILDI' : '🏆 OPPONENT FORFEITED')
     : isDraw
-      ? 'TUR BERABERE'
+      ? (isTr ? 'TUR BERABERE' : 'ROUND DRAW')
       : isMatchOver
-        ? `${displayedWinner} MAÇI KAZANDI`
-        : `${displayedWinner} TURU KAZANDI`
+        ? (isTr ? `${displayedWinner} MAÇI KAZANDI` : `${displayedWinner} WON THE MATCH`)
+        : (isTr ? `${displayedWinner} TURU KAZANDI` : `${displayedWinner} WON THE ROUND`)
 
   const symbol = isForfeitWin ? '🏆' : isDraw ? '=' : (winningSymbol || '🏆')
   const symbolModifier = isForfeitWin
@@ -77,12 +86,14 @@ export default function RoundResultModal({
   async function handleShareScore() {
     registerUserGesture()
     playSound('click')
-    const shareText = `🎮 XO ARENA ${heading}! ${resultLabel} (${p1Label}: ${p1ScoreVal} - ${p2Label}: ${p2ScoreVal}). Sen de meydan oku: ${window.location.href}`
+    const shareText = isTr
+      ? `🎮 XO ARENA ${heading}! ${resultLabel} (${p1Label}: ${p1ScoreVal} - ${p2Label}: ${p2ScoreVal}). Sen de meydan oku: ${window.location.href}`
+      : `🎮 XO ARENA ${heading}! ${resultLabel} (${p1Label}: ${p1ScoreVal} - ${p2Label}: ${p2ScoreVal}). Challenge now: ${window.location.href}`
 
     if (typeof navigator !== 'undefined' && navigator.share) {
       try {
         await navigator.share({
-          title: 'XO ARENA Maç Sonucu',
+          title: isTr ? 'XO ARENA Maç Sonucu' : 'XO ARENA Match Result',
           text: shareText,
           url: window.location.href,
         })
@@ -123,7 +134,7 @@ export default function RoundResultModal({
           <button
             type="button"
             className="round-result-close"
-            aria-label="Tahtayı gör"
+            aria-label={t('game.watchBoard')}
             onClick={() => {
               registerUserGesture()
               playSound('click')
@@ -144,7 +155,7 @@ export default function RoundResultModal({
 
         <h2 id="round-result-title">{resultLabel}</h2>
 
-        <div className="round-result-score" aria-label={`Skor ${p1ScoreVal} - ${p2ScoreVal}`}>
+        <div className="round-result-score" aria-label={`${isTr ? 'Skor' : 'Score'} ${p1ScoreVal} - ${p2ScoreVal}`}>
           <div>
             <strong>{p1ScoreVal}</strong>
             <span>{p1Label}</span>
@@ -161,8 +172,8 @@ export default function RoundResultModal({
         <div className="round-result-message" id="round-result-message">
           {isForfeitWin ? (
             <>
-              <strong>Sen kazandın!</strong>
-              <small>Rakip oyundan ayrıldığı için zafer senindir.</small>
+              <strong>{t('modals.roundResult.forfeitWinTitle')}</strong>
+              <small>{t('modals.roundResult.forfeitWinDesc')}</small>
             </>
           ) : Array.isArray(resultMessage) ? (
             <>
@@ -184,13 +195,13 @@ export default function RoundResultModal({
             className="viral-share-btn"
             onClick={handleShareScore}
           >
-            {isCopied ? '✓ Skormatik Kopyalandı!' : '📸 Skoru Paylaş'}
+            {isCopied ? t('modals.roundResult.socialShareCopied') : t('modals.roundResult.socialShareBtn')}
           </button>
         )}
 
         {isMenuConfirmOpen ? (
           <div className="round-result-confirm">
-            <strong id="round-result-confirm-title">{menuConfirmTitle}</strong>
+            <strong id="round-result-confirm-title">{resolvedMenuConfirmTitle}</strong>
 
             <div className="round-result-actions round-result-confirm-actions">
               <button
@@ -202,7 +213,7 @@ export default function RoundResultModal({
                 }}
                 autoFocus
               >
-                Vazgeç
+                {t('common.cancel')}
               </button>
 
               <button
@@ -214,7 +225,7 @@ export default function RoundResultModal({
                   onMenu()
                 }}
               >
-                {menuConfirmActionLabel}
+                {resolvedMenuConfirmAction}
               </button>
             </div>
           </div>
@@ -230,7 +241,7 @@ export default function RoundResultModal({
                 }}
                 autoFocus
               >
-                Yeni Maç
+                {t('common.newMatch')}
               </button>
             ) : (
               <button
@@ -244,7 +255,7 @@ export default function RoundResultModal({
                 title={nextRoundTitle}
                 autoFocus={!isNextRoundDisabled}
               >
-                {nextRoundLabel}
+                {resolvedNextRoundLabel}
               </button>
             )}
 
@@ -263,7 +274,7 @@ export default function RoundResultModal({
                 setIsMenuConfirmOpen(true)
               }}
             >
-              Ana Menü
+              {t('common.mainMenu')}
             </button>
           </div>
         )}

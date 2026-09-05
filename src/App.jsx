@@ -11,6 +11,7 @@ import OnlineGame from './components/OnlineGame'
 import RoundResultModal from './components/RoundResultModal'
 import RoundResultPreviewBar from './components/RoundResultPreviewBar'
 import SoundToggle from './components/SoundToggle'
+import { useTranslation } from './i18n'
 import {
   calculateRoundScore,
   calculateWinner,
@@ -23,6 +24,8 @@ import {
   drawMessages,
   getRandomMessage,
   loserMessages,
+  translateLoserMessage,
+  translateResultMessage,
   winnerMessages,
 } from './game/messages'
 import {
@@ -65,6 +68,8 @@ function createInitialPlayerPowers(powerOptions = { gameMode: 'arena' }) {
 }
 
 export default function App() {
+  const { t, language } = useTranslation()
+  const isTr = language === 'tr'
   const [squares, setSquares] = useState(() => createEmptyBoard(defaultBoardSize))
   const [xIsNext, setXIsNext] = useState(true)
   const [gameMode, setGameMode] = useState('classic')
@@ -159,12 +164,18 @@ export default function App() {
   const currentPlayer = xIsNext ? 'X' : 'O'
 
   // Oyuncu İsimleri ve Sırayla X/O Olma (Rotasyon) Mekaniği
+  const defaultHuman = isTr ? 'Oyuncu' : 'Player'
+  const defaultP1 = isTr ? '1. Oyuncu' : 'Player 1'
+  const defaultP2 = isTr ? '2. Oyuncu' : 'Player 2'
+  const p1Raw = gameConfig?.player1Name?.trim()
+  const p2Raw = gameConfig?.player2Name?.trim()
+
   const player1Name = opponentType === 'ai'
-    ? 'Oyuncu'
-    : (gameConfig?.player1Name?.trim() || '1. Oyuncu')
+    ? defaultHuman
+    : (!p1Raw || p1Raw === '1. Oyuncu' || p1Raw === 'Player 1' || p1Raw === 'Oyuncu' || p1Raw === 'Player' ? defaultP1 : p1Raw)
   const player2Name = opponentType === 'ai'
     ? 'Bot'
-    : (gameConfig?.player2Name?.trim() || '2. Oyuncu')
+    : (!p2Raw || p2Raw === '2. Oyuncu' || p2Raw === 'Player 2' ? defaultP2 : p2Raw)
 
   // Yan Yana (human vs human) modunda:
   // 1, 3, 5... (Tek) turlarda: 1. Oyuncu = X (başlar), 2. Oyuncu = O
@@ -190,6 +201,9 @@ export default function App() {
           ? player2Name
           : null
       : null
+
+  const displayedResultMessage = translateResultMessage(resultMessage, language)
+  const displayedLoserMessage = translateLoserMessage(loserMessage, language)
   const isAiTurn = Boolean(
     gameConfig &&
     (gameMode === 'classic' || gameMode === 'arena') &&
@@ -301,19 +315,19 @@ export default function App() {
     return currentStreak
   })
 }
-        setResultMessage(getRandomMessage(winnerMessages))
-        setLoserMessage(getRandomMessage(loserMessages))
+        setResultMessage(getRandomMessage(winnerMessages, language))
+        setLoserMessage(getRandomMessage(loserMessages, language))
         playSound('win')
         return
       }
 
       if (isBoardFull(nextSquares)) {
-        setResultMessage(getRandomMessage(drawMessages))
+        setResultMessage(getRandomMessage(drawMessages, language))
         setLoserMessage(null)
         playSound('draw')
       }
     },
-    [boardSize, winLength, multipliers, multipliersEnabled, boostedSquares, opponentType, gameMode, isP1X]
+    [boardSize, winLength, multipliers, multipliersEnabled, boostedSquares, opponentType, gameMode, isP1X, language]
   )
 
   const handleTimeOut = useCallback(
@@ -1814,8 +1828,8 @@ export default function App() {
           isDraw={isDraw}
           xIsNext={xIsNext}
           roundScore={roundScore}
-          resultMessage={resultMessage}
-          loserMessage={loserMessage}
+          resultMessage={displayedResultMessage}
+          loserMessage={displayedLoserMessage}
           matchWinner={matchWinner}
           isAiThinking={isAiThinking}
         />
@@ -1920,6 +1934,7 @@ export default function App() {
           {(effectiveWinner || isDraw) && !matchWinner && isRoundResultDismissed && (
             <RoundResultPreviewBar
               onNextRound={handleNextRound}
+              nextRoundLabel={t('game.nextRound')}
             />
           )}
         </div>
@@ -1940,8 +1955,8 @@ export default function App() {
           player1Name={player1Name}
           player2Name={player2Name}
           scoreLabel={scoreLabel}
-          resultMessage={resultMessage}
-          loserMessage={loserMessage}
+          resultMessage={displayedResultMessage}
+          loserMessage={displayedLoserMessage}
           onNextRound={handleNextRound}
           onNewMatch={handleNewMatch}
           onMenu={handleResultMenu}
