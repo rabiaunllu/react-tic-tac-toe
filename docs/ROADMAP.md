@@ -144,12 +144,15 @@ Yapay zekanın yenilmez, hatasız ve viral seviyede bir büyükusta zekasıyla o
 - [x] **7.1 — Bitwise Zobrist Hashing:** 32-bit integer XOR tabanlı önbellekleme ile sıfır GC yükü ve mikrosaniye önbellek erişimi.
 - [x] **7.2 — Dinamik Kaynak Çarpanı (Phase Multipliers):** Açılışta güç harcamama ($0.25\times$), oyun sonu tam leverage ($2.0\times$).
 - [x] **7.3 — Normalize Heuristic Skalası:** Puan uçurumu kapatıldı (Mat: 100K, Açık Tehdit: 5K, Fork: 3.5K, Fork Hub: 1.2K, Kalkan: 300-600).
+- [x] **7.4 — Dinamik Zorluk & Beraberlik Kırıcı (DDA Breakout):** Klasik moddaki sonsuz beraberlik döngüsünü kırmak için `consecutiveDraws` takibi, çatal esnekliği (`forkHesitationChance: 0.20 - 0.35`), dinamik açılış varyasyonu ve tavizsiz L1/L2 kalkanları.
+- [x] **7.5 — Dinamik İlk Hamle & Sıra Rotasyonu:** Sırayla (Alternating), Önce Sen, Önce Bot modları, sembol/sıra rotasyonu ve tahta boyutuyla birebir uyumlu kurulum arayüzü.
+
 ## Faz 8 · Hamle Sayacı (Turn Timer / Shot Clock) 🟢 TAMAMLANDI
 
 - [x] **8.1 — 10s, 15s, 20s & Süresiz Modlar:** Online, Bota Karşı ve Yan Yana modları için seçimli hamle süresi limitleri.
 - [x] **8.2 — Panele Entegre Siber Sayaç HUD:** Oyuncu panellerine entegre şık süre rozeti ve tema uyumlu dinamik lazer ilerleme çizgisi.
 - [x] **8.3 — Evrensel Kırmızı Nabız Alarmı:** Son 5 saniyede alev kırmızısı nabız (`pulse`) ve prosedürel geri sayım uyarısı.
-- [x] **8.4 — Zaman Aşımı Galibiyeti & Hile Koruması:** Süre bittiğinde turu rakibe verme ve onay pencerelerinde süreyi durdurup sınırsız düşünme açığının (Pause-to-Think Exploit) kapatılması.
+- [x] **8.4 — Zaman Aşımı Galibiyeti & Hile Koruması:** Süre bittiğinde turu rakibe verme, onay pencerelerinde süreyi durdurup sınırsız düşünme açığı ve mutlak zaman damgasıyla (`turnDeadlineRef`) F5 süre yenileme hilesinin (Timer Exploit) kapatılması.
 - [x] **8.5 — Online Çok Oyunculu Senkronizasyonu:** Oda kurulumunda seçilen sürenin her iki oyuncuda gerçek zamanlı senkronize edilmesi.
 
 ---

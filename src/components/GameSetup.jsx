@@ -102,6 +102,7 @@ export default function GameSetup({
   const [targetValue, setTargetValue] = useState(5)
   const [isInfinite, setIsInfinite] = useState(false)
   const [turnTimeLimit, setTurnTimeLimit] = useState(15)
+  const [firstMove, setFirstMove] = useState('alternating')
   const [isHowToPlayOpen, setIsHowToPlayOpen] = useState(false)
   
   // Local PvP player names
@@ -248,6 +249,7 @@ export default function GameSetup({
       isInfinite,
       opponentType,
       turnTimeLimit,
+      firstMove: opponentType === 'ai' ? firstMove : 'alternating',
       player1Name: opponentType === 'ai'
         ? defaultHuman
         : (!cleanP1 || cleanP1 === '1. Oyuncu' || cleanP1 === 'Player 1' ? defaultP1 : cleanP1),
@@ -752,6 +754,48 @@ export default function GameSetup({
                 })}
               </div>
             </div>
+
+            {/* ── İlk Hamle Seçimi (Sadece Bot Modunda) ── */}
+            {opponentType === 'ai' && (
+              <div className="setup-group">
+                <span className="setup-label">{t('setup.settingsModal.firstMove')}</span>
+                <div className="setup-options">
+                  <button
+                    className={firstMove === 'alternating' ? 'setup-option active' : 'setup-option'}
+                    type="button"
+                    onClick={() => {
+                      registerUserGesture()
+                      playSound('click')
+                      setFirstMove('alternating')
+                    }}
+                  >
+                    {t('setup.settingsModal.firstMoveAlternating')}
+                  </button>
+                  <button
+                    className={firstMove === 'human' ? 'setup-option active' : 'setup-option'}
+                    type="button"
+                    onClick={() => {
+                      registerUserGesture()
+                      playSound('click')
+                      setFirstMove('human')
+                    }}
+                  >
+                    {t('setup.settingsModal.firstMovePlayer')}
+                  </button>
+                  <button
+                    className={firstMove === 'ai' ? 'setup-option active' : 'setup-option'}
+                    type="button"
+                    onClick={() => {
+                      registerUserGesture()
+                      playSound('click')
+                      setFirstMove('ai')
+                    }}
+                  >
+                    {t('setup.settingsModal.firstMoveBot')}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* ── Single-Row Non-Wrapping Skin / Theme Selector ── */}
             <div className="setup-group">

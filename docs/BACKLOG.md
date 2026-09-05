@@ -15,6 +15,7 @@ Bu dosya, **XO Arena** projesinde tamamlanan tüm özellikleri, mimari sistemler
 - [x] Kazanan hat parıltısı ve animasyonlu hücre efektleri
 - [x] Tur Sonucu ve Maç Sonu Modalları (Skor, Kupa, Rövanş, Ayarlara Dönüş)
 - [x] Mobil duyarlı (Responsive) tahta, buton ve yazı ölçekleme
+- [x] **Kurulum Ekranı & Tasarım Bütünlüğü:** Hedef Puan 5 sütun tek satır hizalaması, İlk Hamle için tahta boyutuyla birebir uyumlu 3 sütunlu kart yapısı ve emojilerden arındırılmış temiz tipografi.
 
 ### 2. Güç Sistemi (Arena Powers)
 - [x] 💣 **Bomba (Bomb):** Rakibin korumasız taşını imha etme + 1 tur kilit (lav çatlağı)
@@ -28,14 +29,15 @@ Bu dosya, **XO Arena** projesinde tamamlanan tüm özellikleri, mimari sistemler
 ### 3. Yapay Zeka (Grandmaster AI Engine)
 - [x] Web Worker çoklu iş parçacığı izolasyonu (`aiWorker.js`, 60 FPS sıfır donma)
 - [x] **Açılış Kütüphanesi (Opening Book):** 0 ms anında merkez/çarpan hamlesi
-- [x] **Hard Guard L1:** Tek hamlede anında mat/galibiyet infazı
-- [x] **Hard Guard L2:** Açık ve bombayla kilitlenmiş tehditlere karşı zorunlu blok ve bomba savunması
+- [x] **Hard Guard L1:** Tek hamlede anında mat/galibiyet infazı (%100 tavizsiz)
+- [x] **Hard Guard L2:** Açık ve bombayla kilitlenmiş tehditlere karşı zorunlu blok ve bomba savunması (%100 tavizsiz)
 - [x] **Hard Guard L3:** Çifte Tehdit / Çatal (Fork) ve çatal merkezlerini (`Fork Hubs`) engelleme
 - [x] **Hard Guard L4:** Kendi çatalını kurma
 - [x] **Bitwise Zobrist Hashing:** 32-bit tamsayı önbellekleme (sıfır GC yükü, mikrosaniye hız)
 - [x] **Dinamik Kaynak Çarpanı (Phase Multipliers):** Açılışta güç saklama ($0.25\times$), oyun sonu tam leverage ($2.0\times$)
 - [x] **Ufuk Çizgisi Genişletmesi (Horizon Extension):** Kilitli karelerin açılma anını önceden görme
-- [x] **Tavizsiz Büyükusta Zorluğu:** DGD toleransları kapatıldı, bot her pozisyonda 1. sıradaki en güçlü hamleyi oynar.
+- [x] **Dinamik Zorluk & Beraberlik Kırıcı (DDA Draw Breakout):** Klasik moddaki sonsuz beraberlik döngüsünü kırmak için `consecutiveDraws` takibi, çatal esnekliği (`forkHesitationChance: 0.20 - 0.35`), dinamik açılış varyasyonu (0, 2, 6, 8 köşeleri) ve yakın skorlu hamleler arasında organik seçim.
+- [x] **Dinamik İlk Hamle Rotasyonu:** Sırayla (Alternating), Önce Sen (Human First), Önce Bot (Bot First) seçenekleri ve dinamik sembol/sıra rotasyonu.
 - [x] **Detaylı Mimari Dokümantasyonu:** [`docs/AI_ARCHITECTURE.md`](file:///d:/PROJECTS/react-tic-tac-toe/docs/AI_ARCHITECTURE.md)
 
 ### 4. Gerçek Zamanlı Çevrimiçi Çok Oyunculu (Online Multiplayer)
@@ -59,6 +61,7 @@ Bu dosya, **XO Arena** projesinde tamamlanan tüm özellikleri, mimari sistemler
 - [x] Zaman aşımı durumunda turu rakibe devretme ve galibiyet modalı akışı
 - [x] Online çok oyunculu senkronizasyonu
 - [x] Onay kutularında süreyi dondurup sınırsız düşünme açığı (Pause-to-Think Exploit) kapatıldı
+- [x] **Sayfa Yenileme Hile Koruması (F5 Timer Exploit):** Mutlak zaman damgası (`turnDeadlineRef`) ve oturum senkronizasyonu ile sayfa yenileyerek süre sıfırlama açığı tamamen kapatıldı.
 
 ### 7. Güvenlik & Kod Zafiyet Denetimi (Security Audit)
 - [x] API endpoint'leri ve girdi doğrulama (XSS, Injection, Max Length Sanitization)
@@ -90,4 +93,4 @@ Bu dosya, **XO Arena** projesinde tamamlanan tüm özellikleri, mimari sistemler
 ## 💡 Gelecek / İsteğe Bağlı Özellikler (Post-Release)
 - [ ] Rastgele online odaya girme (Quick Matchmaking)
 - [ ] Online chat (sadece emoji veya hızlı mesajlar)
-- [ ] AI modunda oyuncunun O olup botun X başlayabilmesi seçeneği
+- [x] AI modunda oyuncunun O olup botun X başlayabilmesi seçeneği (Tamamlandı: Alternating, Human [X], Bot [X] seçenekleri ile dinamik rotasyon)
