@@ -255,4 +255,11 @@ export default {
       tip3Desc: 'Lines through 2x and 3x cells can close a 30-point match in a single round.',
     },
   },
+  emotes: {
+    gg: 'GG!',
+    nice: 'Nice move!',
+    wellplayed: 'Well played!',
+    noway: 'No way!',
+    hurry: 'Hurry up!',
+  },
 }

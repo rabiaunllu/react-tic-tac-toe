@@ -25,6 +25,10 @@ export default function RoundResultModal({
   nextRoundTitle,
   menuConfirmTitle,
   menuConfirmActionLabel,
+  gameMode = 'classic',
+  boardSize = 3,
+  winStreak = 0,
+  opponentType = 'human',
 }) {
   const { t, language } = useTranslation()
   const isTr = language === 'tr'
@@ -86,9 +90,45 @@ export default function RoundResultModal({
   async function handleShareScore() {
     registerUserGesture()
     playSound('click')
-    const shareText = isTr
-      ? `🎮 XO ARENA ${heading}! ${resultLabel} (${p1Label}: ${p1ScoreVal} - ${p2Label}: ${p2ScoreVal}). Sen de meydan oku: ${window.location.href}`
-      : `🎮 XO ARENA ${heading}! ${resultLabel} (${p1Label}: ${p1ScoreVal} - ${p2Label}: ${p2ScoreVal}). Challenge now: ${window.location.href}`
+
+    const modeEmoji = gameMode === 'arena' ? '⚔️' : '🎯'
+    const modeLabel = isTr
+      ? (gameMode === 'arena' ? 'Arena' : 'Klasik')
+      : (gameMode === 'arena' ? 'Arena' : 'Classic')
+
+    const boardLabel = `${boardSize}x${boardSize}`
+
+    const opponentLabel = opponentType === 'ai'
+      ? 'Bot'
+      : opponentType === 'online'
+        ? (isTr ? 'Online Rakip' : 'Online Opponent')
+        : (isTr ? 'Yerel 2P' : 'Local 2P')
+
+    const streakText = winStreak > 1
+      ? (isTr ? `(${winStreak} Galibiyet Serisi! 🔥)` : `(${winStreak} Win Streak! 🔥)`)
+      : ''
+
+    const resultEmoji = isDraw ? '🤝' : isMatchOver ? '🏆' : '⚡'
+    const resultLine = isForfeitWin
+      ? (isTr ? 'Hükmen Galibiyet!' : 'Forfeit Victory!')
+      : isDraw
+        ? (isTr ? 'Tur Berabere!' : 'Round Draw!')
+        : isMatchOver
+          ? (isTr ? `${displayedWinner} Şampiyon!` : `${displayedWinner} Won the Match!`)
+          : (isTr ? `${displayedWinner} Turu Kazandı!` : `${displayedWinner} Won the Round!`)
+
+    const shareLines = [
+      `⚡ XO ARENA ${resultEmoji}`,
+      `${modeEmoji} Mod: ${modeLabel} (${boardLabel})`,
+      `🎮 ${resultLine}`,
+      `📊 Skor: ${p1ScoreVal} - ${p2ScoreVal} ${streakText}`.trim(),
+      `🆚 ${opponentLabel}`,
+      ``,
+      isTr ? `👉 Sen de dene / meydan oku:` : `👉 Challenge me now:`,
+      window.location.href,
+    ]
+
+    const shareText = shareLines.join('\n')
 
     if (typeof navigator !== 'undefined' && navigator.share) {
       try {
@@ -192,7 +232,7 @@ export default function RoundResultModal({
         {!isMenuConfirmOpen && (
           <button
             type="button"
-            className="viral-share-btn"
+            className={`viral-share-btn ${isCopied ? 'viral-share-btn--copied' : ''}`}
             onClick={handleShareScore}
           >
             {isCopied ? t('modals.roundResult.socialShareCopied') : t('modals.roundResult.socialShareBtn')}

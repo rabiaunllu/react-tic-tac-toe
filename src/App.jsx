@@ -10,6 +10,8 @@ import { ARENA_POWER_NAMES, createInitialPowerCounts, rewardedPowerIds } from '.
 import OnlineGame from './components/OnlineGame'
 import RoundResultModal from './components/RoundResultModal'
 import RoundResultPreviewBar from './components/RoundResultPreviewBar'
+import FloatingEmote from './components/FloatingEmote'
+import QuickEmoteBar from './components/QuickEmoteBar'
 import SoundToggle from './components/SoundToggle'
 import { useTranslation } from './i18n'
 import {
@@ -105,6 +107,8 @@ export default function App() {
   const [roundNumber, setRoundNumber] = useState(1)
   const [humanWinStreak, setHumanWinStreak] = useState(0)
   const [consecutiveDraws, setConsecutiveDraws] = useState(0)
+  const [floatingEmotes, setFloatingEmotes] = useState([])
+  const botHurrySentRef = useRef(false)
   const [rewardedPowerClaimed, setRewardedPowerClaimed] = useState(false)
   const [isRewarding, setIsRewarding] = useState(false)
   const [rewardedPowerMessage, setRewardedPowerMessage] = useState('')
@@ -288,6 +292,46 @@ export default function App() {
     : 'YENİ MAÇ'
   const lineChip = `${winLength} TAŞ`
 
+  // ── Quick Emote Callbacks ──────────────────────────────────────────────────
+  const handleSendEmote = useCallback((emoteId) => {
+    const newEmote = {
+      id: Date.now() + Math.random(),
+      emoteId,
+      senderSymbol: humanSymbol,
+      position: isP1X ? 'left' : 'right',
+    }
+    setFloatingEmotes(prev => [...prev, newEmote])
+    playSound('emote')
+  }, [humanSymbol, isP1X])
+
+  const handleEmoteComplete = useCallback((emoteInstanceId) => {
+    setFloatingEmotes(prev => prev.filter(e => e.id !== emoteInstanceId))
+  }, [])
+
+  const triggerBotEmote = useCallback((context) => {
+    if (opponentType !== 'ai') return
+    const chances = { bot_won: 0.30, human_won: 0.25, draw: 0.20, random_move: 0.05 }
+    if (Math.random() > (chances[context] || 0.05)) return
+
+    const emoteMap = {
+      bot_won: ['gg', 'wellplayed'],
+      human_won: ['noway', 'nice'],
+      draw: ['wellplayed'],
+      random_move: ['gg', 'nice', 'wellplayed', 'noway', 'hurry'],
+    }
+    const pool = emoteMap[context] || emoteMap.random_move
+    const emoteId = pool[Math.floor(Math.random() * pool.length)]
+
+    safeSetTimeout(() => {
+      setFloatingEmotes(prev => [...prev, {
+        id: Date.now() + Math.random(),
+        emoteId,
+        senderSymbol: aiSymbol,
+        position: isP1X ? 'right' : 'left',
+      }])
+      playSound('emote')
+    }, 800 + Math.random() * 1700)
+  }, [opponentType, aiSymbol, isP1X, safeSetTimeout])
 
     const finishRound = useCallback(
     (nextSquares, nextBoostedSquares = boostedSquares) => {
@@ -326,6 +370,11 @@ export default function App() {
             return currentStreak
           })
           setConsecutiveDraws(0)
+          if (nextWinner === aiSymbol) {
+            triggerBotEmote('bot_won')
+          } else if (nextWinner === humanSymbol) {
+            triggerBotEmote('human_won')
+          }
         }
         setResultMessage(getRandomMessage(winnerMessages, language))
         setLoserMessage(getRandomMessage(loserMessages, language))
@@ -336,13 +385,14 @@ export default function App() {
       if (isBoardFull(nextSquares)) {
         if (opponentType === 'ai' && (gameMode === 'classic' || gameMode === 'arena')) {
           setConsecutiveDraws((prev) => prev + 1)
+          triggerBotEmote('draw')
         }
         setResultMessage(getRandomMessage(drawMessages, language))
         setLoserMessage(null)
         playSound('draw')
       }
     },
-    [boardSize, winLength, multipliers, multipliersEnabled, boostedSquares, opponentType, gameMode, isP1X, humanSymbol, aiSymbol, language]
+    [boardSize, winLength, multipliers, multipliersEnabled, boostedSquares, opponentType, gameMode, isP1X, humanSymbol, aiSymbol, language, triggerBotEmote]
   )
 
   const handleTimeOut = useCallback(
@@ -371,11 +421,19 @@ export default function App() {
           timeoutScore,
       }))
 
+      if (opponentType === 'ai') {
+        if (winningSymbol === aiSymbol) {
+          triggerBotEmote('bot_won')
+        } else if (winningSymbol === humanSymbol) {
+          triggerBotEmote('human_won')
+        }
+      }
+
       setResultMessage(['⏰', `${timedOutPlayerName} Süresi Bitti!`, `Turu ${winnerName} kazandı.`])
       setLoserMessage(null)
       playSound('win')
     },
-    [winner, matchWinner, isDraw, timeoutWinner, resultMessage, gameMode, isP1X, xPlayerName, oPlayerName]
+    [winner, matchWinner, isDraw, timeoutWinner, resultMessage, gameMode, isP1X, xPlayerName, oPlayerName, opponentType, aiSymbol, humanSymbol, triggerBotEmote]
   )
 
   // Turn timer countdown effect (Mutlak zaman damgası ile sayfa yenileme hilesi engellendi)
@@ -397,6 +455,7 @@ export default function App() {
 
     if (currentTurnKey !== lastTurnKeyRef.current) {
       lastTurnKeyRef.current = currentTurnKey
+      botHurrySentRef.current = false
 
       const hasValidRestoredDeadline =
         turnDeadlineRef.current && turnDeadlineRef.current > Date.now()
@@ -439,6 +498,30 @@ export default function App() {
         playSound('click')
       }
 
+      // Bot "Acele et!" tepkisi: İnsan 7+ saniye düşünürse %20 ihtimalle bot emote gönderir
+      if (
+        opponentType === 'ai' &&
+        currentPlayer === humanSymbol &&
+        !botHurrySentRef.current &&
+        turnTimeLimit >= 10 &&
+        clampedRemaining <= turnTimeLimit - 7 &&
+        clampedRemaining > 3
+      ) {
+        botHurrySentRef.current = true
+        if (Math.random() < 0.20) {
+          setFloatingEmotes((prev) => [
+            ...prev,
+            {
+              id: Date.now() + Math.random(),
+              emoteId: 'hurry',
+              senderSymbol: aiSymbol,
+              position: isP1X ? 'right' : 'left',
+            },
+          ])
+          playSound('emote')
+        }
+      }
+
       setTurnTimeLeft(clampedRemaining)
 
       if (clampedRemaining <= 0) {
@@ -462,6 +545,8 @@ export default function App() {
     resultMessage,
     opponentType,
     aiSymbol,
+    humanSymbol,
+    isP1X,
     handleTimeOut,
   ])
 
@@ -1139,6 +1224,9 @@ export default function App() {
       }
       playSound('move')
       finishRound(nextSquares, nextBoostedSquares)
+      if (!getWinningLine(nextSquares, boardSize, winLength) && !isBoardFull(nextSquares)) {
+        triggerBotEmote('random_move')
+      }
       setLockedSquares([])
       if (frozenSquares.length > 0) {
         if (frozenBy === aiSymbol) {
@@ -1325,6 +1413,7 @@ export default function App() {
               gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
             aiPlayer: aiSymbol,
             humanPlayer: humanSymbol,
+            gameMode,
           },
         })
         return
@@ -1421,6 +1510,7 @@ export default function App() {
           multipliers: gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
           aiPlayer: aiSymbol,
           humanPlayer: humanSymbol,
+          gameMode,
         })
         if (fallbackMove !== null) placeAiStone(fallbackMove)
       } catch {
@@ -1467,6 +1557,7 @@ export default function App() {
               gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
             aiPlayer: aiSymbol,
             humanPlayer: humanSymbol,
+            gameMode,
           },
         })
       }
@@ -1529,6 +1620,7 @@ export default function App() {
     humanSymbol,
     safeSetTimeout,
     clearSafeTimeout,
+    triggerBotEmote,
   ])
 
   useEffect(() => {
@@ -1928,6 +2020,18 @@ export default function App() {
           </div>
         )}
 
+        <div className="floating-emotes-container" aria-live="polite">
+          {floatingEmotes.map((emote) => (
+            <FloatingEmote
+              key={emote.id}
+              emoteId={emote.emoteId}
+              senderSymbol={emote.senderSymbol}
+              position={emote.position}
+              onComplete={() => handleEmoteComplete(emote.id)}
+            />
+          ))}
+        </div>
+
         <div className="arena-board-stack">
           <PowerPanel
             currentPlayer={p1Symbol}
@@ -2019,6 +2123,13 @@ export default function App() {
               nextRoundLabel={t('game.nextRound')}
             />
           )}
+
+          {gameConfig && opponentType === 'ai' && !matchWinner && (
+            <QuickEmoteBar
+              onSendEmote={handleSendEmote}
+              disabled={Boolean(matchWinner)}
+            />
+          )}
         </div>
 
 
@@ -2043,6 +2154,10 @@ export default function App() {
           onNewMatch={handleNewMatch}
           onMenu={handleResultMenu}
           onClose={matchWinner ? undefined : () => setIsRoundResultDismissed(true)}
+          gameMode={gameMode}
+          boardSize={boardSize}
+          winStreak={humanWinStreak}
+          opponentType={opponentType}
         />
       )}
 

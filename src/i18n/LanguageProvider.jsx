@@ -15,11 +15,52 @@ function getInitialLanguage() {
       return saved
     }
 
-    // Auto-detect browser language: TR for Turkish, EN for all global/CrazyGames users
-    const navLang = (window.navigator?.language || window.navigator?.languages?.[0] || '').toLowerCase()
-    return navLang.startsWith('tr') ? 'tr' : 'en'
-  } catch {
+    // 1. URL parameter override: ?lang=tr or ?lang=en
+    try {
+      const urlParams = new URLSearchParams(window.location.search)
+      const urlLang = urlParams.get('lang')
+      if (urlLang === 'tr' || urlLang === 'en') {
+        return urlLang
+      }
+    } catch {
+      // Ignored if URL parsing fails
+    }
+
+    // 2. Check if running on CrazyGames portal (always default to EN for global portal)
+    const isCrazyGames =
+      (typeof window.location !== 'undefined' && window.location.hostname.includes('crazygames')) ||
+      (typeof document !== 'undefined' && document.referrer.includes('crazygames'))
+
+    if (isCrazyGames) {
+      return 'en'
+    }
+
+    // 3. Check browser language list (any Turkish preference in list, e.g. ['en-US', 'tr-TR', 'tr'])
+    const allLangs = window.navigator?.languages?.length
+      ? Array.from(window.navigator.languages)
+      : [window.navigator?.language || '']
+    const hasTurkish = allLangs.some((lang) => typeof lang === 'string' && lang.toLowerCase().startsWith('tr'))
+    if (hasTurkish) {
+      return 'tr'
+    }
+
+    // 4. Timezone detection: Users in Turkey have Europe/Istanbul or Turkey timezone
+    try {
+      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || ''
+      if (
+        timeZone.includes('Istanbul') ||
+        timeZone === 'Turkey'
+      ) {
+        return 'tr'
+      }
+    } catch {
+      // Timezone detection optional
+    }
+
+    // 5. Global fallback for users outside Turkey
     return 'en'
+  } catch {
+    return 'tr'
   }
 }
 

@@ -52,6 +52,7 @@ export function useGameSync({
   enabled = true,
   roomStatus = 'playing',
   isMyTurn = false,
+  onQuickEmote,
 }) {
   const connectionRef = useRef(null)
   const isPollingActiveRef = useRef(false)
@@ -69,6 +70,7 @@ export function useGameSync({
   const onErrorRef = useRef(onError)
   const roomStatusRef = useRef(roomStatus)
   const isMyTurnRef = useRef(isMyTurn)
+  const onQuickEmoteRef = useRef(onQuickEmote)
 
   useEffect(() => {
     onRoomUpdateRef.current = onRoomUpdate
@@ -77,7 +79,8 @@ export function useGameSync({
     onErrorRef.current = onError
     roomStatusRef.current = roomStatus
     isMyTurnRef.current = isMyTurn
-  }, [onRoomUpdate, onConnectionMessage, onRoomInactive, onError, roomStatus, isMyTurn])
+    onQuickEmoteRef.current = onQuickEmote
+  }, [onRoomUpdate, onConnectionMessage, onRoomInactive, onError, roomStatus, isMyTurn, onQuickEmote])
 
   // Defensive State Dispatcher with Monotonic Ordering
   const dispatchRoomState = useCallback((nextRoom, source = 'SIGNALR') => {
@@ -226,6 +229,13 @@ export function useGameSync({
     // Subscribe to Hub event
     connection.on('RoomUpdated', handleRoomUpdated)
 
+    const handleQuickEmote = (payload) => {
+      if (isDisposed) return
+      onQuickEmoteRef.current?.(payload)
+    }
+
+    connection.on('QuickEmoteReceived', handleQuickEmote)
+
     // Reconnection & Disconnection Handlers (Seamless Fallback)
     connection.onreconnecting(() => {
       if (isDisposed) return
@@ -317,6 +327,7 @@ export function useGameSync({
       if (connection) {
         // Explicitly unbind all listeners to prevent memory leaks
         connection.off('RoomUpdated', handleRoomUpdated)
+        connection.off('QuickEmoteReceived', handleQuickEmote)
         connection.invoke('LeaveRoomGroup', roomCode).catch(() => {})
         connection.stop().catch(() => {})
       }
@@ -332,7 +343,22 @@ export function useGameSync({
     stopFallbackPolling,
   ])
 
+  const sendEmote = useCallback(async (emoteId) => {
+    const conn = connectionRef.current
+    if (!conn || conn.state !== signalR.HubConnectionState.Connected) {
+      return false
+    }
+    try {
+      await conn.invoke('SendQuickEmote', roomCode, playerId, playerSecret, emoteId)
+      return true
+    } catch (err) {
+      console.warn('Failed to send emote via SignalR:', err)
+      return false
+    }
+  }, [roomCode, playerId, playerSecret])
+
   return {
     forceSync: fetchRoomSnapshot,
+    sendEmote,
   }
 }

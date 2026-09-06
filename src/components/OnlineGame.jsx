@@ -12,6 +12,8 @@ import Board from './Board'
 import PowerPanel from './PowerPanel'
 import RoundResultModal from './RoundResultModal'
 import RoundResultPreviewBar from './RoundResultPreviewBar'
+import FloatingEmote from './FloatingEmote'
+import QuickEmoteBar from './QuickEmoteBar'
 import SoundToggle from './SoundToggle'
 import { playSound, registerUserGesture } from '../game/soundManager'
 import { useTranslation } from '../i18n'
@@ -203,6 +205,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
   const [onlineRoundMessage, setOnlineRoundMessage] = useState(() =>
     createOnlineRoundMessage(initialOnlineGame.room, initialOnlineGame.symbol, isTr)
   )
+  const [floatingEmotes, setFloatingEmotes] = useState([])
 
   const reconnectStartRef = useRef(null)
 
@@ -660,8 +663,31 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
     previousRoomRef.current = room
   }, [room])
 
+  const handleEmoteComplete = useCallback((emoteInstanceId) => {
+    setFloatingEmotes((prev) => prev.filter((e) => e.id !== emoteInstanceId))
+  }, [])
+
+  const handleQuickEmoteReceived = useCallback((payload) => {
+    if (!payload?.emoteId) return
+    if (payload.senderPlayerId === playerId) return
+
+    const senderSymbol = payload.senderSymbol || (mySymbol === 'X' ? 'O' : 'X')
+    const position = mySymbol === 'X' ? 'right' : 'left'
+
+    setFloatingEmotes((prev) => [
+      ...prev,
+      {
+        id: Date.now() + Math.random(),
+        emoteId: payload.emoteId,
+        senderSymbol,
+        position,
+      },
+    ])
+    playSound('emote')
+  }, [playerId, mySymbol])
+
   // Hybrid Real-time Synchronization (SignalR WebSocket + Adaptive Polling Fallback)
-  useGameSync({
+  const { sendEmote } = useGameSync({
     roomCode,
     playerId,
     playerSecret,
@@ -683,7 +709,22 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
     enabled: Boolean(roomCode) && !isRoomInactive,
     roomStatus: room.status,
     isMyTurn: mySymbol === currentSymbol,
+    onQuickEmote: handleQuickEmoteReceived,
   })
+
+  const handleSendEmote = useCallback((emoteId) => {
+    setFloatingEmotes((prev) => [
+      ...prev,
+      {
+        id: Date.now() + Math.random(),
+        emoteId,
+        senderSymbol: mySymbol,
+        position: mySymbol === 'X' ? 'left' : 'right',
+      },
+    ])
+    playSound('emote')
+    sendEmote(emoteId)
+  }, [mySymbol, sendEmote])
 
   useEffect(() => {
     if (!bombEvent) {
@@ -855,6 +896,18 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
           </div>
         )}
 
+        <div className="floating-emotes-container" aria-live="polite">
+          {floatingEmotes.map((emote) => (
+            <FloatingEmote
+              key={emote.id}
+              emoteId={emote.emoteId}
+              senderSymbol={emote.senderSymbol}
+              position={emote.position}
+              onComplete={() => handleEmoteComplete(emote.id)}
+            />
+          ))}
+        </div>
+
         <div className={`arena-board-stack ${isArena ? 'online-arena-stack' : 'online-classic-stack'}`}>
           {isArena ? (
             <>
@@ -1004,6 +1057,13 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
               />
             </>
           )}
+
+          {room.status !== 'waiting' && room.status !== 'ready' && (
+            <QuickEmoteBar
+              onSendEmote={handleSendEmote}
+              disabled={isRoomInactive || room.status === 'completed'}
+            />
+          )}
         </div>
 
         {isRoundFinished && isRoundResultDismissed && (
@@ -1051,6 +1111,10 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
           menuConfirmTitle="Menüye dönülsün mü?"
           menuConfirmActionLabel="Menü"
           onClose={() => setIsRoundResultDismissed(true)}
+          gameMode={room.gameMode}
+          boardSize={room.boardSize}
+          winStreak={0}
+          opponentType="online"
         />
       )}
     </main>

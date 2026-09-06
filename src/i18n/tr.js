@@ -255,4 +255,11 @@ export default {
       tip3Desc: '2x ve 3x hücrelerden geçen hatlar maçı tek elde bitirebilir.',
     },
   },
+  emotes: {
+    gg: 'GG!',
+    nice: 'Harika hamle!',
+    wellplayed: 'İyi oyundu!',
+    noway: 'Olamaz!',
+    hurry: 'Acele et!',
+  },
 }

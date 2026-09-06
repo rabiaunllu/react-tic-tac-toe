@@ -93,28 +93,28 @@ Bu dosya, **XO Arena** projesinde tamamlanan tüm özellikleri, mimari sistemler
 ## 🚀 Planlanan Viral Özellikler (Upcoming Viral Features)
 
 ### 1. Hızlı Tepki & Süzülen Mesajlar (Floating Quick Emotes / Taunts)
-- [ ] **Süzülen Neon Konuşma Baloncuğu:** Oyuncu paneli üzerinden yukarı doğru süzülüp yavaşça silinen animasyon (`float-up-fade`).
-- [ ] **5 İkonik Hazır Kalıp:**
+- [x] **Süzülen Neon Konuşma Baloncuğu:** Oyuncu paneli üzerinden yukarı doğru süzülüp yavaşça silinen animasyon (`float-up-fade`).
+- [x] **5 İkonik Hazır Kalıp:**
   - `👏 İyi oyundu!` / `Well played!`
   - `🔥 Harika hamle!` / `Nice move!`
   - `🤯 Olamaz!` / `No way!`
   - `⏰ Acele et!` / `Hurry up!`
   - `😈 GG!` / `GG!`
-- [ ] **Spam Koruması:** 2 saniyelik buton soğuma süresi (cooldown).
-- [ ] **Online Senkronizasyon & Bot Eğlencesi:** SignalR ile gerçek zamanlı iletim + Bota karşı eğlenceli etkileşim.
-- [ ] **Güvenlik & Telifsiz Standart:** Serbest metin yok (sıfır küfür/moderasyon riski, COPPA uyumlu), %100 açık Unicode metin standardı.
+- [x] **Spam Koruması:** 2 saniyelik buton soğuma süresi (cooldown).
+- [x] **Online Senkronizasyon & Bot Eğlencesi:** SignalR ile gerçek zamanlı iletim + Bota karşı eğlenceli etkileşim.
+- [x] **Güvenlik & Telifsiz Standart:** Serbest metin yok (sıfır küfür/moderasyon riski, COPPA uyumlu), %100 açık Unicode metin standardı.
 
 ### 2. Wordle Tarzı "Skoru / Zaferi Paylaş" (Share Result / Copy to Clipboard)
-- [ ] **Sonuç Ekranında "Paylaş" Butonu:** `RoundResultModal` ve maç zafer ekranına şık paylaş butonu.
-- [ ] **Pano ve Mobil Entegrasyonu:** `navigator.clipboard.writeText` ve mobil cihazlar için yerel `navigator.share`.
-- [ ] **Paylaşım Kartı Formatı:**
+- [x] **Sonuç Ekranında "Paylaş" Butonu:** `RoundResultModal` ve maç zafer ekranına şık paylaş butonu.
+- [x] **Pano ve Mobil Entegrasyonu:** `navigator.clipboard.writeText` ve mobil cihazlar için yerel `navigator.share`.
+- [x] **Paylaşım Kartı Formatı:**
   ```text
   ⚡ XO Arena — Grandmaster Bot'u Devirdim! 🏆
   🎮 Mod: Arena (Tahta: 4x4)
   🔥 Skor: 35 - 12 (3 Galibiyet Serisi!)
   👉 Sen de dene: [link]
   ```
-- [ ] **Viral Döngü:** Sosyal medya, Discord ve WhatsApp gruplarında organik meydan okuma zinciri.
+- [x] **Viral Döngü:** Sosyal medya, Discord ve WhatsApp gruplarında organik meydan okuma zinciri.
 
 ---
 
