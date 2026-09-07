@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { playSound, registerUserGesture } from '../game/soundManager'
 import { useTranslation } from '../i18n'
 import WinConfetti from './WinConfetti'
+import { shareOrDownloadVictoryCard } from '../utils/victoryCard'
 
 export default function RoundResultModal({
   roundNumber,
@@ -35,6 +36,7 @@ export default function RoundResultModal({
   const isTr = language === 'tr'
   const [isMenuConfirmOpen, setIsMenuConfirmOpen] = useState(false)
   const [isCopied, setIsCopied] = useState(false)
+  const [isGeneratingCard, setIsGeneratingCard] = useState(false)
 
   const resolvedNextRoundLabel = nextRoundLabel ?? t('common.nextRound')
   const resolvedMenuConfirmTitle = menuConfirmTitle ?? t('modals.confirmMenuTitle')
@@ -109,6 +111,7 @@ export default function RoundResultModal({
   async function handleShareScore() {
     registerUserGesture()
     playSound('click')
+    setIsGeneratingCard(true)
 
     const modeEmoji = gameMode === 'arena' ? '⚔️' : '🎯'
     const modeLabel = isTr
@@ -149,24 +152,40 @@ export default function RoundResultModal({
 
     const shareText = shareLines.join('\n')
 
-    if (typeof navigator !== 'undefined' && navigator.share) {
+    try {
+      // 1. Generate & Share/Download high-res Esports Victory Card
+      await shareOrDownloadVictoryCard({
+        winner: displayedWinner,
+        winningSymbol,
+        isDraw,
+        isMatchOver,
+        p1Name: player1Name || (isTr ? 'Oyuncu 1' : 'Player 1'),
+        p2Name: player2Name || (isTr ? 'Oyuncu 2' : 'Player 2'),
+        p1Score: p1ScoreVal,
+        p2Score: p2ScoreVal,
+        gameMode,
+        boardSize,
+        winStreak,
+        isTr,
+      })
+    } catch {
+      // Continue to clipboard copy
+    } finally {
+      setIsGeneratingCard(false)
+    }
+
+    // 2. Also copy formatted duel text to clipboard
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
       try {
-        await navigator.share({
-          title: isTr ? 'XO ARENA Maç Sonucu' : 'XO ARENA Match Result',
-          text: shareText,
-          url: window.location.href,
-        })
-        return
+        await navigator.clipboard.writeText(shareText)
       } catch {
-        // Fallback to clipboard
+        // Ignore clipboard permission errors
       }
     }
 
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      await navigator.clipboard.writeText(shareText)
-      setIsCopied(true)
-      setTimeout(() => setIsCopied(false), 2500)
-    }
+    playSound('streak')
+    setIsCopied(true)
+    setTimeout(() => setIsCopied(false), 2500)
   }
 
   return (
@@ -253,8 +272,13 @@ export default function RoundResultModal({
             type="button"
             className={`viral-share-btn ${isCopied ? 'viral-share-btn--copied' : ''}`}
             onClick={handleShareScore}
+            disabled={isGeneratingCard}
           >
-            {isCopied ? t('modals.roundResult.socialShareCopied') : t('modals.roundResult.socialShareBtn')}
+            {isGeneratingCard
+              ? (isTr ? '⏳ Hazırlanıyor...' : '⏳ Generating...')
+              : isCopied
+                ? t('modals.roundResult.socialShareCopied')
+                : t('modals.roundResult.socialShareBtn')}
           </button>
         )}
 

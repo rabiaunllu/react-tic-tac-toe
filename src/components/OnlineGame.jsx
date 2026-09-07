@@ -228,7 +228,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
     }, 0)
 
     const interval = setInterval(() => {
-      currentRemaining = Math.max(0, currentRemaining - 0.1)
+      currentRemaining = Math.max(0, currentRemaining - 1)
       const currentWhole = Math.ceil(currentRemaining)
 
       if (currentRemaining <= 5 && currentRemaining > 0 && currentWhole !== lastTickSecondRef.current) {
@@ -244,7 +244,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
           timeoutRoom(roomCode, playerId, playerSecret).catch(() => {})
         }
       }
-    }, 100)
+    }, 1000)
 
     return () => {
       clearTimeout(timerId)

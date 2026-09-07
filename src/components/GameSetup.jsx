@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, lazy, Suspense } from 'react'
 import {
   getRoomStatusText,
   IS_ONLINE_ENABLED,
@@ -9,12 +9,13 @@ import {
   startRoom,
 } from '../api/roomsApi'
 import { clearOnlineSession } from '../sessionStorage'
-import HowToPlay from './HowToPlay'
 import SoundToggle from './SoundToggle'
 import { useTranslation } from '../i18n'
 import { playSound, registerUserGesture } from '../game/soundManager'
 import SetupHeroBanner from './SetupHeroBanner'
 import PowerSimulation from './PowerSimulation'
+
+const HowToPlay = lazy(() => import('./HowToPlay'))
 
 const boardOptions = [
   { size: 3, label: '3x3', description: 'Klasik hızlı oyun', winLength: 3 },
@@ -1391,16 +1392,18 @@ export default function GameSetup({
 
       {/* ── HOW TO PLAY MODAL ── */}
       {isHowToPlayOpen && (
-        <HowToPlay
-          gameConfig={previewGameConfig}
-          gameMode={gameMode}
-          arenaSettings={{
-            powersEnabled: true,
-            multipliersEnabled: true,
-            boostMode: isOnlineMode ? onlineBoostMode : 'random',
-          }}
-          onClose={() => setIsHowToPlayOpen(false)}
-        />
+        <Suspense fallback={null}>
+          <HowToPlay
+            gameConfig={previewGameConfig}
+            gameMode={gameMode}
+            arenaSettings={{
+              powersEnabled: true,
+              multipliersEnabled: true,
+              boostMode: isOnlineMode ? onlineBoostMode : 'random',
+            }}
+            onClose={() => setIsHowToPlayOpen(false)}
+          />
+        </Suspense>
       )}
     </main>
   )
