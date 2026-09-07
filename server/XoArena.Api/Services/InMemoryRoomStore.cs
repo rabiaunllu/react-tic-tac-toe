@@ -41,6 +41,7 @@ public sealed class InMemoryRoomStore : IRoomStore
                 options.GameMode,
                 options.TargetValue,
                 options.BoostMode,
+                options.TurnTimeLimit,
                 [owner],
                 CreateInitialGameState(options.BoardSize, options.GameMode, [owner]),
                 now,
@@ -663,13 +664,96 @@ public sealed class InMemoryRoomStore : IRoomStore
                     FrozenSquares = [],
                     FrozenBy = null,
                     StolenSquares = [],
-                    HasUsedPowerThisTurn = false
+                    HasUsedPowerThisTurn = false,
+                    IsForfeit = false,
+                    IsTimeout = false,
+                    TimedOutPlayerSymbol = null
                 }
             };
 
             if (rooms.TryUpdate(normalizedRoomCode, updatedRoom, room))
             {
                 return NextRoundResult.Started(updatedRoom);
+            }
+        }
+    }
+
+    public TimeoutRoomResult Timeout(string roomCode, Guid playerId, string playerSecret)
+    {
+        var normalizedRoomCode = NormalizeRoomCode(roomCode);
+
+        if (normalizedRoomCode is null || !rooms.TryGetValue(normalizedRoomCode, out var room))
+        {
+            return TimeoutRoomResult.NotFound();
+        }
+
+        var playerIndex = FindPlayerIndex(room, playerId, playerSecret);
+        if (playerIndex < 0)
+        {
+            return TimeoutRoomResult.Forbidden();
+        }
+
+        while (true)
+        {
+            if (!rooms.TryGetValue(normalizedRoomCode, out room))
+            {
+                return TimeoutRoomResult.NotFound();
+            }
+
+            if (room.Status is not RoomStatuses.Playing)
+            {
+                return TimeoutRoomResult.Conflict("Room is not playing.");
+            }
+
+            if (room.Game.Winner is not null || room.Game.IsDraw)
+            {
+                return TimeoutRoomResult.Conflict("Game is already finished.");
+            }
+
+            if (room.TurnTimeLimit <= 0)
+            {
+                return TimeoutRoomResult.Conflict("Turn time limit is not enabled for this room.");
+            }
+
+            var timedOutSymbol = room.Game.XIsNext ? "X" : "O";
+            var winnerSymbol = timedOutSymbol == "X" ? "O" : "X";
+
+            var winningPlayerIndex = -1;
+            for (var i = 0; i < room.Players.Count; i++)
+            {
+                if (GetPlayerSymbol(room.Game.RoundNumber, i) == winnerSymbol)
+                {
+                    winningPlayerIndex = i;
+                    break;
+                }
+            }
+
+            if (winningPlayerIndex < 0)
+            {
+                winningPlayerIndex = 0;
+            }
+
+            var timeoutScore = room.GameMode is GameModes.Arena ? 5 : 1;
+            var scores = AddPlayerScore(room.Game.Scores, winningPlayerIndex, timeoutScore);
+            var isMatchCompleted = GetPlayerScore(scores, winningPlayerIndex) >= room.TargetValue;
+
+            var updatedRoom = room with
+            {
+                Status = isMatchCompleted ? RoomStatuses.Completed : room.Status,
+                UpdatedAt = DateTimeOffset.UtcNow,
+                Game = room.Game with
+                {
+                    Winner = winnerSymbol,
+                    Scores = scores,
+                    WinningLine = [],
+                    IsTimeout = true,
+                    TimedOutPlayerSymbol = timedOutSymbol
+                }
+            };
+
+            if (rooms.TryUpdate(normalizedRoomCode, updatedRoom, room))
+            {
+                return TimeoutRoomResult.TimedOut(updatedRoom);
             }
         }
     }
@@ -717,9 +801,11 @@ public sealed class InMemoryRoomStore : IRoomStore
             [],
             [],
             [],
-            false,
-            false,
-            null);
+            HasUsedPowerThisTurn: false,
+            IsForfeit: false,
+            IsTimeout: false,
+            TimedOutPlayerSymbol: null,
+            FrozenBy: null);
 
     private static IReadOnlyList<string?> CreateEmptySquares(int boardSize)
         => Enumerable.Repeat<string?>(null, boardSize * boardSize).ToArray();

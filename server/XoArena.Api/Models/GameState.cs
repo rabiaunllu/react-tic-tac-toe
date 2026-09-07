@@ -19,4 +19,6 @@ public sealed record GameState(
     IReadOnlyList<int> StolenSquares,
     bool HasUsedPowerThisTurn = false,
     bool IsForfeit = false,
+    bool IsTimeout = false,
+    string? TimedOutPlayerSymbol = null,
     string? FrozenBy = null);

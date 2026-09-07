@@ -8,6 +8,7 @@ public sealed record Room(
     string GameMode,
     int TargetValue,
     string? BoostMode,
+    int TurnTimeLimit,
     IReadOnlyList<Player> Players,
     GameState Game,
     DateTimeOffset CreatedAt,

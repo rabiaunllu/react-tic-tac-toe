@@ -18,6 +18,8 @@ public interface IRoomStore
 
     NextRoundResult NextRound(string roomCode, Guid playerId, string playerSecret);
 
+    TimeoutRoomResult Timeout(string roomCode, Guid playerId, string playerSecret);
+
     bool Leave(string roomCode, Guid playerId, string playerSecret, bool isSurrender = false);
 
     /// <summary>

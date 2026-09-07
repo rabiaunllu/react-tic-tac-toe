@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  getRoomStatusText,
   isRoomNotFoundError,
   leaveRoom,
   requestRoomJson,
   startRoom,
+  timeoutRoom,
 } from '../api/roomsApi'
 import { useGameSync } from '../api/useGameSync'
 import { clearOnlineSession, writeOnlineSession } from '../sessionStorage'
@@ -104,9 +104,23 @@ function createOnlineRoundMessage(room, mySymbol, isTr = true) {
     return null
   }
 
+  const isTimeout = Boolean(room.game.isTimeout)
+  if (isTimeout) {
+    const timedOutPlayerSymbol = room.game.timedOutPlayerSymbol ?? (room.game.winner === 'X' ? 'O' : 'X')
+    const iTimedOut = timedOutPlayerSymbol === mySymbol
+    if (iTimedOut) {
+      return isTr
+        ? ['⏰ Süren Bitti!', 'Hamle süren dolduğu için turu rakip kazandı.']
+        : ['⏰ Time Is Up!', 'Turn timer expired. Opponent won the round.']
+    }
+    return isTr
+      ? ['⏰ Rakibin Süresi Bitti!', 'Rakibin hamle süresi doldu. Turu sen kazandın!']
+      : ['⏰ Opponent Timed Out!', 'Opponent ran out of time. You won the round!']
+  }
+
   const isForfeit = Boolean(
     room.game.isForfeit ||
-    (room.status === 'completed' && (!room.game.winningLine || room.game.winningLine.length === 0) && room.game.winner)
+    (room.status === 'completed' && (!room.game.winningLine || room.game.winningLine.length === 0) && room.game.winner && !isTimeout)
   )
 
   if (isForfeit) {
@@ -131,51 +145,7 @@ function createOnlineRoundMessage(room, mySymbol, isTr = true) {
   )
 }
 
-function getStatusMessage({ room, mySymbol, reconnectSeconds = 30, isTr = true }) {
-  if (room.status === 'reconnecting') {
-    return isTr
-      ? `📡 Rakibin interneti koptu. Yeniden bağlanması bekleniyor... (${reconnectSeconds}s)`
-      : `📡 Opponent lost connection. Waiting for reconnect... (${reconnectSeconds}s)`
-  }
 
-  if (room.status === 'waiting') {
-    return isTr ? 'Rakip bekleniyor' : 'Waiting for opponent'
-  }
-
-  if (room.status === 'ready') {
-    return mySymbol === 'X'
-      ? (isTr ? 'Oyunu başlatabilirsin' : 'You can start the game')
-      : (isTr ? 'Oda sahibi oyunu başlatacak' : 'Host will start the game')
-  }
-
-  if (room.status !== 'playing') {
-    return getRoomStatusText(room.status, isTr)
-  }
-
-  if (room.game.winner) {
-    if (room.gameMode === 'arena') {
-      return room.game.winner === mySymbol
-        ? (isTr ? 'Raunt senin · Puanlar işlendi' : 'Round is yours · Points scored')
-        : (isTr ? 'Rakip raundu aldı' : 'Opponent won the round')
-    }
-
-    return room.game.winner === mySymbol
-      ? (isTr ? 'Turu kazandın' : 'You won the round')
-      : (isTr ? 'Rakip turu kazandı' : 'Opponent won the round')
-  }
-
-  if (room.game.isDraw) {
-    return room.gameMode === 'arena'
-      ? (isTr ? 'Arena raundu berabere' : 'Arena round draw')
-      : (isTr ? 'Tur berabere bitti' : 'Round ended in a draw')
-  }
-
-  const currentSymbol = room.game.xIsNext ? 'X' : 'O'
-
-  return currentSymbol === mySymbol
-    ? (isTr ? 'Sıra sende' : 'Your turn')
-    : (isTr ? 'Sıranı bekle' : 'Wait your turn')
-}
 
 
 
@@ -241,6 +211,8 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
   const isArena = room.gameMode === 'arena'
   const turnTimeLimit = room.turnTimeLimit ?? room.game?.turnTimeLimit ?? 15
   const [turnTimeLeft, setTurnTimeLeft] = useState(turnTimeLimit)
+  const isTimeoutCallingRef = useRef(false)
+  const lastTickSecondRef = useRef(null)
 
   useEffect(() => {
     if (turnTimeLimit <= 0 || room.status !== 'playing' || room.game.winner || room.game.isDraw) {
@@ -248,20 +220,37 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
     }
 
     let currentRemaining = turnTimeLimit
+    isTimeoutCallingRef.current = false
+    lastTickSecondRef.current = Math.ceil(turnTimeLimit)
+
     const timerId = setTimeout(() => {
       setTurnTimeLeft(turnTimeLimit)
     }, 0)
 
     const interval = setInterval(() => {
       currentRemaining = Math.max(0, currentRemaining - 0.1)
+      const currentWhole = Math.ceil(currentRemaining)
+
+      if (currentRemaining <= 5 && currentRemaining > 0 && currentWhole !== lastTickSecondRef.current) {
+        lastTickSecondRef.current = currentWhole
+        playSound('click')
+      }
+
       setTurnTimeLeft(currentRemaining)
+
+      if (currentRemaining <= 0) {
+        if (!isTimeoutCallingRef.current) {
+          isTimeoutCallingRef.current = true
+          timeoutRoom(roomCode, playerId, playerSecret).catch(() => {})
+        }
+      }
     }, 100)
 
     return () => {
       clearTimeout(timerId)
       clearInterval(interval)
     }
-  }, [turnTimeLimit, currentSymbol, room.game.roundNumber, room.status, room.game.winner, room.game.isDraw])
+  }, [turnTimeLimit, currentSymbol, room.game.roundNumber, room.status, room.game.winner, room.game.isDraw, playerId, playerSecret, roomCode])
   const isRoundFinished = Boolean(room.game.winner) || room.game.isDraw || room.status === 'completed'
   const nextRoundPlayerIds = room.game.nextRoundPlayerIds ?? []
   const hasRequestedNextRound = nextRoundPlayerIds.includes(playerId)
@@ -271,6 +260,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
     !room.game.winner &&
     !room.game.isDraw &&
     mySymbol === currentSymbol &&
+    (turnTimeLimit <= 0 || turnTimeLeft > 0) &&
     !isMovePending &&
     !isPowerPending &&
     !isRoomInactive
@@ -698,7 +688,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
         clearOnlineSession()
         setIsRoomInactive(true)
         setConnectionMessage('')
-        setActionError(ROOM_INACTIVE_MESSAGE)
+        setActionError(isTr ? 'Oda artık aktif değil. Menüye dönüp yeni oda oluşturabilirsin.' : 'Room is no longer active. Return to menu to create a new room.')
       } else {
         setIsRoomInactive(false)
       }
@@ -788,7 +778,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
             <span className="match-chip">{room.targetValue} {isArena ? (isTr ? 'PUAN' : 'PTS') : (isTr ? 'TUR' : 'ROUNDS')}</span>
             <span className="match-chip">{room.boardSize}x{room.boardSize}</span>
             <span className="match-chip">{room.winLength} {isTr ? 'TAŞ' : 'IN A ROW'}</span>
-            <span className="match-chip online-code-chip">{isTr ? 'ODA' : 'ROOM'}: <strong>{roomCode}</strong></span>
+            <span className="match-chip match-chip--room">{isTr ? 'ODA' : 'ROOM'}: <strong>{roomCode}</strong></span>
           </div>
         </header>
 
@@ -860,9 +850,9 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
           </div>
         )}
 
-        {!isArena && (
-          <div className="online-turn-line" role="status" aria-live="polite">
-            {isRoomInactive ? (isTr ? 'Oda aktif değil' : 'Room is inactive') : getStatusMessage({ room, mySymbol, reconnectSeconds, isTr })}
+        {isRoomInactive && (
+          <div className="online-message online-message--error" role="alert">
+            {isTr ? 'Oda aktif değil' : 'Room is inactive'}
           </div>
         )}
 
@@ -915,7 +905,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
                 currentPlayer={ownerPlayer?.symbol ?? 'X'}
                 playerName={ownerPlayer?.name ?? (isTr ? 'Oda Sahibi' : 'Host')}
                 score={ownerPlayer?.score ?? 0}
-                scoreLabel={isTr ? 'Puan' : 'Score'}
+                scoreLabel={isTr ? 'Puan' : 'Points'}
                 powerOptions={ONLINE_ARENA_POWER_OPTIONS}
                 isActivePlayer={ownerIsActive}
                 canInteract={ownerPlayer?.id === playerId && canMove}
@@ -927,10 +917,10 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
                   ownerIsActive
                     ? ownerPlayer?.id === playerId
                       ? activePower
-                        ? 'Güç hazır. Parlayan hedeflerden birini seç.'
-                        : 'Hamle sende. Güç seç veya taş koy.'
-                      : 'Rakibin hamlesi bekleniyor.'
-                    : 'Sıranı bekle, tahtayı oku.'
+                        ? t('game.activePowerHint')
+                        : t('game.turnActionHintArena')
+                      : t('game.waitActionHintArena')
+                    : t('game.waitActionHintClassic')
                 }
                 hasUsedPowerThisTurn={hasUsedPowerThisTurn}
                 onSelectPower={setActivePower}
@@ -950,7 +940,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
                 frozenSquares={frozenSquares}
                 visibleBoostedSquares={visibleBoostedSquares}
                 powerTargetIndexes={activePowerTargets}
-                powerTargetLabel={ARENA_POWER_NAMES[activePower]}
+                powerTargetLabel={activePower ? (t(`powers.${activePower}.name`) || ARENA_POWER_NAMES[activePower]) : undefined}
                 onSquareClick={handleSquareClick}
                 currentPlayer={currentSymbol ?? mySymbol}
                 topPlayerSymbol={ownerPlayer?.symbol ?? 'X'}
@@ -963,9 +953,9 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
 
               <PowerPanel
                 currentPlayer={guestPlayer?.symbol ?? 'O'}
-                playerName={guestPlayer?.name ?? 'Rakip Bekleniyor...'}
+                playerName={guestPlayer?.name ?? (room.status === 'waiting' ? (isTr ? 'Rakip Bekleniyor...' : 'Waiting for Opponent...') : (isTr ? 'Misafir' : 'Guest'))}
                 score={guestPlayer?.score ?? 0}
-                scoreLabel="Puan"
+                scoreLabel={isTr ? 'Puan' : 'Points'}
                 powerOptions={ONLINE_ARENA_POWER_OPTIONS}
                 isActivePlayer={guestIsActive}
                 canInteract={guestPlayer?.id === playerId && canMove}
@@ -976,14 +966,14 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
                 hasUsedPowerThisTurn={hasUsedPowerThisTurn}
                 statusText={
                   !guestPlayer
-                    ? 'Rakip katılması bekleniyor...'
+                    ? (isTr ? 'Rakip katılması bekleniyor...' : 'Waiting for opponent to join...')
                     : guestIsActive
                       ? guestPlayer?.id === playerId
                         ? activePower
-                          ? 'Güç hazır. Parlayan hedeflerden birini seç.'
-                          : 'Hamle sende. Güç seç veya taş koy.'
-                        : 'Rakibin hamlesi bekleniyor.'
-                      : 'Sıranı bekle, tahtayı oku.'
+                          ? t('game.activePowerHint')
+                          : t('game.turnActionHintArena')
+                        : t('game.waitActionHintArena')
+                      : t('game.waitActionHintClassic')
                 }
                 onSelectPower={setActivePower}
                 onUseRandomBoost={handleRandomBoostPower}
@@ -996,9 +986,9 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
             <>
               <PowerPanel
                 currentPlayer={ownerPlayer?.symbol ?? 'X'}
-                playerName={ownerPlayer?.name ?? 'Oda Sahibi'}
+                playerName={ownerPlayer?.name ?? (isTr ? 'Oda Sahibi' : 'Host')}
                 score={ownerPlayer?.score ?? 0}
-                scoreLabel="Skor"
+                scoreLabel={isTr ? 'Skor' : 'Score'}
                 powerOptions={{ gameMode: 'classic' }}
                 isActivePlayer={ownerIsActive}
                 canInteract={false}
@@ -1007,9 +997,9 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
                 statusText={
                   ownerIsActive
                     ? ownerPlayer?.id === playerId
-                      ? 'Hamle sende. En iyi çizgiyi kur.'
-                      : 'Rakibin hamlesi bekleniyor.'
-                    : 'Sıranı bekle, tahtayı oku.'
+                      ? t('game.turnActionHintClassic')
+                      : t('game.waitActionHintArena')
+                    : t('game.waitActionHintClassic')
                 }
                 timeLimit={turnTimeLimit}
                 timeLeft={turnTimeLeft}
@@ -1034,7 +1024,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
               />
               <PowerPanel
                 currentPlayer={guestPlayer?.symbol ?? 'O'}
-                playerName={guestPlayer?.name ?? (room.status === 'waiting' ? (isTr ? 'Rakip Bekleniyor...' : 'Waiting for Opponent...') : (isTr ? 'Oyuncu O' : 'Player O'))}
+                playerName={guestPlayer?.name ?? (room.status === 'waiting' ? (isTr ? 'Rakip Bekleniyor...' : 'Waiting for Opponent...') : (isTr ? 'Misafir' : 'Guest'))}
                 score={guestPlayer?.score ?? 0}
                 scoreLabel={isTr ? 'Skor' : 'Score'}
                 powerOptions={{ gameMode: 'classic' }}
@@ -1091,25 +1081,29 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
           matchWinner={room.status === 'completed' ? (room.game.winner ?? mySymbol) : null}
           isForfeit={Boolean(
             room.game.isForfeit ||
-            (room.status === 'completed' && (!room.game.winningLine || room.game.winningLine.length === 0) && room.game.winner)
+            (room.status === 'completed' && (!room.game.winningLine || room.game.winningLine.length === 0) && room.game.winner && !room.game.isTimeout)
           )}
+          isTimeout={Boolean(room.game.isTimeout)}
           scores={{ X: ownerPlayer?.score ?? 0, O: guestPlayer?.score ?? 0 }}
-          scoreLabel={isArena ? 'Puan' : 'Skor'}
-          resultMessage={roundResultMessage[0]}
-          loserMessage={roundResultMessage[1] || nextRoundStatusMessage}
+          scoreLabel={isArena ? (isTr ? 'Puan' : 'Points') : (isTr ? 'Skor' : 'Score')}
+          resultMessage={roundResultMessage?.[0]}
+          loserMessage={roundResultMessage?.[1] || nextRoundStatusMessage}
+          player1Name={ownerPlayer?.name ?? (isTr ? 'Oda Sahibi' : 'Host')}
+          player2Name={guestPlayer?.name ?? (room.status === 'waiting' ? (isTr ? 'Rakip Bekleniyor...' : 'Waiting for Opponent...') : (isTr ? 'Misafir' : 'Guest'))}
           onNextRound={handleNextRound}
+          onNewMatch={handleOnlineMenuWithLeave}
           onMenu={handleOnlineMenuWithLeave}
           nextRoundLabel={nextRoundLabel}
           isNextRoundDisabled={isNextRoundDisabled}
           nextRoundTitle={
             room.status === 'completed'
-              ? 'Maç tamamlandı.'
+              ? (isTr ? 'Maç tamamlandı.' : 'Match completed.')
               : isRoomInactive
-                ? 'Oda artık aktif değil.'
+                ? (isTr ? 'Oda artık aktif değil.' : 'Room is no longer active.')
                 : undefined
           }
-          menuConfirmTitle="Menüye dönülsün mü?"
-          menuConfirmActionLabel="Menü"
+          menuConfirmTitle={isTr ? 'Menüye dönülsün mü?' : 'Return to menu?'}
+          menuConfirmActionLabel={isTr ? 'Menü' : 'Menu'}
           onClose={() => setIsRoundResultDismissed(true)}
           gameMode={room.gameMode}
           boardSize={room.boardSize}

@@ -26,6 +26,7 @@ const classicTargets = [3, 5, 7, 9]
 const arenaTargets = [15, 30, 50, 100]
 
 const turnTimeOptions = [
+  { value: 5, label: '5s', sublabel: 'yıldırım' },
   { value: 10, label: '10s', sublabel: 'hızlı' },
   { value: 15, label: '15s', sublabel: 'standart' },
   { value: 20, label: '20s', sublabel: 'rahat' },
@@ -119,6 +120,8 @@ export default function GameSetup({
   const [onlineConnectionMessage, setOnlineConnectionMessage] = useState('')
   const [onlineLoadingAction, setOnlineLoadingAction] = useState(null)
   const [isRoomCodeCopied, setIsRoomCodeCopied] = useState(false)
+  const [isLinkCopied, setIsLinkCopied] = useState(false)
+  const canNativeShare = typeof navigator !== 'undefined' && Boolean(navigator.share)
   const [onlineBoostMode] = useState('random')
   const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false)
 
@@ -281,6 +284,7 @@ export default function GameSetup({
     setOnlineLobby(nextLobby)
     setOnlineConnectionMessage('')
     setIsRoomCodeCopied(false)
+    setIsLinkCopied(false)
     onSaveOnlineSession({
       roomCode: room.roomCode,
       playerId: player.id,
@@ -296,7 +300,7 @@ export default function GameSetup({
     const playerName = createPlayerName.trim()
 
     if (!playerName) {
-      setOnlineError('Oyuncu adı boş olamaz.')
+      setOnlineError(t('setup.onlineModal.errorEmptyName'))
       return
     }
 
@@ -336,12 +340,12 @@ export default function GameSetup({
     const roomCode = joinRoomCode.trim().toUpperCase()
 
     if (!playerName) {
-      setOnlineError('Oyuncu adı boş olamaz.')
+      setOnlineError(t('setup.onlineModal.errorEmptyName'))
       return
     }
 
     if (!roomCode) {
-      setOnlineError('Oda kodu boş olamaz.')
+      setOnlineError(t('setup.onlineModal.errorEmptyCode'))
       return
     }
 
@@ -374,8 +378,63 @@ export default function GameSetup({
       return
     }
 
-    await navigator.clipboard.writeText(onlineLobby.room.roomCode)
-    setIsRoomCodeCopied(true)
+    try {
+      await navigator.clipboard.writeText(onlineLobby.room.roomCode)
+      setIsRoomCodeCopied(true)
+      setTimeout(() => setIsRoomCodeCopied(false), 2200)
+    } catch {
+      // ignore
+    }
+  }
+
+  function handleShareWhatsApp() {
+    registerUserGesture()
+    playSound('click')
+    const roomCode = onlineLobby?.room?.roomCode
+    if (!roomCode) return
+
+    const link = `${window.location.origin}${window.location.pathname}?room=${roomCode}`
+    const challengeText = isTr
+      ? `⚔️ XO Arena'da seninle kapışmak istiyorum! Odaya katılmak için tıkla:\n${link}\n\nOda Kodu: ${roomCode}`
+      : `⚔️ I challenge you to an XO Arena duel! Click to join:\n${link}\n\nRoom Code: ${roomCode}`
+
+    const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(challengeText)}`
+    window.open(waUrl, '_blank', 'noopener,noreferrer')
+  }
+
+  async function handleShareOther() {
+    registerUserGesture()
+    playSound('click')
+    const roomCode = onlineLobby?.room?.roomCode
+    if (!roomCode) return
+
+    const link = `${window.location.origin}${window.location.pathname}?room=${roomCode}`
+    const challengeText = isTr
+      ? `⚔️ XO Arena'da seninle kapışmak istiyorum! Odaya katılmak için tıkla:\n${link}\n\nOda Kodu: ${roomCode}`
+      : `⚔️ I challenge you to an XO Arena duel! Click to join:\n${link}\n\nRoom Code: ${roomCode}`
+
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: isTr ? 'XO Arena Düellosu' : 'XO Arena Challenge',
+          text: challengeText,
+          url: link,
+        })
+        return
+      } catch (err) {
+        if (err.name === 'AbortError') return
+      }
+    }
+
+    if (navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(link)
+        setIsLinkCopied(true)
+        setTimeout(() => setIsLinkCopied(false), 2200)
+      } catch {
+        // ignore
+      }
+    }
   }
 
   function handleOnlineFlowBack() {
@@ -728,13 +787,15 @@ export default function GameSetup({
               <div className="setup-options turn-time-options">
                 {turnTimeOptions.map((opt) => {
                   const sublabel =
-                    opt.value === 10
-                      ? t('setup.settingsModal.timeFast')
-                      : opt.value === 15
-                        ? t('setup.settingsModal.timeStandard')
-                        : opt.value === 20
-                          ? t('setup.settingsModal.timeTactical')
-                          : t('setup.settingsModal.timeInfinite')
+                    opt.value === 5
+                      ? t('setup.settingsModal.timeBullet')
+                      : opt.value === 10
+                        ? t('setup.settingsModal.timeFast')
+                        : opt.value === 15
+                          ? t('setup.settingsModal.timeStandard')
+                          : opt.value === 20
+                            ? t('setup.settingsModal.timeTactical')
+                            : t('setup.settingsModal.timeInfinite')
 
                   return (
                     <button
@@ -1027,13 +1088,15 @@ export default function GameSetup({
                       <div className="setup-options turn-time-options">
                         {turnTimeOptions.map((opt) => {
                           const sublabel =
-                            opt.value === 10
-                              ? t('setup.settingsModal.timeFast')
-                              : opt.value === 15
-                                ? t('setup.settingsModal.timeStandard')
-                                : opt.value === 20
-                                  ? t('setup.settingsModal.timeTactical')
-                                  : t('setup.settingsModal.timeInfinite')
+                            opt.value === 5
+                              ? t('setup.settingsModal.timeBullet')
+                              : opt.value === 10
+                                ? t('setup.settingsModal.timeFast')
+                                : opt.value === 15
+                                  ? t('setup.settingsModal.timeStandard')
+                                  : opt.value === 20
+                                    ? t('setup.settingsModal.timeTactical')
+                                    : t('setup.settingsModal.timeInfinite')
 
                           return (
                             <button
@@ -1196,33 +1259,40 @@ export default function GameSetup({
                 >
                   <div className="online-room-code online-room-code--large">
                     <span>{t('setup.onlineModal.roomCode')}</span>
-                    <strong className="online-code-display">{onlineLobby.room.roomCode}</strong>
+                    <button
+                      type="button"
+                      className="online-lobby-code-chip"
+                      onClick={handleCopyRoomCode}
+                      title={t('setup.onlineModal.clickToCopy')}
+                    >
+                      <strong className="online-code-display">{onlineLobby.room.roomCode}</strong>
+                      <span className={`online-code-badge ${isRoomCodeCopied ? 'online-code-badge--copied' : ''}`}>
+                        {isRoomCodeCopied ? t('setup.onlineModal.copiedCode') : `📋 ${t('setup.onlineModal.copyCode')}`}
+                      </span>
+                    </button>
 
-                    {/* Copy buttons only render for the Host (Oda Sahibi) */}
+                    {/* Viral Share Actions for Host */}
                     {onlineLobby.symbol === 'X' && (
                       <div className="online-copy-buttons-group">
                         <button
                           type="button"
-                          className="online-copy-action"
-                          onClick={handleCopyRoomCode}
-                          disabled={isRoomCodeCopied}
+                          className="online-copy-action online-copy-action--whatsapp"
+                          onClick={handleShareWhatsApp}
                         >
-                          {isRoomCodeCopied ? t('setup.onlineModal.copiedCode') : t('setup.onlineModal.copyCode')}
+                          <span className="online-action-icon" aria-hidden="true">💬</span>
+                          <span>{t('setup.onlineModal.shareWhatsApp')}</span>
                         </button>
                         <button
                           type="button"
-                          className="online-copy-action online-copy-action--whatsapp"
-                          onClick={async () => {
-                            registerUserGesture()
-                            playSound('click')
-                            const link = `${window.location.origin}${window.location.pathname}?room=${onlineLobby.room.roomCode}`
-                            if (navigator.clipboard) {
-                              await navigator.clipboard.writeText(link)
-                              setIsRoomCodeCopied(true)
-                            }
-                          }}
+                          className={`online-copy-action online-copy-action--invite ${isLinkCopied ? 'online-copy-action--copied' : ''}`}
+                          onClick={handleShareOther}
                         >
-                          {isTr ? '💬 WhatsApp Linki Kopyala' : '💬 Copy WhatsApp Link'}
+                          <span className="online-action-icon" aria-hidden="true">{isLinkCopied ? '✓' : (canNativeShare ? '🚀' : '🔗')}</span>
+                          <span>
+                            {isLinkCopied
+                              ? t('setup.onlineModal.copiedLink')
+                              : (canNativeShare ? t('setup.onlineModal.shareOther') : t('setup.onlineModal.copyLink'))}
+                          </span>
                         </button>
                       </div>
                     )}
@@ -1230,12 +1300,12 @@ export default function GameSetup({
 
                   <div className="online-room-details">
                     <div>
-                      <span>{isTr ? 'Rolün' : 'Role'}</span>
-                      <strong>{onlineLobby.symbol === 'X' ? (isTr ? 'Oda sahibi' : 'Host') : (isTr ? 'Misafir' : 'Guest')}</strong>
+                      <span>{t('setup.onlineModal.roleLabel')}</span>
+                      <strong>{onlineLobby.symbol === 'X' ? t('setup.onlineModal.roleHost') : t('setup.onlineModal.roleGuest')}</strong>
                     </div>
                     <div>
-                      <span>{isTr ? 'Durum' : 'Status'}</span>
-                      <strong>{getRoomStatusText(onlineLobby.room.status)}</strong>
+                      <span>{t('setup.onlineModal.statusLabel')}</span>
+                      <strong>{getRoomStatusText(onlineLobby.room.status, isTr)}</strong>
                     </div>
                   </div>
 
@@ -1256,13 +1326,13 @@ export default function GameSetup({
                         onClick={handleStartOnlineRoom}
                         disabled={isOnlineLoading}
                       >
-                        <span>{onlineLoadingAction === 'start' ? t('common.loading') : (isTr ? '▶ Oyunu Başlat' : '▶ Start Game')}</span>
+                        <span>{onlineLoadingAction === 'start' ? t('common.loading') : t('setup.onlineModal.startOnline')}</span>
                       </button>
                     )}
 
                     {isLeaveConfirmOpen ? (
                       <div className="online-leave-confirm-card">
-                        <strong>{isTr ? 'Odayı kapatmak istediğinden emin misin?' : 'Are you sure you want to leave the room?'}</strong>
+                        <strong>{onlineLobby.symbol === 'X' ? t('setup.onlineModal.confirmCloseTitle') : t('setup.onlineModal.confirmLeaveTitle')}</strong>
                         <div className="online-leave-confirm-actions">
                           <button
                             type="button"
@@ -1280,7 +1350,7 @@ export default function GameSetup({
                             className="online-leave-confirm-btn"
                             onClick={handleLeaveOnlineLobby}
                           >
-                            {isTr ? 'Evet, Ayrıl' : 'Yes, Leave'}
+                            {t('setup.onlineModal.confirmLeaveAction')}
                           </button>
                         </div>
                       </div>
@@ -1298,7 +1368,7 @@ export default function GameSetup({
                           }
                         }}
                       >
-                        <span>{onlineLobby.symbol === 'X' ? '🚪 Odayı Kapat / Ayrıl' : '🚪 Lobiden Ayrıl'}</span>
+                        <span>{onlineLobby.symbol === 'X' ? t('setup.onlineModal.closeRoom') : t('setup.onlineModal.leaveLobby')}</span>
                       </button>
                     )}
                   </div>

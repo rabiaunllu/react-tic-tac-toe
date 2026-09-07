@@ -196,14 +196,15 @@ function getPositionalScore(index, squares, boardSize, winLength, multipliers, a
   return centerBonus + multiplierBonus + lineScore
 }
 
-export function getClassicDdaConfig({
+export function getAdaptiveDdaConfig({
   humanWinStreak = 0,
   consecutiveDraws = 0,
   roundNumber = 1,
-  gameMode = 'classic',
 } = {}) {
-  // SADECE Klasik Mod için adaptif eşik aktif. Arena modu her zaman tavizsiz Grandmaster kalır.
-  if (gameMode !== 'classic') {
+  // 1. İLK TURLAR VE BAŞLANGIÇ: İlk oyunda kesinlikle HARDCORE / ZOR oynasın (0 taviz)
+  // Round 1'de bot %100 tavizsiz Büyükusta seviyesindedir.
+  // Ayrıca oyuncu öndeyse (humanWinStreak >= 0) veya henüz yenilgi/beraberlik birikmemişse taviz verilmez.
+  if (roundNumber <= 1 || (consecutiveDraws === 0 && humanWinStreak >= 0)) {
     return {
       mode: 'grandmaster',
       skipAntiExploit: false,
@@ -214,69 +215,36 @@ export function getClassicDdaConfig({
     }
   }
 
-  // 1. SÜREKLİ BERABERLİK DURUMU (Draw Breakout)
-  // Klasik modda sonsuz beraberlik döngüsünü kırmak için kullanıcının kazanmasına kontrollü fırsat tanı
+  // 2. BERABERLİK KİLİTLENMESİ (Draw Breakout) - Can sıkıcı sonsuz beraberlik durumunu çözme
+  // 3+ Beraberlik: Oyuncunun 3'lü dizip zafer alması için güçlü kapı arala
   if (consecutiveDraws >= 3) {
     return {
       mode: 'draw_breakout_extreme',
       skipAntiExploit: true,
       forkHesitationChance: 0.90,
-      suboptimalMoveChance: 0.70,
-      pityBlockMissChance: 0.40,
+      suboptimalMoveChance: 0.60,
+      pityBlockMissChance: 0.70,
       skipOwnFork: true,
     }
   }
 
+  // 2 Beraberlik: Kilitlenmeyi kırmak için seviyeyi belirgin düşür
   if (consecutiveDraws === 2) {
     return {
       mode: 'draw_breakout_strong',
       skipAntiExploit: true,
       forkHesitationChance: 0.65,
-      suboptimalMoveChance: 0.45,
-      pityBlockMissChance: 0.15,
-      skipOwnFork: false,
-    }
-  }
-
-  if (consecutiveDraws === 1 && roundNumber > 1) {
-    return {
-      mode: 'draw_breakout_mild',
-      skipAntiExploit: false,
-      forkHesitationChance: 0.30,
-      suboptimalMoveChance: 0.20,
-      pityBlockMissChance: 0,
-      skipOwnFork: false,
-    }
-  }
-
-  // 2. BOT HEP KAZANIYORSA (Bot Win Streak / Human Loss Streak)
-  // Kullanıcının seviyesine göre botun zorluğunu kademeli azaltarak kazanmasını sağla
-  if (humanWinStreak <= -3) {
-    return {
-      mode: 'loss_recovery_extreme',
-      skipAntiExploit: true,
-      forkHesitationChance: 1.0,
-      suboptimalMoveChance: 0.75,
-      pityBlockMissChance: 0.50,
+      suboptimalMoveChance: 0.40,
+      pityBlockMissChance: 0.40,
       skipOwnFork: true,
     }
   }
 
-  if (humanWinStreak === -2) {
+  // 1 Beraberlik (ve 1. turdan sonra): Katı teoriyi esnet, çatal tereddüdü uygula
+  if (consecutiveDraws === 1 && roundNumber > 1) {
     return {
-      mode: 'loss_recovery_strong',
+      mode: 'draw_breakout_mild',
       skipAntiExploit: true,
-      forkHesitationChance: 0.75,
-      suboptimalMoveChance: 0.50,
-      pityBlockMissChance: 0.25,
-      skipOwnFork: false,
-    }
-  }
-
-  if (humanWinStreak === -1) {
-    return {
-      mode: 'loss_recovery_mild',
-      skipAntiExploit: false,
       forkHesitationChance: 0.40,
       suboptimalMoveChance: 0.25,
       pityBlockMissChance: 0,
@@ -284,7 +252,44 @@ export function getClassicDdaConfig({
     }
   }
 
-  // 3. NORMAL / GRANDMASTER (Kullanıcı öndeyse veya ilk turlar)
+  // 3. RAKİP KÖTÜYSE / SÜREKLİ KAYBEDİYORSA (Loss Recovery / Anti-Churn)
+  // 3 veya daha fazla maç üst üste kaybeden oyuncuyu oyunda tutmak için acil kurtarma
+  if (humanWinStreak <= -3) {
+    return {
+      mode: 'loss_recovery_rescue',
+      skipAntiExploit: true,
+      forkHesitationChance: 0.85,
+      suboptimalMoveChance: 0.55,
+      pityBlockMissChance: 0.70,
+      skipOwnFork: true,
+    }
+  }
+
+  // 2 maç üst üste kaybeden oyuncuya kademeli nefes aldırma
+  if (humanWinStreak === -2) {
+    return {
+      mode: 'loss_recovery_moderate',
+      skipAntiExploit: true,
+      forkHesitationChance: 0.60,
+      suboptimalMoveChance: 0.35,
+      pityBlockMissChance: 0.40,
+      skipOwnFork: true,
+    }
+  }
+
+  // 1 maç kaybetmişse: Hala çok güçlü (hardcore), ancak açılış teorisini hafifçe esnetebilir
+  if (humanWinStreak === -1) {
+    return {
+      mode: 'loss_recovery_mild',
+      skipAntiExploit: true,
+      forkHesitationChance: 0.25,
+      suboptimalMoveChance: 0.15,
+      pityBlockMissChance: 0,
+      skipOwnFork: false,
+    }
+  }
+
+  // Varsayılan: Tavizsiz Büyükusta
   return {
     mode: 'grandmaster',
     skipAntiExploit: false,
@@ -294,6 +299,8 @@ export function getClassicDdaConfig({
     skipOwnFork: false,
   }
 }
+
+export const getClassicDdaConfig = getAdaptiveDdaConfig
 
 export function getAdaptiveAiMove({
   squares,
@@ -316,15 +323,19 @@ export function getAdaptiveAiMove({
 
   // L2: Rakibin Kazanma Hamlesini Bloke Et
   const blockingMove = findWinningMove(squares, boardSize, winLength, humanPlayer, blockedIndexes)
+  const excludedMoves = []
   if (blockingMove !== null) {
-    // Klasik modda beraberlik 3+'ya ulaşmışsa veya oyuncu 2+ kez kaybetmişse,
+    // Klasik modda beraberlik 2+'ya ulaşmışsa veya oyuncu 2+ kez kaybetmişse,
     // kullanıcının 3'lü yapıp kazanabilmesi için kontrollü fırsat tanı
     if (dda.pityBlockMissChance > 0 && Math.random() < dda.pityBlockMissChance) {
-      // Bloke etmeyip konumsal hamleye devam et, kullanıcı kazansın!
+      // Bloke etmeyip konumsal hamleye devam et; blockingMove karesi kesinlikle seçilmemeli!
+      excludedMoves.push(blockingMove)
     } else {
       return blockingMove
     }
   }
+
+  const effectiveBlocked = [...blockedIndexes, ...excludedMoves]
 
   // L2.5: 3x3 Klasik Teori Kalkanı (Anti-Exploit Guards)
   // Sürekli beraberlik kırıcı veya geri dönüş modunda değilse klasik teoriyi uygula
@@ -332,7 +343,7 @@ export function getAdaptiveAiMove({
     const totalStones = squares.filter(Boolean).length
     // Kural A: Rakip ilk hamlesinde merkeze (4) oynadıysa, bot ZORUNLU olarak bir KÖŞE (0, 2, 6, 8) oynamalıdır.
     if (totalStones === 1 && squares[4] === humanPlayer) {
-      const corners = [0, 2, 6, 8].filter((idx) => !squares[idx] && !blockedIndexes.includes(idx))
+      const corners = [0, 2, 6, 8].filter((idx) => !squares[idx] && !effectiveBlocked.includes(idx))
       if (corners.length > 0) {
         return corners[Math.floor(Math.random() * corners.length)]
       }
@@ -345,7 +356,7 @@ export function getAdaptiveAiMove({
         (squares[0] === humanPlayer && squares[8] === humanPlayer) ||
         (squares[2] === humanPlayer && squares[6] === humanPlayer)
       if (hasOppositeCorners) {
-        const edges = [1, 3, 5, 7].filter((idx) => !squares[idx] && !blockedIndexes.includes(idx))
+        const edges = [1, 3, 5, 7].filter((idx) => !squares[idx] && !effectiveBlocked.includes(idx))
         if (edges.length > 0) {
           const scoredEdges = edges.map((edgeIdx) => ({
             index: edgeIdx,
@@ -361,7 +372,7 @@ export function getAdaptiveAiMove({
   }
 
   // L3: Rakibin Çift Taraflı Tehdidini (Fork) Engelle
-  const multipleThreatBlock = getMultipleThreatPositions(squares, boardSize, winLength, humanPlayer, blockedIndexes)
+  const multipleThreatBlock = getMultipleThreatPositions(squares, boardSize, winLength, humanPlayer, effectiveBlocked)
   if (multipleThreatBlock !== null) {
     // DDA: Klasik modda beraberlik kırıcı veya seviye azaltma aktifse, bot çatalı görmezden gelerek kullanıcının kazanmasına imkan tanır
     if (!dda.forkHesitationChance || Math.random() >= dda.forkHesitationChance) {
@@ -371,7 +382,7 @@ export function getAdaptiveAiMove({
 
   // L4: Kendi Çift Taraflı Tehdidini (Fork) Kur
   if (!dda.skipOwnFork) {
-    const botFork = getMultipleThreatPositions(squares, boardSize, winLength, aiPlayer, blockedIndexes)
+    const botFork = getMultipleThreatPositions(squares, boardSize, winLength, aiPlayer, effectiveBlocked)
     if (botFork !== null) {
       return botFork
     }
@@ -379,13 +390,16 @@ export function getAdaptiveAiMove({
 
   // L5: Merkez Kareyi Ele Geçir (Eğer boşsa)
   const centerIdx = getCenterIndex(boardSize)
-  if (!squares[centerIdx] && !blockedIndexes.includes(centerIdx)) {
+  if (!squares[centerIdx] && !effectiveBlocked.includes(centerIdx)) {
     return centerIdx
   }
 
   // L6: Pozisyonel ve Stratejik Hamle
-  const emptyIndexes = getEmptyIndexes(squares, blockedIndexes)
-  if (emptyIndexes.length === 0) return null
+  const emptyIndexes = getEmptyIndexes(squares, effectiveBlocked)
+  if (emptyIndexes.length === 0) {
+    const anyEmpty = getEmptyIndexes(squares, blockedIndexes)
+    return anyEmpty.length > 0 ? anyEmpty[0] : null
+  }
 
   const scoredMoves = emptyIndexes.map((index) => ({
     index,
@@ -1117,7 +1131,18 @@ export function getArenaAiPowerAction({
   multipliers = {},
   aiPlayer = aiPlayerDefault,
   humanPlayer = humanPlayerDefault,
+  humanWinStreak = 0,
+  roundNumber = 1,
+  consecutiveDraws = 0,
+  gameMode = 'arena',
 }) {
+  const dda = getAdaptiveDdaConfig({
+    humanWinStreak,
+    consecutiveDraws,
+    roundNumber,
+    gameMode,
+  })
+
   transpositionTable.clear()
   const lines = getBoardLines(boardSize, winLength)
   const context = { boardSize, winLength, multipliers, aiPlayer, humanPlayer, lines }
@@ -1145,20 +1170,24 @@ export function getArenaAiPowerAction({
   if (rootActions.length === 0) return null
 
   // 2. HARD GUARD L1: Immediate Win Check (If any action wins this turn, DO IT!)
-  for (let i = 0; i < rootActions.length; i += 1) {
-    const act = rootActions[i]
-    const testState = applyArenaAction(initialState, act, context)
-    if (calculateWinner(testState.squares, boardSize, winLength) === aiPlayer) {
-      if (act.type === 'shield') {
-        return { type: 'shield', index: act.shieldIndex, followUpMove: act.moveIndex }
+  // Sadece loss_recovery_rescue modunda (%30 şansla) oyuncuya nefes aldırmak için anında bitiriş ertelenebilir
+  const skipInstantWin = dda.mode === 'loss_recovery_rescue' && Math.random() < 0.30
+  if (!skipInstantWin) {
+    for (let i = 0; i < rootActions.length; i += 1) {
+      const act = rootActions[i]
+      const testState = applyArenaAction(initialState, act, context)
+      if (calculateWinner(testState.squares, boardSize, winLength) === aiPlayer) {
+        if (act.type === 'shield') {
+          return { type: 'shield', index: act.shieldIndex, followUpMove: act.moveIndex }
+        }
+        if (act.type === 'freeze') {
+          return { type: 'freeze', index: act.freezeIndex, moveIndex: act.moveIndex }
+        }
+        if (act.type === 'vampire') {
+          return { type: 'vampire', index: act.stealIndex, moveIndex: act.moveIndex }
+        }
+        return act
       }
-      if (act.type === 'freeze') {
-        return { type: 'freeze', index: act.freezeIndex, moveIndex: act.moveIndex }
-      }
-      if (act.type === 'vampire') {
-        return { type: 'vampire', index: act.stealIndex, moveIndex: act.moveIndex }
-      }
-      return act
     }
   }
 
@@ -1178,35 +1207,51 @@ export function getArenaAiPowerAction({
 
   // If opponent has open or locked threats, FILTER candidate actions to ONLY those that neutralize the threat
   let candidateActions = rootActions
+  const shouldMissThreatBlock =
+    dda.pityBlockMissChance > 0 && Math.random() < dda.pityBlockMissChance
+
   if (humanThreatLines.length > 0) {
     const openThreats = humanThreatLines.filter((t) => !t.isLocked)
     if (openThreats.length > 0) {
       const threatTargets = openThreats.map((t) => t.target)
       const allThreatStones = openThreats.flatMap((t) => t.threatStones)
 
-      const validDefenses = rootActions.filter((act) => {
-        // Option A: Direct stone placement on threat square
-        if (act.type === 'move' || act.type === 'boost') {
-          return threatTargets.includes(act.index)
-        }
-        if (act.type === 'shield' || act.type === 'freeze' || act.type === 'vampire') {
-          return threatTargets.includes(act.moveIndex)
-        }
-        // Option B: Freeze the threat square
-        if (act.type === 'freeze' && threatTargets.includes(act.freezeIndex)) {
+      if (shouldMissThreatBlock) {
+        // DDA: Bot tehdidi bilerek gözden kaçırır (oyuncunun 3'lü dizip kazanmasına izin verir)
+        const nonBlockActions = rootActions.filter((act) => {
+          if (act.type === 'move' || act.type === 'boost') return !threatTargets.includes(act.index)
+          if (act.type === 'shield' || act.type === 'freeze' || act.type === 'vampire') return !threatTargets.includes(act.moveIndex)
+          if (act.type === 'bomb') return !allThreatStones.includes(act.index)
           return true
+        })
+        if (nonBlockActions.length > 0) {
+          candidateActions = nonBlockActions
         }
-        // Option C: Bomb the opponent's threatening stone
-        // Açık tek bir tehdit varken taşı koyup bloke etmek bombayı korur.
-        // Bombayı sadece birden fazla tehdit (çatal) varsa veya normal hamleyle bloke edilemiyorsa harca!
-        if (act.type === 'bomb' && (openThreats.length > 1 || !rootActions.some((a) => (a.type === 'move' || a.type === 'shield') && threatTargets.includes(a.index ?? a.moveIndex)))) {
-          return allThreatStones.includes(act.index)
-        }
-        return false
-      })
+      } else {
+        const validDefenses = rootActions.filter((act) => {
+          // Option A: Direct stone placement on threat square
+          if (act.type === 'move' || act.type === 'boost') {
+            return threatTargets.includes(act.index)
+          }
+          if (act.type === 'shield' || act.type === 'freeze' || act.type === 'vampire') {
+            return threatTargets.includes(act.moveIndex)
+          }
+          // Option B: Freeze the threat square
+          if (act.type === 'freeze' && threatTargets.includes(act.freezeIndex)) {
+            return true
+          }
+          // Option C: Bomb the opponent's threatening stone
+          // Açık tek bir tehdit varken taşı koyup bloke etmek bombayı korur.
+          // Bombayı sadece birden fazla tehdit (çatal) varsa veya normal hamleyle bloke edilemiyorsa harca!
+          if (act.type === 'bomb' && (openThreats.length > 1 || !rootActions.some((a) => (a.type === 'move' || a.type === 'shield') && threatTargets.includes(a.index ?? a.moveIndex)))) {
+            return allThreatStones.includes(act.index)
+          }
+          return false
+        })
 
-      if (validDefenses.length > 0) {
-        candidateActions = validDefenses
+        if (validDefenses.length > 0) {
+          candidateActions = validDefenses
+        }
       }
     } else {
       // Threat square is locked by a bomb:
@@ -1232,7 +1277,7 @@ export function getArenaAiPowerAction({
   }
 
   // 3a. HARD GUARD L2.5: 3x3 Klasik Teori Kalkanı (Anti-Exploit Theory Koruması)
-  if (boardSize === 3 && winLength === 3 && humanThreatLines.length === 0) {
+  if (boardSize === 3 && winLength === 3 && humanThreatLines.length === 0 && !dda.skipAntiExploit) {
     const totalStones = squares.filter(Boolean).length
 
     // Kural A: Rakip ilk hamlesinde merkeze (4) oynadıysa, bot ZORUNLU olarak bir KÖŞE (0, 2, 6, 8) oynamalıdır.
@@ -1284,7 +1329,10 @@ export function getArenaAiPowerAction({
 
   // 3b. HARD GUARD L3: Opponent Fork Defense Filter
   // If opponent has no immediate 1-move win, check if opponent can create a FORK (>= 2 simultaneous winning threats)
-  if (humanThreatLines.length === 0) {
+  const shouldHesitateFork =
+    dda.forkHesitationChance > 0 && Math.random() < dda.forkHesitationChance
+
+  if (humanThreatLines.length === 0 && !shouldHesitateFork) {
     const humanForks = getForkSquares(squares, boardSize, winLength, humanPlayer, blockedIndexes, lines)
     if (humanForks.length > 0) {
       const forkTargets = humanForks.map((f) => f.index)
@@ -1333,16 +1381,18 @@ export function getArenaAiPowerAction({
 
   // 3c. HARD GUARD L4: AI Own Fork Creation
   // If AI can create a fork, prioritize fork-creating actions!
-  const aiForks = getForkSquares(squares, boardSize, winLength, aiPlayer, blockedIndexes, lines)
-  if (aiForks.length > 0) {
-    const aiForkTargets = aiForks.map((f) => f.index)
-    const forkActions = candidateActions.filter((act) => {
-      if (act.type === 'move' || act.type === 'boost') return aiForkTargets.includes(act.index)
-      if (act.type === 'shield' || act.type === 'freeze' || act.type === 'vampire') return aiForkTargets.includes(act.moveIndex)
-      return false
-    })
-    if (forkActions.length > 0) {
-      candidateActions = [...forkActions, ...candidateActions.filter((a) => !forkActions.includes(a))]
+  if (!dda.skipOwnFork) {
+    const aiForks = getForkSquares(squares, boardSize, winLength, aiPlayer, blockedIndexes, lines)
+    if (aiForks.length > 0) {
+      const aiForkTargets = aiForks.map((f) => f.index)
+      const forkActions = candidateActions.filter((act) => {
+        if (act.type === 'move' || act.type === 'boost') return aiForkTargets.includes(act.index)
+        if (act.type === 'shield' || act.type === 'freeze' || act.type === 'vampire') return aiForkTargets.includes(act.moveIndex)
+        return false
+      })
+      if (forkActions.length > 0) {
+        candidateActions = [...forkActions, ...candidateActions.filter((a) => !forkActions.includes(a))]
+      }
     }
   }
 
@@ -1377,7 +1427,17 @@ export function getArenaAiPowerAction({
   const isDecisiveWin = bestScore >= ARENA_WIN - 20
   const scoreTolerance = isDecisiveWin ? 0 : 0.5
   const topTier = ranked.filter((r) => bestScore - r.score <= scoreTolerance)
-  const chosen = topTier[Math.floor(Math.random() * topTier.length)].action
+  let chosen = topTier[Math.floor(Math.random() * topTier.length)].action
+
+  // DDA Suboptimal Selection: Kayıp telafisi veya kilitlenmede rakibe taktiksel alan aç
+  if (
+    !isDecisiveWin &&
+    ranked.length > 1 &&
+    dda.suboptimalMoveChance > 0 &&
+    Math.random() < dda.suboptimalMoveChance
+  ) {
+    chosen = ranked[1].action
+  }
 
   // 6. Format Conversion
   if (chosen.type === 'shield') {

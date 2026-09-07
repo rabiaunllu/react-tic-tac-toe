@@ -164,7 +164,8 @@ app.MapPost("/api/rooms", (CreateRoomRequest request, IRoomStore roomStore) =>
         request.TargetValue,
         request.GameMode.Trim().Equals(GameModes.Arena, StringComparison.OrdinalIgnoreCase)
             ? request.BoostMode?.Trim().ToLowerInvariant() ?? "manual"
-            : null));
+            : null,
+        request.TurnTimeLimit));
 
     return Results.Ok(new RoomAccessResponse(
         RoomResponse.FromRoom(room),
@@ -387,6 +388,41 @@ app.MapPost("/api/rooms/{roomCode}/next-round", async (
     };
 });
 
+app.MapPost("/api/rooms/{roomCode}/timeout", async (
+    string roomCode,
+    TimeoutRoomRequest request,
+    IRoomStore roomStore,
+    IHubContext<RoomsHub> roomsHub,
+    CancellationToken cancellationToken) =>
+{
+    if (!Guid.TryParse(request.PlayerId, out var playerId))
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["playerId"] = ["Player id must be a valid Guid."]
+        });
+    }
+
+    var result = roomStore.Timeout(roomCode, playerId, request.PlayerSecret);
+
+    if (result.Room is not null)
+    {
+        await BroadcastRoomStateAsync(roomsHub, result.Room, cancellationToken);
+    }
+
+    return result.Status switch
+    {
+        TimeoutRoomStatus.TimedOut => Results.Ok(RoomResponse.FromRoom(result.Room!)),
+        TimeoutRoomStatus.NotFound => Results.NotFound(),
+        TimeoutRoomStatus.Forbidden => Results.StatusCode(StatusCodes.Status403Forbidden),
+        TimeoutRoomStatus.Conflict => Results.Conflict(new
+        {
+            error = result.ErrorMessage
+        }),
+        _ => Results.Problem("Unexpected timeout result.")
+    };
+});
+
 /// <summary>
 /// Centralized, defensive helper to broadcast sanitized game room state DTO to the SignalR group.
 /// Ensures private tokens and secrets are never sent over the real-time wire.
@@ -443,6 +479,11 @@ static Dictionary<string, string[]> ValidateCreateRoomRequest(CreateRoomRequest 
         && request.BoostMode.Trim().ToLowerInvariant() is not ("random" or "manual"))
     {
         errors["boostMode"] = ["Boost mode must be random or manual."];
+    }
+
+    if (request.TurnTimeLimit < 0 || request.TurnTimeLimit > 60)
+    {
+        errors["turnTimeLimit"] = ["Turn time limit must be between 0 and 60 seconds."];
     }
 
     return errors;

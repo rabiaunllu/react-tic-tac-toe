@@ -119,6 +119,7 @@ export default function App() {
   const turnDeadlineRef = useRef(null)
   const lastTurnKeyRef = useRef('')
   const lastTickSecondRef = useRef(15)
+  const isSessionRestoredRef = useRef(false)
 
   const activeTimeoutsRef = useRef(new Set())
 
@@ -360,11 +361,11 @@ export default function App() {
         if (opponentType === 'ai' && (gameMode === 'classic' || gameMode === 'arena')) {
           setHumanWinStreak((currentStreak) => {
             if (nextWinner === humanSymbol) {
-              return Math.min(currentStreak + 1, 3)
+              return currentStreak < 0 ? 1 : Math.min(currentStreak + 1, 3)
             }
 
             if (nextWinner === aiSymbol) {
-              return Math.max(currentStreak - 1, -3)
+              return currentStreak > 0 ? -1 : Math.max(currentStreak - 1, -3)
             }
 
             return currentStreak
@@ -443,8 +444,7 @@ export default function App() {
       effectiveWinner ||
       matchWinner ||
       isDraw ||
-      resultMessage ||
-      (opponentType === 'ai' && currentPlayer === aiSymbol)
+      resultMessage
     ) {
       turnDeadlineRef.current = null
       return
@@ -457,14 +457,18 @@ export default function App() {
       lastTurnKeyRef.current = currentTurnKey
       botHurrySentRef.current = false
 
-      const hasValidRestoredDeadline =
-        turnDeadlineRef.current && turnDeadlineRef.current > Date.now()
-
-      if (!hasValidRestoredDeadline) {
+      if (isSessionRestoredRef.current) {
+        // Yalnızca localStorage'dan oturum ilk yüklendiğinde mevcut kalan süreyi koru
+        isSessionRestoredRef.current = false
         if (turnDeadlineRef.current && turnDeadlineRef.current <= Date.now()) {
           handleTimeOut(currentPlayer)
           return
         }
+        if (!turnDeadlineRef.current || turnDeadlineRef.current <= Date.now()) {
+          turnDeadlineRef.current = Date.now() + turnTimeLimit * 1000
+        }
+      } else {
+        // Her oyuncunun her hamlede kendi bağımsız süresi sıfırlanır
         turnDeadlineRef.current = Date.now() + turnTimeLimit * 1000
       }
     }
@@ -1043,6 +1047,7 @@ export default function App() {
     setShowSetupReturnConfirm(false)
     setShowScoreResetConfirm(false)
     turnDeadlineRef.current = session.turnDeadline ?? null
+    isSessionRestoredRef.current = Boolean(session.turnDeadline)
     lastTurnKeyRef.current = ''
   }, [])
 
@@ -1176,9 +1181,17 @@ export default function App() {
       }))
     }
 
+    let hasAiMoved = false
+    let emergencyTimeoutId = null
+
     const placeAiStone = (index, nextBoostedSquares = boostedSquares) => {
+      if (hasAiMoved) return
       if (squares[index] || lockedSquares.includes(index) || frozenSquares.includes(index)) {
         return
+      }
+      hasAiMoved = true
+      if (emergencyTimeoutId) {
+        clearSafeTimeout(emergencyTimeoutId)
       }
 
       const triggeredTrap = traps.find(
@@ -1251,6 +1264,9 @@ export default function App() {
         }
 
         if (aiPowerAction?.type === 'bomb') {
+          if (hasAiMoved) return
+          hasAiMoved = true
+          if (emergencyTimeoutId) clearSafeTimeout(emergencyTimeoutId)
           const nextSquares = squares.slice()
           nextSquares[aiPowerAction.index] = null
 
@@ -1306,16 +1322,22 @@ export default function App() {
               gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
             aiPlayer: aiSymbol,
             humanPlayer: humanSymbol,
+            gameMode,
           })
           if (aiMove !== null && aiMove !== undefined) {
             placeAiStone(aiMove)
           } else {
+            hasAiMoved = true
+            if (emergencyTimeoutId) clearSafeTimeout(emergencyTimeoutId)
             setXIsNext(aiSymbol === 'X' ? false : true)
           }
           return
         }
 
         if (aiPowerAction?.type === 'trap') {
+          if (hasAiMoved) return
+          hasAiMoved = true
+          if (emergencyTimeoutId) clearSafeTimeout(emergencyTimeoutId)
           setTraps((currentTraps) => [
             ...currentTraps,
             {
@@ -1440,6 +1462,7 @@ export default function App() {
             multipliers,
             aiPlayer: aiSymbol,
             humanPlayer: humanSymbol,
+            gameMode,
           })
           if (aiPowerAction?.type === 'move') {
             placeAiStone(aiPowerAction.index)
@@ -1463,11 +1486,15 @@ export default function App() {
               multipliers: gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
               aiPlayer: aiSymbol,
               humanPlayer: humanSymbol,
+              gameMode,
             })
             if (aiMove !== null && aiMove !== undefined) placeAiStone(aiMove)
             return
           }
           if (aiPowerAction?.type === 'bomb') {
+            if (hasAiMoved) return
+            hasAiMoved = true
+            if (emergencyTimeoutId) clearSafeTimeout(emergencyTimeoutId)
             const nextSquares = squares.slice()
             nextSquares[aiPowerAction.index] = null
             setSquares(nextSquares)
@@ -1478,6 +1505,9 @@ export default function App() {
             return
           }
           if (aiPowerAction?.type === 'trap') {
+            if (hasAiMoved) return
+            hasAiMoved = true
+            if (emergencyTimeoutId) clearSafeTimeout(emergencyTimeoutId)
             setTraps((currentTraps) => [
               ...currentTraps, { index: aiPowerAction.index, owner: aiSymbol },
             ])
@@ -1540,6 +1570,7 @@ export default function App() {
             multipliers,
             aiPlayer: aiSymbol,
             humanPlayer: humanSymbol,
+            gameMode,
           },
         })
       } else {
@@ -1565,7 +1596,51 @@ export default function App() {
 
     let activeVisibilityHandler = null
 
-    // 400ms gecikmeyi worker mesajından önce uygula
+    // Hamle süresi sınırı varsa (özellikle 5s Yıldırım modunda), botun süreden kaybetmesini önlemek için
+    // süre dolmadan önce acil durum hamlesi tetiklenir (5s modunda 3.8s'de).
+    const emergencyDelay = turnTimeLimit > 0 ? Math.max(1200, (turnTimeLimit * 1000) - 1200) : 0
+    if (turnTimeLimit > 0) {
+      emergencyTimeoutId = safeSetTimeout(() => {
+        if (hasAiMoved) return
+
+        const availableIndexes = squares
+          .map((sq, idx) => (sq || lockedSquares.includes(idx) || frozenSquares.includes(idx) ? null : idx))
+          .filter((idx) => idx !== null)
+
+        if (availableIndexes.length > 0) {
+          let emergencyMove
+          try {
+            emergencyMove = getAdaptiveAiMove({
+              squares,
+              boardSize,
+              winLength,
+              humanWinStreak,
+              roundNumber,
+              consecutiveDraws,
+              blockedIndexes: [...lockedSquares, ...frozenSquares],
+              multipliers: gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
+              aiPlayer: aiSymbol,
+              humanPlayer: humanSymbol,
+              gameMode,
+            })
+          } catch {
+            emergencyMove = null
+          }
+
+          if (emergencyMove === null || emergencyMove === undefined || !availableIndexes.includes(emergencyMove)) {
+            emergencyMove = availableIndexes[Math.floor(Math.random() * availableIndexes.length)]
+          }
+
+          placeAiStone(emergencyMove)
+        } else {
+          hasAiMoved = true
+          setXIsNext(aiSymbol === 'X' ? false : true)
+        }
+      }, emergencyDelay)
+    }
+
+    // 400ms gecikmeyi worker mesajından önce uygula (5s Yıldırım modunda refleks için 200ms)
+    const aiThinkDelay = turnTimeLimit === 5 ? 200 : 400
     const delayId = safeSetTimeout(() => {
       if (document.visibilityState === 'hidden') {
         activeVisibilityHandler = () => {
@@ -1579,11 +1654,14 @@ export default function App() {
         return
       }
       postAiTask()
-    }, 400)
+    }, aiThinkDelay)
 
     return () => {
       latestAiHandlerRef.current = {}
       clearSafeTimeout(delayId)
+      if (emergencyTimeoutId) {
+        clearSafeTimeout(emergencyTimeoutId)
+      }
       if (activeVisibilityHandler) {
         document.removeEventListener('visibilitychange', activeVisibilityHandler)
         activeVisibilityHandler = null
@@ -1621,6 +1699,7 @@ export default function App() {
     safeSetTimeout,
     clearSafeTimeout,
     triggerBotEmote,
+    turnTimeLimit,
   ])
 
   useEffect(() => {

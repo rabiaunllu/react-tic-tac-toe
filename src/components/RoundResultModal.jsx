@@ -10,6 +10,7 @@ export default function RoundResultModal({
   isDraw,
   matchWinner,
   isForfeit = false,
+  isTimeout = false,
   scores,
   scoreLabel,
   resultMessage,
@@ -49,38 +50,56 @@ export default function RoundResultModal({
   }, [])
 
   const displayedWinner = matchWinner ?? winner
+  const isTimeoutWin = Boolean(
+    isTimeout ||
+    resultMessage?.includes('Süresi Bitti') ||
+    resultMessage?.includes('Süren Bitti') ||
+    resultMessage?.includes('Timed Out') ||
+    resultMessage?.includes('Time Is Up')
+  )
   const isForfeitWin = Boolean(
-    isForfeit ||
-    resultMessage?.includes('ayrıldı') ||
-    resultMessage?.includes('Pes Etti') ||
-    resultMessage?.includes('çekildi') ||
-    resultMessage?.includes('Hükmen') ||
-    resultMessage?.includes('hükmen') ||
-    resultMessage?.includes('forfeit') ||
-    resultMessage?.includes('left')
+    !isTimeoutWin && (
+      isForfeit ||
+      resultMessage?.includes('ayrıldı') ||
+      resultMessage?.includes('Pes Etti') ||
+      resultMessage?.includes('çekildi') ||
+      resultMessage?.includes('Hükmen') ||
+      resultMessage?.includes('hükmen') ||
+      resultMessage?.includes('forfeit') ||
+      resultMessage?.includes('left')
+    )
   )
   const isMatchOver = Boolean(matchWinner) || isForfeitWin
+  const isSameAction = Boolean(!onMenu || !onNewMatch || onMenu === onNewMatch)
+  const showMenuButton = isMatchOver ? (!isSameAction && Boolean(onMenu)) : Boolean(onMenu)
+  const isSingleAction = !showMenuButton
 
   const heading = isForfeitWin
     ? (isTr ? 'HÜKMEN GALİBİYET' : 'FORFEIT VICTORY')
-    : isMatchOver
-      ? (isTr ? 'MAÇ SONUCU' : 'MATCH RESULT')
-      : (isTr ? `TUR ${roundNumber} SONUCU` : `ROUND ${roundNumber} RESULT`)
-
-  const resultLabel = isForfeitWin
-    ? (isTr ? '🏆 RAKİP OYUNDAN AYRILDI' : '🏆 OPPONENT FORFEITED')
-    : isDraw
-      ? (isTr ? 'TUR BERABERE' : 'ROUND DRAW')
+    : isTimeoutWin
+      ? (isMatchOver ? (isTr ? 'MAÇ BİTTİ (SÜRE AŞIMI)' : 'MATCH OVER (TIME OUT)') : (isTr ? 'SÜRE BİTTİ' : 'TIME OUT'))
       : isMatchOver
-        ? (isTr ? `${displayedWinner} MAÇI KAZANDI` : `${displayedWinner} WON THE MATCH`)
-        : (isTr ? `${displayedWinner} TURU KAZANDI` : `${displayedWinner} WON THE ROUND`)
+        ? (isTr ? 'MAÇ SONUCU' : 'MATCH RESULT')
+        : (isTr ? `TUR ${roundNumber} SONUCU` : `ROUND ${roundNumber} RESULT`)
 
-  const symbol = isForfeitWin ? '🏆' : isDraw ? '=' : (winningSymbol || '🏆')
-  const symbolModifier = isForfeitWin
-    ? 'x'
-    : isDraw
-      ? 'draw'
-      : (winningSymbol?.toLowerCase() || 'x')
+  const resultLabel = isTimeoutWin
+    ? (isTr ? `⏰ ${resultMessage || 'SÜRE AŞIMI'}` : `⏰ ${resultMessage || 'TIME OUT'}`)
+    : isForfeitWin
+      ? (isTr ? '🏆 RAKİP OYUNDAN AYRILDI' : '🏆 OPPONENT FORFEITED')
+      : isDraw
+        ? (isTr ? 'TUR BERABERE' : 'ROUND DRAW')
+        : isMatchOver
+          ? (isTr ? `${displayedWinner} MAÇI KAZANDI` : `${displayedWinner} WON THE MATCH`)
+          : (isTr ? `${displayedWinner} TURU KAZANDI` : `${displayedWinner} WON THE ROUND`)
+
+  const symbol = isTimeoutWin ? '⏰' : isForfeitWin ? '🏆' : isDraw ? '=' : (winningSymbol || '🏆')
+  const symbolModifier = isTimeoutWin
+    ? (winningSymbol?.toLowerCase() || 'draw')
+    : isForfeitWin
+      ? 'x'
+      : isDraw
+        ? 'draw'
+        : (winningSymbol?.toLowerCase() || 'x')
 
   const p1ScoreVal = scores?.p1 ?? scores?.X ?? 0
   const p2ScoreVal = scores?.p2 ?? scores?.O ?? 0
@@ -270,18 +289,23 @@ export default function RoundResultModal({
             </div>
           </div>
         ) : (
-          <div className="round-result-actions">
+          <div className={`round-result-actions ${isSingleAction ? 'round-result-actions--single' : ''}`}>
             {isMatchOver ? (
               <button
                 type="button"
+                className="round-result-btn--viral"
                 onClick={() => {
                   registerUserGesture()
                   playSound('click')
-                  onNewMatch()
+                  if (onNewMatch) {
+                    onNewMatch()
+                  } else {
+                    onMenu()
+                  }
                 }}
                 autoFocus
               >
-                {t('common.newMatch')}
+                {t('common.newMatchViral')}
               </button>
             ) : (
               <button
@@ -299,23 +323,25 @@ export default function RoundResultModal({
               </button>
             )}
 
-            <button
-              type="button"
-              className="secondary-action"
-              onClick={() => {
-                registerUserGesture()
-                playSound('click')
+            {showMenuButton && (
+              <button
+                type="button"
+                className="secondary-action"
+                onClick={() => {
+                  registerUserGesture()
+                  playSound('click')
 
-                if (isMatchOver) {
-                  onMenu()
-                  return
-                }
+                  if (isMatchOver) {
+                    onMenu()
+                    return
+                  }
 
-                setIsMenuConfirmOpen(true)
-              }}
-            >
-              {t('common.mainMenu')}
-            </button>
+                  setIsMenuConfirmOpen(true)
+                }}
+              >
+                {t('common.mainMenu')}
+              </button>
+            )}
           </div>
         )}
       </section>
