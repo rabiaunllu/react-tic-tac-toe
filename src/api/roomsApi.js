@@ -136,21 +136,24 @@ export async function requestRoomJson(path, options = {}) {
 }
 
 export function startRoom(roomCode, playerId, playerSecret) {
-  return requestRoomJson(`/api/rooms/${roomCode}/start`, {
+  const safeCode = encodeURIComponent(String(roomCode ?? '').trim())
+  return requestRoomJson(`/api/rooms/${safeCode}/start`, {
     method: 'POST',
     body: JSON.stringify({ playerId, playerSecret }),
   })
 }
 
 export function leaveRoom(roomCode, playerId, playerSecret, options = {}) {
-  return requestRoomJson(`/api/rooms/${roomCode}/leave`, {
+  const safeCode = encodeURIComponent(String(roomCode ?? '').trim())
+  return requestRoomJson(`/api/rooms/${safeCode}/leave`, {
     method: 'POST',
     body: JSON.stringify({ playerId, playerSecret, isSurrender: Boolean(options.isSurrender) }),
   })
 }
 
 export function timeoutRoom(roomCode, playerId, playerSecret) {
-  return requestRoomJson(`/api/rooms/${roomCode}/timeout`, {
+  const safeCode = encodeURIComponent(String(roomCode ?? '').trim())
+  return requestRoomJson(`/api/rooms/${safeCode}/timeout`, {
     method: 'POST',
     body: JSON.stringify({ playerId, playerSecret }),
   })

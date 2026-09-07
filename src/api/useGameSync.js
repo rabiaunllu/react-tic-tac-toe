@@ -11,22 +11,48 @@ import {
  * Computes a strictly monotonic sequence score for a room state.
  * Eliminates OS clock resolution limits (15.6ms), sub-millisecond precision losses,
  * and clock skews by combining physical timestamp with deterministic game progression counters.
+ *
+ * SECURITY FIX (VULN-04): When a player uses Bomb, a stone is cleared from squares.
+ * Previously, movesFactor decreased by 10,000, causing the client to mistakenly
+ * classify legitimate bomb updates as "stale" and discard them.
+ * We now include used powers count and heavily weight locked squares and status progression
+ * so the monotonic score strictly increases on every action including bombs.
  */
 function computeMonotonicStateScore(room) {
   if (!room) return 0
   const timestamp = new Date(room.updatedAt || room.createdAt || 0).getTime()
-  const roundFactor = (room.game?.roundNumber || 1) * 1_000_000
-  const scoresFactor = ((room.game?.scores?.x || 0) + (room.game?.scores?.o || 0)) * 100_000
+  const roundFactor = (room.game?.roundNumber || 1) * 10_000_000
+  const scoresFactor = ((room.game?.scores?.x || 0) + (room.game?.scores?.o || 0)) * 1_000_000
+
+  // Count total powers expended by both players
+  let usedPowers = 0
+  if (room.game?.playerPowers && typeof room.game.playerPowers === 'object') {
+    for (const counts of Object.values(room.game.playerPowers)) {
+      if (counts && typeof counts === 'object') {
+        for (const val of Object.values(counts)) {
+          if (val === 0) usedPowers++
+        }
+      }
+    }
+  }
+
+  // Each used power adds 500,000 to progression score.
+  // Bomb also creates a locked square (+200,000), completely overwhelming
+  // the -10,000 from one less occupied square.
+  const powerUsageFactor = usedPowers * 500_000
+  const lockedFactor = (room.game?.lockedSquares?.length || 0) * 200_000
   const movesFactor = (room.game?.squares || []).filter(Boolean).length * 10_000
-  const powersFactor = (
+  const statusFactor = room.status === 'completed' ? 50_000_000 : (room.game?.winner ? 20_000_000 : 0)
+
+  const activeEffectsFactor = (
     (room.game?.shieldedSquares?.length || 0) +
     (room.game?.boostedSquares?.length || 0) +
-    (room.game?.lockedSquares?.length || 0) +
     (room.game?.frozenSquares?.length || 0) +
-    (room.game?.stolenSquares?.length || 0)
-  ) * 100
+    (room.game?.stolenSquares?.length || 0) +
+    (room.game?.traps?.length || 0)
+  ) * 1_000
 
-  return timestamp + roundFactor + scoresFactor + movesFactor + powersFactor
+  return timestamp + statusFactor + roundFactor + scoresFactor + powerUsageFactor + lockedFactor + movesFactor + activeEffectsFactor
 }
 
 /**

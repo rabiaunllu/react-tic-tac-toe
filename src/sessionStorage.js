@@ -128,17 +128,20 @@ export function isValidOnlineSession(session) {
     typeof session.symbol !== 'string' ||
     !['X', 'O'].includes(session.symbol) ||
     typeof session.playerName !== 'string' ||
-    !session.playerName.trim()
+    !session.playerName.trim() ||
+    session.playerName.trim().length > 24
   ) {
     return false
   }
 
-  // Reject expired sessions (older than 15 minutes)
-  if (typeof session.savedAt === 'number') {
-    const ageMs = Date.now() - session.savedAt
-    if (ageMs > ONLINE_SESSION_TTL_MS || ageMs < 0) {
-      return false
-    }
+  // SECURITY FIX (Issue 3.2): Reject sessions without a valid numeric timestamp or expired sessions (older than 15 minutes)
+  if (typeof session.savedAt !== 'number' || Number.isNaN(session.savedAt)) {
+    return false
+  }
+
+  const ageMs = Date.now() - session.savedAt
+  if (ageMs > ONLINE_SESSION_TTL_MS || ageMs < 0) {
+    return false
   }
 
   return true

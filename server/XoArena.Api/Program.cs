@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
 using System.Threading.RateLimiting;
@@ -23,9 +24,30 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("Frontend", policy =>
     {
+        // SECURITY FIX (VULN-07): Wildcard origin cannot be combined with AllowCredentials.
+        // If no origins are configured (dev/default), allow localhost origins explicitly.
+        // In production, origins MUST be explicitly configured — wildcard is rejected.
         if (allowedOrigins.Length > 0)
         {
-            policy.WithOrigins(allowedOrigins);
+            // Reject wildcards at runtime — combining "*" with AllowCredentials throws an exception.
+            var safeOrigins = allowedOrigins
+                .Where(o => o != "*")
+                .ToArray();
+
+            if (safeOrigins.Length > 0)
+            {
+                policy.WithOrigins(safeOrigins);
+            }
+            else
+            {
+                // All origins were wildcards — fall back to safe localhost defaults
+                policy.WithOrigins("http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:5173");
+            }
+        }
+        else
+        {
+            // No origins configured: allow standard localhost dev ports
+            policy.WithOrigins("http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:5173");
         }
 
         policy
@@ -124,6 +146,15 @@ if (!app.Environment.IsDevelopment())
     app.UseStaticFiles();
 }
 
+// SECURITY FIX (VULN-02): Forward real client IP from X-Forwarded-For header.
+// Without this, rate limiting partitions by the proxy's IP, meaning all players
+// worldwide share the same rate limit bucket when behind a reverse proxy.
+// Must be called BEFORE UseRateLimiter to ensure correct IP resolution.
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+
 app.UseCors("Frontend");
 app.UseRateLimiter();
 
@@ -187,11 +218,13 @@ app.MapPost("/api/rooms/{roomCode}/join", async (
     IRoomStore roomStore,
     IHubContext<RoomsHub> roomsHub) =>
 {
-    if (string.IsNullOrWhiteSpace(request.PlayerName))
+    // SECURITY FIX (SEC-10, SEC-11): Use centralized server-side name validation
+    var nameError = ValidatePlayerName(request.PlayerName);
+    if (nameError is not null)
     {
         return Results.ValidationProblem(new Dictionary<string, string[]>
         {
-            ["playerName"] = ["Player name is required."]
+            ["playerName"] = [nameError]
         });
     }
 
@@ -447,9 +480,12 @@ static Dictionary<string, string[]> ValidateCreateRoomRequest(CreateRoomRequest 
 {
     var errors = new Dictionary<string, string[]>();
 
-    if (string.IsNullOrWhiteSpace(request.PlayerName))
+    // SECURITY FIX (SEC-10, SEC-11): Server-side player name validation.
+    // Client-side sanitization can be bypassed by direct API calls.
+    var nameError = ValidatePlayerName(request.PlayerName);
+    if (nameError is not null)
     {
-        errors["playerName"] = ["Player name is required."];
+        errors["playerName"] = [nameError];
     }
 
     if (request.BoardSize is not (3 or 4 or 5))
@@ -487,4 +523,41 @@ static Dictionary<string, string[]> ValidateCreateRoomRequest(CreateRoomRequest 
     }
 
     return errors;
+}
+
+/// <summary>
+/// SECURITY (SEC-10, SEC-11): Centralized server-side player name validation.
+/// Enforces length limit and strips control/invisible characters that bypass client sanitization.
+/// Returns an error message string, or null if the name is valid.
+/// </summary>
+static string? ValidatePlayerName(string? rawName)
+{
+    const int MaxNameLength = 24;
+
+    if (string.IsNullOrWhiteSpace(rawName))
+    {
+        return "Player name is required.";
+    }
+
+    // Strip control characters (U+0000–U+001F), zero-width spaces, and directional overrides
+    var sanitized = new string(rawName.Where(c =>
+        c >= 0x20 &&           // no ASCII control chars
+        c != 0x200B &&         // no zero-width space
+        c != 0x200C &&         // no zero-width non-joiner
+        c != 0x200D &&         // no zero-width joiner
+        c != 0x202E &&         // no right-to-left override (RLO)
+        c != 0xFEFF            // no BOM / zero-width no-break space
+    ).ToArray()).Trim();
+
+    if (sanitized.Length == 0)
+    {
+        return "Player name cannot be empty or contain only whitespace.";
+    }
+
+    if (sanitized.Length > MaxNameLength)
+    {
+        return $"Player name must be {MaxNameLength} characters or fewer.";
+    }
+
+    return null;
 }

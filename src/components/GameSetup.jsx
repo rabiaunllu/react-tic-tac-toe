@@ -393,7 +393,8 @@ export default function GameSetup({
     const roomCode = onlineLobby?.room?.roomCode
     if (!roomCode) return
 
-    const link = `${window.location.origin}${window.location.pathname}?room=${roomCode}`
+    const safeRoomCode = encodeURIComponent(String(roomCode).trim())
+    const link = `${window.location.origin}${window.location.pathname}?room=${safeRoomCode}`
     const challengeText = isTr
       ? `⚔️ XO Arena'da seninle kapışmak istiyorum! Odaya katılmak için tıkla:\n${link}\n\nOda Kodu: ${roomCode}`
       : `⚔️ I challenge you to an XO Arena duel! Click to join:\n${link}\n\nRoom Code: ${roomCode}`
@@ -408,7 +409,8 @@ export default function GameSetup({
     const roomCode = onlineLobby?.room?.roomCode
     if (!roomCode) return
 
-    const link = `${window.location.origin}${window.location.pathname}?room=${roomCode}`
+    const safeRoomCode = encodeURIComponent(String(roomCode).trim())
+    const link = `${window.location.origin}${window.location.pathname}?room=${safeRoomCode}`
     const challengeText = isTr
       ? `⚔️ XO Arena'da seninle kapışmak istiyorum! Odaya katılmak için tıkla:\n${link}\n\nOda Kodu: ${roomCode}`
       : `⚔️ I challenge you to an XO Arena duel! Click to join:\n${link}\n\nRoom Code: ${roomCode}`

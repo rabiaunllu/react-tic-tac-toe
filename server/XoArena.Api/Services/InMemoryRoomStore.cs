@@ -12,10 +12,13 @@ public sealed class InMemoryRoomStore : IRoomStore
     private static readonly IReadOnlyDictionary<string, TimeSpan> RoomExpirationTimes =
         new Dictionary<string, TimeSpan>(StringComparer.OrdinalIgnoreCase)
         {
-            [RoomStatuses.Waiting] = TimeSpan.FromMinutes(30),
-            [RoomStatuses.Ready] = TimeSpan.FromMinutes(45),
-            [RoomStatuses.Playing] = TimeSpan.FromHours(2),
-            [RoomStatuses.Completed] = TimeSpan.FromMinutes(15)
+            [RoomStatuses.Waiting]      = TimeSpan.FromMinutes(30),
+            [RoomStatuses.Ready]        = TimeSpan.FromMinutes(45),
+            [RoomStatuses.Playing]      = TimeSpan.FromHours(2),
+            [RoomStatuses.Completed]    = TimeSpan.FromMinutes(15),
+            // SECURITY FIX (VULN-03): Reconnecting rooms were never cleaned up, causing a memory leak.
+            // If a player disconnects and does not reconnect within 5 minutes, the room is removed.
+            [RoomStatuses.Reconnecting] = TimeSpan.FromMinutes(5)
         };
 
     private readonly ConcurrentDictionary<string, Room> rooms = new(StringComparer.OrdinalIgnoreCase);
@@ -104,8 +107,10 @@ public sealed class InMemoryRoomStore : IRoomStore
                     Game = updatedGame,
                     UpdatedAt = now
                 };
-                rooms[normalizedRoomCode] = expiredRoom;
-                return expiredRoom;
+                if (rooms.TryUpdate(normalizedRoomCode, expiredRoom, room))
+                {
+                    return expiredRoom;
+                }
             }
         }
 
@@ -516,13 +521,6 @@ public sealed class InMemoryRoomStore : IRoomStore
                         sourceIndex = Enumerable.Range(0, squares.Length)
                             .FirstOrDefault(i => squares[i] == opponentSymbol && multipliers.ContainsKey(i) && !stolenSquares.Contains(i), -1);
                     }
-                    else
-                    {
-                        sourceIndex = Enumerable.Range(0, squares.Length)
-                            .FirstOrDefault(i => squares[i] == opponentSymbol && multipliers.ContainsKey(i) && !stolenSquares.Contains(i), -1);
-                        targetStoneIndex = Enumerable.Range(0, squares.Length)
-                            .FirstOrDefault(i => squares[i] == playerSymbol && !multipliers.ContainsKey(i), -1);
-                    }
 
                     if (sourceIndex >= 0 && targetStoneIndex >= 0 && multipliers.TryGetValue(sourceIndex, out var multVal))
                     {
@@ -713,6 +711,16 @@ public sealed class InMemoryRoomStore : IRoomStore
             if (room.TurnTimeLimit <= 0)
             {
                 return TimeoutRoomResult.Conflict("Turn time limit is not enabled for this room.");
+            }
+
+            // SECURITY: Server-side elapsed time validation.
+            // Client cannot claim timeout before the actual turn time has expired.
+            // Adds a 2-second grace buffer to account for network latency.
+            var elapsed = DateTimeOffset.UtcNow - room.UpdatedAt;
+            var minimumElapsed = TimeSpan.FromSeconds(room.TurnTimeLimit - 2);
+            if (elapsed < minimumElapsed)
+            {
+                return TimeoutRoomResult.Conflict("Turn time limit has not expired yet.");
             }
 
             var timedOutSymbol = room.Game.XIsNext ? "X" : "O";
@@ -929,8 +937,26 @@ public sealed class InMemoryRoomStore : IRoomStore
                 => "Vampir ile daha önce çalınmış bir çarpan tekrar geri alınamaz.",
             "vampire" when !HasValidVampireTargets(room, playerSymbol)
                 => "Vampire requires an opponent stone with a multiplier and your own stone without a multiplier.",
+            "vampire" when !IsValidVampireTargetSquare(room, playerSymbol, targetIndex)
+                => "Vampire must target either an opponent's stone with a multiplier or your own stone without a multiplier.",
             _ => null
         };
+
+    private static bool IsValidVampireTargetSquare(Room room, string playerSymbol, int targetIndex)
+    {
+        if (targetIndex < 0 || targetIndex >= room.Game.Squares.Count) return false;
+        var opponentSymbol = playerSymbol == "X" ? "O" : "X";
+        var stolenSquares = room.Game.StolenSquares ?? [];
+
+        var isOpponentMultiplier = room.Game.Multipliers.ContainsKey(targetIndex) &&
+                                  room.Game.Squares[targetIndex] == opponentSymbol &&
+                                  !stolenSquares.Contains(targetIndex);
+
+        var isPlayerUnmultipliedStone = room.Game.Squares[targetIndex] == playerSymbol &&
+                                       !room.Game.Multipliers.ContainsKey(targetIndex);
+
+        return isOpponentMultiplier || isPlayerUnmultipliedStone;
+    }
 
     private static bool HasValidVampireTargets(Room room, string playerSymbol)
     {
@@ -1043,57 +1069,72 @@ public sealed class InMemoryRoomStore : IRoomStore
         if (string.Equals(room.Status, RoomStatuses.Playing, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(room.Status, RoomStatuses.Reconnecting, StringComparison.OrdinalIgnoreCase))
         {
-            var remainingPlayerIndex = -1;
-            for (var i = 0; i < room.Players.Count; i++)
+            // SECURITY FIX (VULN-05): Use TryUpdate CAS loop instead of blind assignment
+            // to prevent concurrent state corruption when two requests arrive simultaneously.
+            while (true)
             {
-                if (!string.Equals(room.Players[i].Id, playerStr, StringComparison.OrdinalIgnoreCase))
+                if (!rooms.TryGetValue(normalizedRoomCode, out room))
                 {
-                    remainingPlayerIndex = i;
-                    break;
-                }
-            }
-
-            // Explicit menu surrender -> IMMEDIATE FORFEIT WIN (0s delay!)
-            if (isSurrender || remainingPlayerIndex < 0)
-            {
-                if (remainingPlayerIndex < 0)
-                {
-                    remainingPlayerIndex = 0;
+                    return false;
                 }
 
-                var winnerSymbol = GetPlayerSymbol(room.Game.RoundNumber, remainingPlayerIndex);
-                var updatedScores = remainingPlayerIndex == 0
-                    ? room.Game.Scores with { X = Math.Max(room.Game.Scores.X, room.TargetValue) }
-                    : room.Game.Scores with { O = Math.Max(room.Game.Scores.O, room.TargetValue) };
-
-                var updatedGame = room.Game with
+                // Re-verify player still valid with refreshed room state
+                player = room.Players.FirstOrDefault(p => string.Equals(p.Id, playerStr, StringComparison.OrdinalIgnoreCase));
+                if (player is null || !HasMatchingSecret(player, playerSecret))
                 {
-                    Winner = winnerSymbol,
-                    Scores = updatedScores,
-                    WinningLine = [],
-                    IsForfeit = true
-                };
+                    return false;
+                }
 
-                var forfeitRoom = room with
+                var remainingPlayerIndex = -1;
+                for (var i = 0; i < room.Players.Count; i++)
                 {
-                    Status = RoomStatuses.Completed,
-                    Game = updatedGame,
+                    if (!string.Equals(room.Players[i].Id, playerStr, StringComparison.OrdinalIgnoreCase))
+                    {
+                        remainingPlayerIndex = i;
+                        break;
+                    }
+                }
+
+                // Explicit menu surrender -> IMMEDIATE FORFEIT WIN (0s delay!)
+                if (isSurrender || remainingPlayerIndex < 0)
+                {
+                    if (remainingPlayerIndex < 0) remainingPlayerIndex = 0;
+
+                    var winnerSymbol = GetPlayerSymbol(room.Game.RoundNumber, remainingPlayerIndex);
+                    var updatedScores = remainingPlayerIndex == 0
+                        ? room.Game.Scores with { X = Math.Max(room.Game.Scores.X, room.TargetValue) }
+                        : room.Game.Scores with { O = Math.Max(room.Game.Scores.O, room.TargetValue) };
+
+                    var updatedGame = room.Game with
+                    {
+                        Winner = winnerSymbol,
+                        Scores = updatedScores,
+                        WinningLine = [],
+                        IsForfeit = true
+                    };
+
+                    var forfeitRoom = room with
+                    {
+                        Status = RoomStatuses.Completed,
+                        Game = updatedGame,
+                        UpdatedAt = DateTimeOffset.UtcNow
+                    };
+
+                    if (rooms.TryUpdate(normalizedRoomCode, forfeitRoom, room)) return true;
+                    // CAS failed — another thread modified room; retry
+                    continue;
+                }
+
+                // Connection drop: Start Reconnection Grace Period
+                var reconnectingRoom = room with
+                {
+                    Status = RoomStatuses.Reconnecting,
                     UpdatedAt = DateTimeOffset.UtcNow
                 };
 
-                rooms[normalizedRoomCode] = forfeitRoom;
-                return true;
+                if (rooms.TryUpdate(normalizedRoomCode, reconnectingRoom, room)) return true;
+                // CAS failed — retry
             }
-
-            // Connection drop: Start 30s Reconnection Grace Period
-            var reconnectingRoom = room with
-            {
-                Status = RoomStatuses.Reconnecting,
-                UpdatedAt = DateTimeOffset.UtcNow
-            };
-
-            rooms[normalizedRoomCode] = reconnectingRoom;
-            return true;
         }
 
         // Host ('X') left or only 1 player -> destroy room completely
@@ -1103,20 +1144,25 @@ public sealed class InMemoryRoomStore : IRoomStore
             return true;
         }
 
-        // Guest ('O') left -> remove guest, revert status to waiting
-        var remainingPlayers = room.Players
-            .Where(p => !string.Equals(p.Id, playerStr, StringComparison.OrdinalIgnoreCase))
-            .ToList();
-
-        var updatedRoom = room with
+        // Guest ('O') left -> remove guest, revert status to waiting (CAS loop)
+        // SECURITY FIX (VULN-05): Atomic update
+        while (true)
         {
-            Players = remainingPlayers,
-            Status = RoomStatuses.Waiting,
-            UpdatedAt = DateTimeOffset.UtcNow
-        };
+            if (!rooms.TryGetValue(normalizedRoomCode, out room)) return true;
 
-        rooms[normalizedRoomCode] = updatedRoom;
-        return true;
+            var remainingPlayers = room.Players
+                .Where(p => !string.Equals(p.Id, playerStr, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            var updatedRoom = room with
+            {
+                Players = remainingPlayers,
+                Status = RoomStatuses.Waiting,
+                UpdatedAt = DateTimeOffset.UtcNow
+            };
+
+            if (rooms.TryUpdate(normalizedRoomCode, updatedRoom, room)) return true;
+        }
     }
 
     private static string? NormalizeRoomCode(string roomCode)

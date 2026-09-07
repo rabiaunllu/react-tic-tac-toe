@@ -83,12 +83,38 @@ public sealed class RoomsHub : Hub
     /// Broadcasts an ephemeral quick emote to all members of the room.
     /// COPPA compliant: Only strictly whitelisted preset emote IDs are allowed.
     /// No chat text, no freeform user input.
+    /// SECURITY FIX (VULN-06): Per-connection rate limit of 5 emotes per 10 seconds.
     /// </summary>
     public async Task<bool> SendQuickEmote(string roomCode, string playerId, string playerSecret, string emoteId)
     {
         if (string.IsNullOrWhiteSpace(roomCode) || string.IsNullOrWhiteSpace(playerId) || string.IsNullOrWhiteSpace(playerSecret) || string.IsNullOrWhiteSpace(emoteId))
         {
             throw new HubException("Invalid parameters for emote.");
+        }
+
+        // SECURITY FIX (VULN-06): Rate limit emotes per connection.
+        // Max 5 emotes per 10-second sliding window per connection.
+        const int EmoteRateLimit = 5;
+        const int EmoteWindowSeconds = 10;
+
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        if (!Context.Items.TryGetValue("EmoteWindowStart", out var windowStartObj) ||
+            !Context.Items.TryGetValue("EmoteCount", out var emoteCountObj) ||
+            windowStartObj is not long windowStart || emoteCountObj is not int emoteCount ||
+            now - windowStart >= EmoteWindowSeconds)
+        {
+            // Reset window
+            Context.Items["EmoteWindowStart"] = now;
+            Context.Items["EmoteCount"] = 1;
+        }
+        else if (emoteCount >= EmoteRateLimit)
+        {
+            _logger.LogWarning("Emote rate limit exceeded for Connection {ConnectionId}", Context.ConnectionId);
+            throw new HubException("Emote rate limit exceeded. Please wait before sending more.");
+        }
+        else
+        {
+            Context.Items["EmoteCount"] = emoteCount + 1;
         }
 
         var normalizedCode = roomCode.Trim().ToUpperInvariant();

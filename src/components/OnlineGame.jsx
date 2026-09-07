@@ -380,7 +380,8 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
         }
       }
 
-      const nextRoom = await requestRoomJson(`/api/rooms/${roomCode}/powers`, {
+      const safeRoomCode = encodeURIComponent(String(roomCode ?? '').trim())
+      const nextRoom = await requestRoomJson(`/api/rooms/${safeRoomCode}/powers`, {
         method: 'POST',
         body: JSON.stringify({
           playerId,
@@ -491,7 +492,8 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
     playSound('move')
 
     try {
-      const nextRoom = await requestRoomJson(`/api/rooms/${roomCode}/moves`, {
+      const safeRoomCode = encodeURIComponent(String(roomCode ?? '').trim())
+      const nextRoom = await requestRoomJson(`/api/rooms/${safeRoomCode}/moves`, {
         method: 'POST',
         body: JSON.stringify({
           playerId,
@@ -535,7 +537,8 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
     setIsNextRoundPending(true)
 
     try {
-      const nextRoom = await requestRoomJson(`/api/rooms/${roomCode}/next-round`, {
+      const safeRoomCode = encodeURIComponent(String(roomCode ?? '').trim())
+      const nextRoom = await requestRoomJson(`/api/rooms/${safeRoomCode}/next-round`, {
         method: 'POST',
         body: JSON.stringify({ playerId, playerSecret }),
       })
