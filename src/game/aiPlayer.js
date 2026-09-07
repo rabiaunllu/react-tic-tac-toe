@@ -201,10 +201,9 @@ export function getAdaptiveDdaConfig({
   consecutiveDraws = 0,
   roundNumber = 1,
 } = {}) {
-  // 1. İLK TURLAR VE BAŞLANGIÇ: İlk oyunda kesinlikle HARDCORE / ZOR oynasın (0 taviz)
+  // 1. İLK ROUND: Kullanıcının talebi doğrultusunda ilk oyun kesinlikle HARDCORE / ZOR oynasın (0 taviz)
   // Round 1'de bot %100 tavizsiz Büyükusta seviyesindedir.
-  // Ayrıca oyuncu öndeyse (humanWinStreak >= 0) veya henüz yenilgi/beraberlik birikmemişse taviz verilmez.
-  if (roundNumber <= 1 || (consecutiveDraws === 0 && humanWinStreak >= 0)) {
+  if (roundNumber <= 1) {
     return {
       mode: 'grandmaster',
       skipAntiExploit: false,
@@ -240,13 +239,13 @@ export function getAdaptiveDdaConfig({
     }
   }
 
-  // 1 Beraberlik (ve 1. turdan sonra): Katı teoriyi esnet, çatal tereddüdü uygula
-  if (consecutiveDraws === 1 && roundNumber > 1) {
+  // 1 Beraberlik (ve 1. turdan sonra): Katı teoriyi hafif esnet
+  if (consecutiveDraws === 1) {
     return {
       mode: 'draw_breakout_mild',
       skipAntiExploit: true,
-      forkHesitationChance: 0.40,
-      suboptimalMoveChance: 0.25,
+      forkHesitationChance: 0.38,
+      suboptimalMoveChance: 0.24,
       pityBlockMissChance: 0,
       skipOwnFork: false,
     }
@@ -282,19 +281,23 @@ export function getAdaptiveDdaConfig({
     return {
       mode: 'loss_recovery_mild',
       skipAntiExploit: true,
-      forkHesitationChance: 0.25,
-      suboptimalMoveChance: 0.15,
+      forkHesitationChance: 0.28,
+      suboptimalMoveChance: 0.18,
       pityBlockMissChance: 0,
       skipOwnFork: false,
     }
   }
 
-  // Varsayılan: Tavizsiz Büyükusta
+  // 4. BAŞA BAŞ / NORMAL OYUN (Round 2+, Skor eşit veya oyuncu önde):
+  // "Bir milim daha esnekleştirilmiş Büyükusta":
+  // Bot hala %88-90 oranında saf Büyükustadır; aptalca 3'lü dizilim kaçırmaz (pityBlockMissChance = 0).
+  // Sadece oyuncu çok zekice bir çatal kurduğunda %14 ihtimalle tereddüt eder ve %10 ihtimalle
+  // en iyi 1. hamle yerine neredeyse eşit güçteki 2. en iyi hamleyi seçerek tatlı bir rekabet alanı sunar.
   return {
-    mode: 'grandmaster',
+    mode: 'grandmaster_flexible',
     skipAntiExploit: false,
-    forkHesitationChance: 0,
-    suboptimalMoveChance: 0,
+    forkHesitationChance: 0.14,
+    suboptimalMoveChance: 0.10,
     pityBlockMissChance: 0,
     skipOwnFork: false,
   }
@@ -1425,7 +1428,7 @@ export function getArenaAiPowerAction({
   // Büyükusta hamleleri arasından rastgele birini seçerek botun öngörülemez ve dinamik olmasını sağla.
   const bestScore = ranked[0].score
   const isDecisiveWin = bestScore >= ARENA_WIN - 20
-  const scoreTolerance = isDecisiveWin ? 0 : 0.5
+  const scoreTolerance = isDecisiveWin ? 0 : 1.0
   const topTier = ranked.filter((r) => bestScore - r.score <= scoreTolerance)
   let chosen = topTier[Math.floor(Math.random() * topTier.length)].action
 
