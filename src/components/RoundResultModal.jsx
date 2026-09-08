@@ -2,14 +2,17 @@ import { useEffect, useState } from 'react'
 import { playSound, registerUserGesture } from '../game/soundManager'
 import { useTranslation } from '../i18n'
 import WinConfetti from './WinConfetti'
+import { shareOrDownloadVictoryCard } from '../utils/victoryCard'
 
 export default function RoundResultModal({
   roundNumber,
   winner,
   winningSymbol = winner,
+  mySymbol = null,
   isDraw,
   matchWinner,
   isForfeit = false,
+  isTimeout = false,
   scores,
   scoreLabel,
   resultMessage,
@@ -25,11 +28,16 @@ export default function RoundResultModal({
   nextRoundTitle,
   menuConfirmTitle,
   menuConfirmActionLabel,
+  gameMode = 'classic',
+  boardSize = 3,
+  winStreak = 0,
+  opponentType = 'human',
 }) {
   const { t, language } = useTranslation()
   const isTr = language === 'tr'
   const [isMenuConfirmOpen, setIsMenuConfirmOpen] = useState(false)
   const [isCopied, setIsCopied] = useState(false)
+  const [isGeneratingCard, setIsGeneratingCard] = useState(false)
 
   const resolvedNextRoundLabel = nextRoundLabel ?? t('common.nextRound')
   const resolvedMenuConfirmTitle = menuConfirmTitle ?? t('modals.confirmMenuTitle')
@@ -45,38 +53,57 @@ export default function RoundResultModal({
   }, [])
 
   const displayedWinner = matchWinner ?? winner
+  const isMyVictory = mySymbol ? (displayedWinner === mySymbol || winningSymbol === mySymbol) : true
+  const isTimeoutWin = Boolean(
+    isTimeout ||
+    resultMessage?.includes('Süresi Bitti') ||
+    resultMessage?.includes('Süren Bitti') ||
+    resultMessage?.includes('Timed Out') ||
+    resultMessage?.includes('Time Is Up')
+  )
   const isForfeitWin = Boolean(
-    isForfeit ||
-    resultMessage?.includes('ayrıldı') ||
-    resultMessage?.includes('Pes Etti') ||
-    resultMessage?.includes('çekildi') ||
-    resultMessage?.includes('Hükmen') ||
-    resultMessage?.includes('hükmen') ||
-    resultMessage?.includes('forfeit') ||
-    resultMessage?.includes('left')
+    !isTimeoutWin && (
+      isForfeit ||
+      resultMessage?.includes('ayrıldı') ||
+      resultMessage?.includes('Pes Etti') ||
+      resultMessage?.includes('çekildi') ||
+      resultMessage?.includes('Hükmen') ||
+      resultMessage?.includes('hükmen') ||
+      resultMessage?.includes('forfeit') ||
+      resultMessage?.includes('left')
+    )
   )
   const isMatchOver = Boolean(matchWinner) || isForfeitWin
+  const isSameAction = Boolean(!onMenu || !onNewMatch || onMenu === onNewMatch)
+  const showMenuButton = isMatchOver ? (!isSameAction && Boolean(onMenu)) : Boolean(onMenu)
+  const isSingleAction = !showMenuButton
 
   const heading = isForfeitWin
-    ? (isTr ? 'HÜKMEN GALİBİYET' : 'FORFEIT VICTORY')
-    : isMatchOver
-      ? (isTr ? 'MAÇ SONUCU' : 'MATCH RESULT')
-      : (isTr ? `TUR ${roundNumber} SONUCU` : `ROUND ${roundNumber} RESULT`)
-
-  const resultLabel = isForfeitWin
-    ? (isTr ? '🏆 RAKİP OYUNDAN AYRILDI' : '🏆 OPPONENT FORFEITED')
-    : isDraw
-      ? (isTr ? 'TUR BERABERE' : 'ROUND DRAW')
+    ? (isMyVictory ? (isTr ? 'HÜKMEN GALİBİYET' : 'FORFEIT VICTORY') : (isTr ? 'HÜKMEN MAĞLUBİYET' : 'FORFEIT DEFEAT'))
+    : isTimeoutWin
+      ? (isMatchOver ? (isTr ? 'MAÇ BİTTİ (SÜRE AŞIMI)' : 'MATCH OVER (TIME OUT)') : (isTr ? 'SÜRE BİTTİ' : 'TIME OUT'))
       : isMatchOver
-        ? (isTr ? `${displayedWinner} MAÇI KAZANDI` : `${displayedWinner} WON THE MATCH`)
-        : (isTr ? `${displayedWinner} TURU KAZANDI` : `${displayedWinner} WON THE ROUND`)
+        ? (isTr ? 'MAÇ SONUCU' : 'MATCH RESULT')
+        : (isTr ? `TUR ${roundNumber} SONUCU` : `ROUND ${roundNumber} RESULT`)
 
-  const symbol = isForfeitWin ? '🏆' : isDraw ? '=' : (winningSymbol || '🏆')
-  const symbolModifier = isForfeitWin
-    ? 'x'
-    : isDraw
-      ? 'draw'
-      : (winningSymbol?.toLowerCase() || 'x')
+  const resultLabel = isTimeoutWin
+    ? (isTr ? `⏰ ${resultMessage || 'SÜRE AŞIMI'}` : `⏰ ${resultMessage || 'TIME OUT'}`)
+    : isForfeitWin
+      ? (isMyVictory ? (isTr ? '🏆 RAKİP OYUNDAN AYRILDI' : '🏆 OPPONENT FORFEITED') : (isTr ? '⚠️ BAĞLANTI ZAMAN AŞIMI' : '⚠️ CONNECTION TIMED OUT'))
+      : isDraw
+        ? (isTr ? 'TUR BERABERE' : 'ROUND DRAW')
+        : isMatchOver
+          ? (isTr ? `${displayedWinner} MAÇI KAZANDI` : `${displayedWinner} WON THE MATCH`)
+          : (isTr ? `${displayedWinner} TURU KAZANDI` : `${displayedWinner} WON THE ROUND`)
+
+  const symbol = isTimeoutWin ? '⏰' : isForfeitWin ? (isMyVictory ? '🏆' : '⚠️') : isDraw ? '=' : (winningSymbol || '🏆')
+  const symbolModifier = isTimeoutWin
+    ? (winningSymbol?.toLowerCase() || 'draw')
+    : isForfeitWin
+      ? (isMyVictory ? (winningSymbol?.toLowerCase() || 'x') : 'draw')
+      : isDraw
+        ? 'draw'
+        : (winningSymbol?.toLowerCase() || 'x')
 
   const p1ScoreVal = scores?.p1 ?? scores?.X ?? 0
   const p2ScoreVal = scores?.p2 ?? scores?.O ?? 0
@@ -86,34 +113,87 @@ export default function RoundResultModal({
   async function handleShareScore() {
     registerUserGesture()
     playSound('click')
-    const shareText = isTr
-      ? `🎮 XO ARENA ${heading}! ${resultLabel} (${p1Label}: ${p1ScoreVal} - ${p2Label}: ${p2ScoreVal}). Sen de meydan oku: ${window.location.href}`
-      : `🎮 XO ARENA ${heading}! ${resultLabel} (${p1Label}: ${p1ScoreVal} - ${p2Label}: ${p2ScoreVal}). Challenge now: ${window.location.href}`
+    setIsGeneratingCard(true)
 
-    if (typeof navigator !== 'undefined' && navigator.share) {
+    const modeEmoji = gameMode === 'arena' ? '⚔️' : '🎯'
+    const modeLabel = isTr
+      ? (gameMode === 'arena' ? 'Arena' : 'Klasik')
+      : (gameMode === 'arena' ? 'Arena' : 'Classic')
+
+    const boardLabel = `${boardSize}x${boardSize}`
+
+    const opponentLabel = opponentType === 'ai'
+      ? 'Bot'
+      : opponentType === 'online'
+        ? (isTr ? 'Online Rakip' : 'Online Opponent')
+        : (isTr ? 'Yerel 2P' : 'Local 2P')
+
+    const streakText = winStreak > 1
+      ? (isTr ? `(${winStreak} Galibiyet Serisi! 🔥)` : `(${winStreak} Win Streak! 🔥)`)
+      : ''
+
+    const resultEmoji = isDraw ? '🤝' : isMatchOver ? '🏆' : '⚡'
+    const resultLine = isForfeitWin
+      ? (isMyVictory ? (isTr ? 'Hükmen Galibiyet!' : 'Forfeit Victory!') : (isTr ? 'Hükmen Mağlubiyet!' : 'Forfeit Defeat!'))
+      : isDraw
+        ? (isTr ? 'Tur Berabere!' : 'Round Draw!')
+        : isMatchOver
+          ? (isTr ? `${displayedWinner} Şampiyon!` : `${displayedWinner} Won the Match!`)
+          : (isTr ? `${displayedWinner} Turu Kazandı!` : `${displayedWinner} Won the Round!`)
+
+    const shareLines = [
+      `⚡ XO ARENA ${resultEmoji}`,
+      `${modeEmoji} Mod: ${modeLabel} (${boardLabel})`,
+      `🎮 ${resultLine}`,
+      `📊 Skor: ${p1ScoreVal} - ${p2ScoreVal} ${streakText}`.trim(),
+      `🆚 ${opponentLabel}`,
+      ``,
+      isTr ? `👉 Sen de dene / meydan oku:` : `👉 Challenge me now:`,
+      window.location.href,
+    ]
+
+    const shareText = shareLines.join('\n')
+
+    try {
+      // 1. Generate & Share/Download high-res Esports Victory Card
+      await shareOrDownloadVictoryCard({
+        winner: displayedWinner,
+        winningSymbol,
+        isDraw,
+        isMatchOver,
+        p1Name: player1Name || (isTr ? 'Oyuncu 1' : 'Player 1'),
+        p2Name: player2Name || (isTr ? 'Oyuncu 2' : 'Player 2'),
+        p1Score: p1ScoreVal,
+        p2Score: p2ScoreVal,
+        gameMode,
+        boardSize,
+        winStreak,
+        isTr,
+      })
+    } catch {
+      // Continue to clipboard copy
+    } finally {
+      setIsGeneratingCard(false)
+    }
+
+    // 2. Also copy formatted duel text to clipboard
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
       try {
-        await navigator.share({
-          title: isTr ? 'XO ARENA Maç Sonucu' : 'XO ARENA Match Result',
-          text: shareText,
-          url: window.location.href,
-        })
-        return
+        await navigator.clipboard.writeText(shareText)
       } catch {
-        // Fallback to clipboard
+        // Ignore clipboard permission errors
       }
     }
 
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      await navigator.clipboard.writeText(shareText)
-      setIsCopied(true)
-      setTimeout(() => setIsCopied(false), 2500)
-    }
+    playSound('streak')
+    setIsCopied(true)
+    setTimeout(() => setIsCopied(false), 2500)
   }
 
   return (
     <div className="round-result-overlay" role="presentation">
       <div className="round-result-modal-wrapper">
-        {!isDraw && <WinConfetti active={true} />}
+        {!isDraw && isMyVictory && <WinConfetti active={true} />}
 
         <section
           className={`round-result-card round-result-card--${symbolModifier}`}
@@ -172,8 +252,8 @@ export default function RoundResultModal({
         <div className="round-result-message" id="round-result-message">
           {isForfeitWin ? (
             <>
-              <strong>{t('modals.roundResult.forfeitWinTitle')}</strong>
-              <small>{t('modals.roundResult.forfeitWinDesc')}</small>
+              <strong>{isMyVictory ? t('modals.roundResult.forfeitWinTitle') : t('modals.roundResult.forfeitLossTitle')}</strong>
+              <small>{isMyVictory ? t('modals.roundResult.forfeitWinDesc') : t('modals.roundResult.forfeitLossDesc')}</small>
             </>
           ) : Array.isArray(resultMessage) ? (
             <>
@@ -192,10 +272,15 @@ export default function RoundResultModal({
         {!isMenuConfirmOpen && (
           <button
             type="button"
-            className="viral-share-btn"
+            className={`viral-share-btn ${isCopied ? 'viral-share-btn--copied' : ''}`}
             onClick={handleShareScore}
+            disabled={isGeneratingCard}
           >
-            {isCopied ? t('modals.roundResult.socialShareCopied') : t('modals.roundResult.socialShareBtn')}
+            {isGeneratingCard
+              ? (isTr ? '⏳ Hazırlanıyor...' : '⏳ Generating...')
+              : isCopied
+                ? t('modals.roundResult.socialShareCopied')
+                : t('modals.roundResult.socialShareBtn')}
           </button>
         )}
 
@@ -230,18 +315,23 @@ export default function RoundResultModal({
             </div>
           </div>
         ) : (
-          <div className="round-result-actions">
+          <div className={`round-result-actions ${isSingleAction ? 'round-result-actions--single' : ''}`}>
             {isMatchOver ? (
               <button
                 type="button"
+                className="round-result-btn--viral"
                 onClick={() => {
                   registerUserGesture()
                   playSound('click')
-                  onNewMatch()
+                  if (onNewMatch) {
+                    onNewMatch()
+                  } else {
+                    onMenu()
+                  }
                 }}
                 autoFocus
               >
-                {t('common.newMatch')}
+                {t('common.newMatchViral')}
               </button>
             ) : (
               <button
@@ -259,23 +349,25 @@ export default function RoundResultModal({
               </button>
             )}
 
-            <button
-              type="button"
-              className="secondary-action"
-              onClick={() => {
-                registerUserGesture()
-                playSound('click')
+            {showMenuButton && (
+              <button
+                type="button"
+                className="secondary-action"
+                onClick={() => {
+                  registerUserGesture()
+                  playSound('click')
 
-                if (isMatchOver) {
-                  onMenu()
-                  return
-                }
+                  if (isMatchOver) {
+                    onMenu()
+                    return
+                  }
 
-                setIsMenuConfirmOpen(true)
-              }}
-            >
-              {t('common.mainMenu')}
-            </button>
+                  setIsMenuConfirmOpen(true)
+                }}
+              >
+                {t('common.mainMenu')}
+              </button>
+            )}
           </div>
         )}
       </section>

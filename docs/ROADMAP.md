@@ -182,10 +182,10 @@ Yapay zekanın yenilmez, hatasız ve viral seviyede bir büyükusta zekasıyla o
 
 ---
 
-## Faz 12 · Viral Etkileşim & Paylaşım Paketi 🌟 PLANLANDI
+## Faz 12 · Viral Etkileşim & Paylaşım Paketi 🌟 TAMAMLANDI
 
-- [ ] **12.1 — Süzülen Hızlı Mesajlar & Emote Çubuğu (Quick Taunts):** Oyuncu paneli üzerinde süzülen 5 hazır metin/emoji (`👏 İyi oyundu!`, `🔥 Harika hamle!`, `🤯 Olamaz!`, `⏰ Acele et!`, `😈 GG!`), 2s cooldown, SignalR online senkronizasyonu.
-- [ ] **12.2 — Wordle Tarzı "Sonucu Paylaş" Kartı (Share Result):** `RoundResultModal` üzerine tek tıkla panoya estetik metin kopyalama (`navigator.clipboard`) ve mobil `navigator.share` entegrasyonu.
+- [x] **12.1 — Süzülen Hızlı Mesajlar & Emote Çubuğu (Quick Taunts):** Oyuncu paneli üzerinde süzülen 5 hazır metin/emoji (`👏 İyi oyundu!`, `🔥 Harika hamle!`, `🤯 Olamaz!`, `⏰ Acele et!`, `😈 GG!`), 2s cooldown, SignalR online senkronizasyonu ve bot tepkileri.
+- [x] **12.2 — Wordle Tarzı "Sonucu Paylaş" Kartı (Share Result):** `RoundResultModal` üzerine tek tıkla panoya estetik metin kopyalama (`navigator.clipboard`) ve mobil `navigator.share` entegrasyonu.
 
 ---
 

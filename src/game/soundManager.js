@@ -205,6 +205,13 @@ export function playSound(effect) {
       return
     }
 
+    // Emote gönderme: kısa hoş pop/ding tonu
+    if (effect === 'emote') {
+      playTone({ frequency: 880, duration: 0.08, type: 'sine', volume: 0.025 })
+      playTone({ frequency: 1320, duration: 0.1, delay: 0.04, type: 'sine', volume: 0.018 })
+      return
+    }
+
     if (effect === 'click') {
       playTone({ frequency: 420, duration: 0.026, type: 'sine', volume: 0.01 })
     }

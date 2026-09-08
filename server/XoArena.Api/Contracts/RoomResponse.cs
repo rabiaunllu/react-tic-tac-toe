@@ -10,6 +10,7 @@ public sealed record RoomResponse(
     string GameMode,
     int TargetValue,
     string? BoostMode,
+    int TurnTimeLimit,
     IReadOnlyList<PlayerResponse> Players,
     GameStateResponse Game,
     DateTimeOffset CreatedAt,
@@ -24,6 +25,7 @@ public sealed record RoomResponse(
             room.GameMode,
             room.TargetValue,
             room.BoostMode,
+            room.TurnTimeLimit,
             room.Players.Select((player, index) => PlayerResponse.FromPlayer(
                 player,
                 GetPlayerSymbol(room.Game.RoundNumber, index),

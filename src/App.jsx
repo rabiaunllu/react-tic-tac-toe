@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { getAdaptiveAiMove, getArenaAiPowerAction } from './game/aiPlayer'
+import { useCallback, useEffect, useRef, useState, lazy, Suspense } from 'react'
 import './App.css'
 import Board from './components/Board'
 import GameStatus from './components/GameStatus'
@@ -7,10 +6,27 @@ import ArenaSettings from './components/ArenaSettings'
 import PowerPanel from './components/PowerPanel'
 import GameSetup from './components/GameSetup'
 import { ARENA_POWER_NAMES, createInitialPowerCounts, rewardedPowerIds } from './game/powers'
-import OnlineGame from './components/OnlineGame'
-import RoundResultModal from './components/RoundResultModal'
 import RoundResultPreviewBar from './components/RoundResultPreviewBar'
+import FloatingEmote from './components/FloatingEmote'
+import QuickEmoteBar from './components/QuickEmoteBar'
 import SoundToggle from './components/SoundToggle'
+
+// PERFORMANCE OPTIMIZATION (Action 14): Code split heavy components.
+// OnlineGame bundles @microsoft/signalr (~85KB) + OnlineGame (~42KB).
+// Lazy-loading eliminates ~127KB from the initial page load!
+const OnlineGame = lazy(() => import('./components/OnlineGame'))
+const RoundResultModal = lazy(() => import('./components/RoundResultModal'))
+
+// PERFORMANCE OPTIMIZATION (Action 15): Decouple main thread entry from aiPlayer.js.
+// AI calculations run in aiWorker.js. By loading aiPlayer dynamically on demand,
+// we eliminate ~56KB of Minimax & Zobrist tables from the initial bundle.
+let aiPlayerModulePromise = null
+function getAiPlayerModule() {
+  if (!aiPlayerModulePromise) {
+    aiPlayerModulePromise = import('./game/aiPlayer')
+  }
+  return aiPlayerModulePromise
+}
 import { useTranslation } from './i18n'
 import {
   calculateRoundScore,
@@ -105,6 +121,8 @@ export default function App() {
   const [roundNumber, setRoundNumber] = useState(1)
   const [humanWinStreak, setHumanWinStreak] = useState(0)
   const [consecutiveDraws, setConsecutiveDraws] = useState(0)
+  const [floatingEmotes, setFloatingEmotes] = useState([])
+  const botHurrySentRef = useRef(false)
   const [rewardedPowerClaimed, setRewardedPowerClaimed] = useState(false)
   const [isRewarding, setIsRewarding] = useState(false)
   const [rewardedPowerMessage, setRewardedPowerMessage] = useState('')
@@ -115,6 +133,7 @@ export default function App() {
   const turnDeadlineRef = useRef(null)
   const lastTurnKeyRef = useRef('')
   const lastTickSecondRef = useRef(15)
+  const isSessionRestoredRef = useRef(false)
 
   const activeTimeoutsRef = useRef(new Set())
 
@@ -288,6 +307,46 @@ export default function App() {
     : 'YENİ MAÇ'
   const lineChip = `${winLength} TAŞ`
 
+  // ── Quick Emote Callbacks ──────────────────────────────────────────────────
+  const handleSendEmote = useCallback((emoteId) => {
+    const newEmote = {
+      id: Date.now() + Math.random(),
+      emoteId,
+      senderSymbol: humanSymbol,
+      position: isP1X ? 'left' : 'right',
+    }
+    setFloatingEmotes(prev => [...prev, newEmote])
+    playSound('emote')
+  }, [humanSymbol, isP1X])
+
+  const handleEmoteComplete = useCallback((emoteInstanceId) => {
+    setFloatingEmotes(prev => prev.filter(e => e.id !== emoteInstanceId))
+  }, [])
+
+  const triggerBotEmote = useCallback((context) => {
+    if (opponentType !== 'ai') return
+    const chances = { bot_won: 0.30, human_won: 0.25, draw: 0.20, random_move: 0.05 }
+    if (Math.random() > (chances[context] || 0.05)) return
+
+    const emoteMap = {
+      bot_won: ['gg', 'wellplayed'],
+      human_won: ['noway', 'nice'],
+      draw: ['wellplayed'],
+      random_move: ['gg', 'nice', 'wellplayed', 'noway', 'hurry'],
+    }
+    const pool = emoteMap[context] || emoteMap.random_move
+    const emoteId = pool[Math.floor(Math.random() * pool.length)]
+
+    safeSetTimeout(() => {
+      setFloatingEmotes(prev => [...prev, {
+        id: Date.now() + Math.random(),
+        emoteId,
+        senderSymbol: aiSymbol,
+        position: isP1X ? 'right' : 'left',
+      }])
+      playSound('emote')
+    }, 800 + Math.random() * 1700)
+  }, [opponentType, aiSymbol, isP1X, safeSetTimeout])
 
     const finishRound = useCallback(
     (nextSquares, nextBoostedSquares = boostedSquares) => {
@@ -316,16 +375,21 @@ export default function App() {
         if (opponentType === 'ai' && (gameMode === 'classic' || gameMode === 'arena')) {
           setHumanWinStreak((currentStreak) => {
             if (nextWinner === humanSymbol) {
-              return Math.min(currentStreak + 1, 3)
+              return currentStreak < 0 ? 1 : Math.min(currentStreak + 1, 3)
             }
 
             if (nextWinner === aiSymbol) {
-              return Math.max(currentStreak - 1, -3)
+              return currentStreak > 0 ? -1 : Math.max(currentStreak - 1, -3)
             }
 
             return currentStreak
           })
           setConsecutiveDraws(0)
+          if (nextWinner === aiSymbol) {
+            triggerBotEmote('bot_won')
+          } else if (nextWinner === humanSymbol) {
+            triggerBotEmote('human_won')
+          }
         }
         setResultMessage(getRandomMessage(winnerMessages, language))
         setLoserMessage(getRandomMessage(loserMessages, language))
@@ -336,13 +400,14 @@ export default function App() {
       if (isBoardFull(nextSquares)) {
         if (opponentType === 'ai' && (gameMode === 'classic' || gameMode === 'arena')) {
           setConsecutiveDraws((prev) => prev + 1)
+          triggerBotEmote('draw')
         }
         setResultMessage(getRandomMessage(drawMessages, language))
         setLoserMessage(null)
         playSound('draw')
       }
     },
-    [boardSize, winLength, multipliers, multipliersEnabled, boostedSquares, opponentType, gameMode, isP1X, humanSymbol, aiSymbol, language]
+    [boardSize, winLength, multipliers, multipliersEnabled, boostedSquares, opponentType, gameMode, isP1X, humanSymbol, aiSymbol, language, triggerBotEmote]
   )
 
   const handleTimeOut = useCallback(
@@ -371,11 +436,19 @@ export default function App() {
           timeoutScore,
       }))
 
+      if (opponentType === 'ai') {
+        if (winningSymbol === aiSymbol) {
+          triggerBotEmote('bot_won')
+        } else if (winningSymbol === humanSymbol) {
+          triggerBotEmote('human_won')
+        }
+      }
+
       setResultMessage(['⏰', `${timedOutPlayerName} Süresi Bitti!`, `Turu ${winnerName} kazandı.`])
       setLoserMessage(null)
       playSound('win')
     },
-    [winner, matchWinner, isDraw, timeoutWinner, resultMessage, gameMode, isP1X, xPlayerName, oPlayerName]
+    [winner, matchWinner, isDraw, timeoutWinner, resultMessage, gameMode, isP1X, xPlayerName, oPlayerName, opponentType, aiSymbol, humanSymbol, triggerBotEmote]
   )
 
   // Turn timer countdown effect (Mutlak zaman damgası ile sayfa yenileme hilesi engellendi)
@@ -385,8 +458,7 @@ export default function App() {
       effectiveWinner ||
       matchWinner ||
       isDraw ||
-      resultMessage ||
-      (opponentType === 'ai' && currentPlayer === aiSymbol)
+      resultMessage
     ) {
       turnDeadlineRef.current = null
       return
@@ -397,15 +469,20 @@ export default function App() {
 
     if (currentTurnKey !== lastTurnKeyRef.current) {
       lastTurnKeyRef.current = currentTurnKey
+      botHurrySentRef.current = false
 
-      const hasValidRestoredDeadline =
-        turnDeadlineRef.current && turnDeadlineRef.current > Date.now()
-
-      if (!hasValidRestoredDeadline) {
+      if (isSessionRestoredRef.current) {
+        // Yalnızca localStorage'dan oturum ilk yüklendiğinde mevcut kalan süreyi koru
+        isSessionRestoredRef.current = false
         if (turnDeadlineRef.current && turnDeadlineRef.current <= Date.now()) {
           handleTimeOut(currentPlayer)
           return
         }
+        if (!turnDeadlineRef.current || turnDeadlineRef.current <= Date.now()) {
+          turnDeadlineRef.current = Date.now() + turnTimeLimit * 1000
+        }
+      } else {
+        // Her oyuncunun her hamlede kendi bağımsız süresi sıfırlanır
         turnDeadlineRef.current = Date.now() + turnTimeLimit * 1000
       }
     }
@@ -431,12 +508,36 @@ export default function App() {
 
     const interval = setInterval(() => {
       const remainingSec = (activeDeadline - Date.now()) / 1000
-      const clampedRemaining = Math.max(0, remainingSec)
-      const currentWhole = Math.ceil(clampedRemaining)
+      const clampedRemaining = Math.max(0, Math.ceil(remainingSec))
+      const currentWhole = clampedRemaining
 
       if (clampedRemaining <= 5 && clampedRemaining > 0 && currentWhole !== lastTickSecondRef.current) {
         lastTickSecondRef.current = currentWhole
         playSound('click')
+      }
+
+      // Bot "Acele et!" tepkisi: İnsan 7+ saniye düşünürse %20 ihtimalle bot emote gönderir
+      if (
+        opponentType === 'ai' &&
+        currentPlayer === humanSymbol &&
+        !botHurrySentRef.current &&
+        turnTimeLimit >= 10 &&
+        clampedRemaining <= turnTimeLimit - 7 &&
+        clampedRemaining > 3
+      ) {
+        botHurrySentRef.current = true
+        if (Math.random() < 0.20) {
+          setFloatingEmotes((prev) => [
+            ...prev,
+            {
+              id: Date.now() + Math.random(),
+              emoteId: 'hurry',
+              senderSymbol: aiSymbol,
+              position: isP1X ? 'right' : 'left',
+            },
+          ])
+          playSound('emote')
+        }
       }
 
       setTurnTimeLeft(clampedRemaining)
@@ -445,7 +546,7 @@ export default function App() {
         clearInterval(interval)
         handleTimeOut(currentPlayer)
       }
-    }, 100)
+    }, 1000)
 
     return () => {
       clearTimeout(initialTimerId)
@@ -462,6 +563,8 @@ export default function App() {
     resultMessage,
     opponentType,
     aiSymbol,
+    humanSymbol,
+    isP1X,
     handleTimeOut,
   ])
 
@@ -958,6 +1061,7 @@ export default function App() {
     setShowSetupReturnConfirm(false)
     setShowScoreResetConfirm(false)
     turnDeadlineRef.current = session.turnDeadline ?? null
+    isSessionRestoredRef.current = Boolean(session.turnDeadline)
     lastTurnKeyRef.current = ''
   }, [])
 
@@ -1091,9 +1195,17 @@ export default function App() {
       }))
     }
 
+    let hasAiMoved = false
+    let emergencyTimeoutId = null
+
     const placeAiStone = (index, nextBoostedSquares = boostedSquares) => {
+      if (hasAiMoved) return
       if (squares[index] || lockedSquares.includes(index) || frozenSquares.includes(index)) {
         return
+      }
+      hasAiMoved = true
+      if (emergencyTimeoutId) {
+        clearSafeTimeout(emergencyTimeoutId)
       }
 
       const triggeredTrap = traps.find(
@@ -1139,6 +1251,9 @@ export default function App() {
       }
       playSound('move')
       finishRound(nextSquares, nextBoostedSquares)
+      if (!getWinningLine(nextSquares, boardSize, winLength) && !isBoardFull(nextSquares)) {
+        triggerBotEmote('random_move')
+      }
       setLockedSquares([])
       if (frozenSquares.length > 0) {
         if (frozenBy === aiSymbol) {
@@ -1163,6 +1278,9 @@ export default function App() {
         }
 
         if (aiPowerAction?.type === 'bomb') {
+          if (hasAiMoved) return
+          hasAiMoved = true
+          if (emergencyTimeoutId) clearSafeTimeout(emergencyTimeoutId)
           const nextSquares = squares.slice()
           nextSquares[aiPowerAction.index] = null
 
@@ -1206,28 +1324,45 @@ export default function App() {
           // Arena search evaluates shield + placement as one turn.  Preserve its
           // planned follow-up instead of asking the lightweight classic chooser
           // for an unrelated move after the shield has been spent.
-          const aiMove = aiPowerAction.followUpMove ?? getAdaptiveAiMove({
-            squares,
-            boardSize,
-            winLength,
-            humanWinStreak,
-            roundNumber,
-            consecutiveDraws,
-            blockedIndexes: [...lockedSquares, ...frozenSquares],
-            multipliers:
-              gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
-            aiPlayer: aiSymbol,
-            humanPlayer: humanSymbol,
-          })
-          if (aiMove !== null && aiMove !== undefined) {
-            placeAiStone(aiMove)
+          const followUp = aiPowerAction.followUpMove
+          if (followUp !== null && followUp !== undefined) {
+            placeAiStone(followUp)
           } else {
-            setXIsNext(aiSymbol === 'X' ? false : true)
+            getAiPlayerModule().then(({ getAdaptiveAiMove }) => {
+              const aiMove = getAdaptiveAiMove({
+                squares,
+                boardSize,
+                winLength,
+                humanWinStreak,
+                roundNumber,
+                consecutiveDraws,
+                blockedIndexes: [...lockedSquares, ...frozenSquares],
+                multipliers:
+                  gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
+                aiPlayer: aiSymbol,
+                humanPlayer: humanSymbol,
+                gameMode,
+              })
+              if (aiMove !== null && aiMove !== undefined) {
+                placeAiStone(aiMove)
+              } else {
+                hasAiMoved = true
+                if (emergencyTimeoutId) clearSafeTimeout(emergencyTimeoutId)
+                setXIsNext(aiSymbol === 'X' ? false : true)
+              }
+            }).catch(() => {
+              hasAiMoved = true
+              if (emergencyTimeoutId) clearSafeTimeout(emergencyTimeoutId)
+              setXIsNext(aiSymbol === 'X' ? false : true)
+            })
           }
           return
         }
 
         if (aiPowerAction?.type === 'trap') {
+          if (hasAiMoved) return
+          hasAiMoved = true
+          if (emergencyTimeoutId) clearSafeTimeout(emergencyTimeoutId)
           setTraps((currentTraps) => [
             ...currentTraps,
             {
@@ -1325,6 +1460,7 @@ export default function App() {
               gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
             aiPlayer: aiSymbol,
             humanPlayer: humanSymbol,
+            gameMode,
           },
         })
         return
@@ -1340,92 +1476,103 @@ export default function App() {
     }
 
     latestAiHandlerRef.current.onError = () => {
-      try {
-        if (gameMode === 'arena' && powersEnabled) {
-          const aiPowerAction = getArenaAiPowerAction({
-            squares, boardSize, winLength, humanWinStreak, roundNumber, consecutiveDraws,
-            playerPowers: playerPowers[aiSymbol], humanPowers: playerPowers[humanSymbol],
-            shieldedSquares, boostedSquares,
-            blockedIndexes: [...lockedSquares, ...frozenSquares],
-            aiTrapIndexes: traps.filter((trap) => trap.owner === aiSymbol).map((trap) => trap.index),
-            multipliers,
-            aiPlayer: aiSymbol,
-            humanPlayer: humanSymbol,
-          })
-          if (aiPowerAction?.type === 'move') {
-            placeAiStone(aiPowerAction.index)
-            return
-          }
-          if (aiPowerAction?.type === 'boost') {
-            const nextBoostedSquares = [...boostedSquares, aiPowerAction.index]
-            setBoostedSquares(nextBoostedSquares)
-            spendAiPower('boost')
-            playSound('power')
-            placeAiStone(aiPowerAction.index, nextBoostedSquares)
-            return
-          }
-          if (aiPowerAction?.type === 'shield') {
-            setShieldedSquares((current) => [...current, aiPowerAction.index])
-            spendAiPower('shield')
-            playSound('power')
-            const aiMove = aiPowerAction.followUpMove ?? getAdaptiveAiMove({
+      getAiPlayerModule().then(({ getAdaptiveAiMove, getArenaAiPowerAction }) => {
+        try {
+          if (gameMode === 'arena' && powersEnabled) {
+            const aiPowerAction = getArenaAiPowerAction({
               squares, boardSize, winLength, humanWinStreak, roundNumber, consecutiveDraws,
+              playerPowers: playerPowers[aiSymbol], humanPowers: playerPowers[humanSymbol],
+              shieldedSquares, boostedSquares,
               blockedIndexes: [...lockedSquares, ...frozenSquares],
-              multipliers: gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
+              aiTrapIndexes: traps.filter((trap) => trap.owner === aiSymbol).map((trap) => trap.index),
+              multipliers,
               aiPlayer: aiSymbol,
               humanPlayer: humanSymbol,
+              gameMode,
             })
-            if (aiMove !== null && aiMove !== undefined) placeAiStone(aiMove)
-            return
-          }
-          if (aiPowerAction?.type === 'bomb') {
-            const nextSquares = squares.slice()
-            nextSquares[aiPowerAction.index] = null
-            setSquares(nextSquares)
-            setLockedSquares([aiPowerAction.index])
-            spendAiPower('bomb')
-            playSound('bomb')
-            setXIsNext(aiSymbol === 'X' ? false : true)
-            return
-          }
-          if (aiPowerAction?.type === 'trap') {
-            setTraps((currentTraps) => [
-              ...currentTraps, { index: aiPowerAction.index, owner: aiSymbol },
-            ])
-            spendAiPower('trap')
-            playSound('blackhole')
-            setXIsNext(aiSymbol === 'X' ? false : true)
-            return
-          }
-          if (aiPowerAction?.type === 'freeze') {
-            setFrozenSquares([aiPowerAction.index])
-            setFrozenBy(aiSymbol)
-            spendAiPower('freeze')
-            playSound('power')
-            placeAiStone(aiPowerAction.moveIndex)
-            return
-          }
-          if (aiPowerAction?.type === 'vampire') {
-            const sourceIndex = aiPowerAction.index
-            if (multipliers[sourceIndex]) {
-              spendAiPower('vampire')
+            if (aiPowerAction?.type === 'move') {
+              placeAiStone(aiPowerAction.index)
+              return
+            }
+            if (aiPowerAction?.type === 'boost') {
+              const nextBoostedSquares = [...boostedSquares, aiPowerAction.index]
+              setBoostedSquares(nextBoostedSquares)
+              spendAiPower('boost')
+              playSound('power')
+              placeAiStone(aiPowerAction.index, nextBoostedSquares)
+              return
+            }
+            if (aiPowerAction?.type === 'shield') {
+              setShieldedSquares((current) => [...current, aiPowerAction.index])
+              spendAiPower('shield')
+              playSound('power')
+              const aiMove = aiPowerAction.followUpMove ?? getAdaptiveAiMove({
+                squares, boardSize, winLength, humanWinStreak, roundNumber, consecutiveDraws,
+                blockedIndexes: [...lockedSquares, ...frozenSquares],
+                multipliers: gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
+                aiPlayer: aiSymbol,
+                humanPlayer: humanSymbol,
+                gameMode,
+              })
+              if (aiMove !== null && aiMove !== undefined) placeAiStone(aiMove)
+              return
+            }
+            if (aiPowerAction?.type === 'bomb') {
+              if (hasAiMoved) return
+              hasAiMoved = true
+              if (emergencyTimeoutId) clearSafeTimeout(emergencyTimeoutId)
+              const nextSquares = squares.slice()
+              nextSquares[aiPowerAction.index] = null
+              setSquares(nextSquares)
+              setLockedSquares([aiPowerAction.index])
+              spendAiPower('bomb')
+              playSound('bomb')
+              setXIsNext(aiSymbol === 'X' ? false : true)
+              return
+            }
+            if (aiPowerAction?.type === 'trap') {
+              if (hasAiMoved) return
+              hasAiMoved = true
+              if (emergencyTimeoutId) clearSafeTimeout(emergencyTimeoutId)
+              setTraps((currentTraps) => [
+                ...currentTraps, { index: aiPowerAction.index, owner: aiSymbol },
+              ])
+              spendAiPower('trap')
+              playSound('blackhole')
+              setXIsNext(aiSymbol === 'X' ? false : true)
+              return
+            }
+            if (aiPowerAction?.type === 'freeze') {
+              setFrozenSquares([aiPowerAction.index])
+              setFrozenBy(aiSymbol)
+              spendAiPower('freeze')
               playSound('power')
               placeAiStone(aiPowerAction.moveIndex)
               return
             }
+            if (aiPowerAction?.type === 'vampire') {
+              const sourceIndex = aiPowerAction.index
+              if (multipliers[sourceIndex]) {
+                spendAiPower('vampire')
+                playSound('power')
+                placeAiStone(aiPowerAction.moveIndex)
+                return
+              }
+            }
           }
+          const fallbackMove = getAdaptiveAiMove({
+            squares, boardSize, winLength, humanWinStreak, roundNumber, consecutiveDraws,
+            blockedIndexes: [...lockedSquares, ...frozenSquares],
+            multipliers: gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
+            aiPlayer: aiSymbol,
+            humanPlayer: humanSymbol,
+            gameMode,
+          })
+          if (fallbackMove !== null) placeAiStone(fallbackMove)
+        } catch {
+          // Sessizce geç
         }
-        const fallbackMove = getAdaptiveAiMove({
-          squares, boardSize, winLength, humanWinStreak, roundNumber, consecutiveDraws,
-          blockedIndexes: [...lockedSquares, ...frozenSquares],
-          multipliers: gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
-          aiPlayer: aiSymbol,
-          humanPlayer: humanSymbol,
-        })
-        if (fallbackMove !== null) placeAiStone(fallbackMove)
-      } catch {
-        // Sessizce geç
-      }
+      }).catch(() => {})
     }
 
     const postAiTask = () => {
@@ -1450,6 +1597,7 @@ export default function App() {
             multipliers,
             aiPlayer: aiSymbol,
             humanPlayer: humanSymbol,
+            gameMode,
           },
         })
       } else {
@@ -1467,6 +1615,7 @@ export default function App() {
               gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
             aiPlayer: aiSymbol,
             humanPlayer: humanSymbol,
+            gameMode,
           },
         })
       }
@@ -1474,7 +1623,58 @@ export default function App() {
 
     let activeVisibilityHandler = null
 
-    // 400ms gecikmeyi worker mesajından önce uygula
+    // Hamle süresi sınırı varsa (özellikle 5s Yıldırım modunda), botun süreden kaybetmesini önlemek için
+    // süre dolmadan önce acil durum hamlesi tetiklenir (5s modunda 3.8s'de).
+    const emergencyDelay = turnTimeLimit > 0 ? Math.max(1200, (turnTimeLimit * 1000) - 1200) : 0
+    if (turnTimeLimit > 0) {
+      emergencyTimeoutId = safeSetTimeout(() => {
+        if (hasAiMoved) return
+
+        const availableIndexes = squares
+          .map((sq, idx) => (sq || lockedSquares.includes(idx) || frozenSquares.includes(idx) ? null : idx))
+          .filter((idx) => idx !== null)
+
+        if (availableIndexes.length > 0) {
+          getAiPlayerModule().then(({ getAdaptiveAiMove }) => {
+            if (hasAiMoved) return
+            let emergencyMove
+            try {
+              emergencyMove = getAdaptiveAiMove({
+                squares,
+                boardSize,
+                winLength,
+                humanWinStreak,
+                roundNumber,
+                consecutiveDraws,
+                blockedIndexes: [...lockedSquares, ...frozenSquares],
+                multipliers: gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
+                aiPlayer: aiSymbol,
+                humanPlayer: humanSymbol,
+                gameMode,
+              })
+            } catch {
+              emergencyMove = null
+            }
+
+            if (emergencyMove === null || emergencyMove === undefined || !availableIndexes.includes(emergencyMove)) {
+              emergencyMove = availableIndexes[Math.floor(Math.random() * availableIndexes.length)]
+            }
+
+            placeAiStone(emergencyMove)
+          }).catch(() => {
+            if (hasAiMoved) return
+            const emergencyMove = availableIndexes[Math.floor(Math.random() * availableIndexes.length)]
+            placeAiStone(emergencyMove)
+          })
+        } else {
+          hasAiMoved = true
+          setXIsNext(aiSymbol === 'X' ? false : true)
+        }
+      }, emergencyDelay)
+    }
+
+    // 400ms gecikmeyi worker mesajından önce uygula (5s Yıldırım modunda refleks için 200ms)
+    const aiThinkDelay = turnTimeLimit === 5 ? 200 : 400
     const delayId = safeSetTimeout(() => {
       if (document.visibilityState === 'hidden') {
         activeVisibilityHandler = () => {
@@ -1488,11 +1688,14 @@ export default function App() {
         return
       }
       postAiTask()
-    }, 400)
+    }, aiThinkDelay)
 
     return () => {
       latestAiHandlerRef.current = {}
       clearSafeTimeout(delayId)
+      if (emergencyTimeoutId) {
+        clearSafeTimeout(emergencyTimeoutId)
+      }
       if (activeVisibilityHandler) {
         document.removeEventListener('visibilitychange', activeVisibilityHandler)
         activeVisibilityHandler = null
@@ -1529,6 +1732,8 @@ export default function App() {
     humanSymbol,
     safeSetTimeout,
     clearSafeTimeout,
+    triggerBotEmote,
+    turnTimeLimit,
   ])
 
   useEffect(() => {
@@ -1783,7 +1988,21 @@ export default function App() {
   }
 
   if (onlineGame) {
-    return <OnlineGame initialOnlineGame={onlineGame} onMenu={handleOnlineMenu} />
+    return (
+      <Suspense fallback={
+        <main className="app-shell">
+          <section className="game-card setup-card">
+            <div style={{ padding: '60px 20px', textAlign: 'center' }}>
+              <div style={{ color: 'var(--x-color, #6ee7ff)', fontSize: '18px', fontWeight: 'bold' }}>
+                ⚡ {t('setup.onlineModal.loadingRoom') || 'Loading Online Arena...'}
+              </div>
+            </div>
+          </section>
+        </main>
+      }>
+        <OnlineGame initialOnlineGame={onlineGame} onMenu={handleOnlineMenu} />
+      </Suspense>
+    )
   }
 
   if (!isSessionRestoreChecked) {
@@ -1928,6 +2147,18 @@ export default function App() {
           </div>
         )}
 
+        <div className="floating-emotes-container" aria-live="polite">
+          {floatingEmotes.map((emote) => (
+            <FloatingEmote
+              key={emote.id}
+              emoteId={emote.emoteId}
+              senderSymbol={emote.senderSymbol}
+              position={emote.position}
+              onComplete={() => handleEmoteComplete(emote.id)}
+            />
+          ))}
+        </div>
+
         <div className="arena-board-stack">
           <PowerPanel
             currentPlayer={p1Symbol}
@@ -2019,6 +2250,13 @@ export default function App() {
               nextRoundLabel={t('game.nextRound')}
             />
           )}
+
+          {gameConfig && opponentType === 'ai' && !matchWinner && (
+            <QuickEmoteBar
+              onSendEmote={handleSendEmote}
+              disabled={Boolean(matchWinner)}
+            />
+          )}
         </div>
 
 
@@ -2027,23 +2265,29 @@ export default function App() {
       {(effectiveWinner || isDraw) &&
         !showSetupReturnConfirm &&
         (!isRoundResultDismissed || Boolean(matchWinner)) && (
-        <RoundResultModal
-          roundNumber={roundNumber}
-          winner={winnerPlayerName}
-          winningSymbol={effectiveWinner}
-          isDraw={isDraw}
-          matchWinner={matchWinner}
-          scores={{ p1: p1Score, p2: p2Score }}
-          player1Name={player1Name}
-          player2Name={player2Name}
-          scoreLabel={scoreLabel}
-          resultMessage={displayedResultMessage}
-          loserMessage={displayedLoserMessage}
-          onNextRound={handleNextRound}
-          onNewMatch={handleNewMatch}
-          onMenu={handleResultMenu}
-          onClose={matchWinner ? undefined : () => setIsRoundResultDismissed(true)}
-        />
+        <Suspense fallback={null}>
+          <RoundResultModal
+            roundNumber={roundNumber}
+            winner={winnerPlayerName}
+            winningSymbol={effectiveWinner}
+            isDraw={isDraw}
+            matchWinner={matchWinner}
+            scores={{ p1: p1Score, p2: p2Score }}
+            player1Name={player1Name}
+            player2Name={player2Name}
+            scoreLabel={scoreLabel}
+            resultMessage={displayedResultMessage}
+            loserMessage={displayedLoserMessage}
+            onNextRound={handleNextRound}
+            onNewMatch={handleNewMatch}
+            onMenu={handleResultMenu}
+            onClose={matchWinner ? undefined : () => setIsRoundResultDismissed(true)}
+            gameMode={gameMode}
+            boardSize={boardSize}
+            winStreak={humanWinStreak}
+            opponentType={opponentType}
+          />
+        </Suspense>
       )}
 
     </main>

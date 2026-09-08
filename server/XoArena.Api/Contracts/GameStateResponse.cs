@@ -19,7 +19,9 @@ public sealed record GameStateResponse(
     IReadOnlyList<int> FrozenSquares,
     IReadOnlyList<int> StolenSquares,
     bool HasUsedPowerThisTurn,
-    bool IsForfeit)
+    bool IsForfeit,
+    bool IsTimeout = false,
+    string? TimedOutPlayerSymbol = null)
 {
     public static GameStateResponse FromGameState(GameState game)
         => new(
@@ -39,5 +41,7 @@ public sealed record GameStateResponse(
             game.FrozenSquares,
             game.StolenSquares ?? [],
             game.HasUsedPowerThisTurn,
-            game.IsForfeit);
+            game.IsForfeit,
+            game.IsTimeout,
+            game.TimedOutPlayerSymbol);
 }

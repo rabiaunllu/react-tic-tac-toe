@@ -6,4 +6,5 @@ public sealed record CreateRoomRequest(
     int WinLength,
     string GameMode,
     int TargetValue,
-    string? BoostMode = null);
+    string? BoostMode = null,
+    int TurnTimeLimit = 15);
