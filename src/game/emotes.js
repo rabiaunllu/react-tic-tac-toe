@@ -4,7 +4,8 @@ export const EMOTE_MAP = {
   wellplayed: { emoji: '\u{1F44F}' },
   noway: { emoji: '\u{1F92F}' },
   hurry: { emoji: '\u{23F0}' },
+  sleep: { emoji: '\u{1F634}' },
 }
 
-export const EMOTE_LIST = ['gg', 'nice', 'wellplayed', 'noway', 'hurry']
+export const EMOTE_LIST = ['gg', 'nice', 'wellplayed', 'noway', 'hurry', 'sleep']
 

@@ -4,7 +4,6 @@ import { useTranslation } from '../i18n'
 const GameStatus = memo(function GameStatus({
   winner,
   isDraw,
-  roundScore,
   resultMessage,
   loserMessage,
   matchWinner,
@@ -24,7 +23,6 @@ const GameStatus = memo(function GameStatus({
         <span className="result-icon">{icon}</span>
         <div className="result-copy">
           <strong>{t('game.tookRound', { player: winner })}</strong>
-          <span>+{roundScore} {t('game.pts')}</span>
           <small>{loserMessage || subtitle || title}</small>
         </div>
       </div>

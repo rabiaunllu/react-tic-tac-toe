@@ -279,5 +279,6 @@ export default {
     wellplayed: 'İyi oyundu!',
     noway: 'Olamaz!',
     hurry: 'Acele et!',
+    sleep: 'Uyuma!',
   },
 }

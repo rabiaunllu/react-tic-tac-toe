@@ -176,12 +176,6 @@ export default function App() {
   const winningLine = getWinningLine(squares, boardSize, winLength)
   const multipliersEnabled = gameMode === 'arena' && arenaSettings.multipliersEnabled
   const powersEnabled = gameMode === 'arena' && arenaSettings.powersEnabled
-  const roundScore = calculateRoundScore(
-    winningLine,
-    multipliers,
-    multipliersEnabled,
-    boostedSquares
-  )
   const isDraw = !winner && isBoardFull(squares)
   const currentPlayer = xIsNext ? 'X' : 'O'
 
@@ -332,7 +326,7 @@ export default function App() {
       bot_won: ['gg', 'wellplayed'],
       human_won: ['noway', 'nice'],
       draw: ['wellplayed'],
-      random_move: ['gg', 'nice', 'wellplayed', 'noway', 'hurry'],
+      random_move: ['gg', 'nice', 'wellplayed', 'noway', 'hurry', 'sleep'],
     }
     const pool = emoteMap[context] || emoteMap.random_move
     const emoteId = pool[Math.floor(Math.random() * pool.length)]
@@ -527,11 +521,12 @@ export default function App() {
       ) {
         botHurrySentRef.current = true
         if (Math.random() < 0.20) {
+          const timeoutEmoteId = Math.random() < 0.5 ? 'hurry' : 'sleep'
           setFloatingEmotes((prev) => [
             ...prev,
             {
               id: Date.now() + Math.random(),
-              emoteId: 'hurry',
+              emoteId: timeoutEmoteId,
               senderSymbol: aiSymbol,
               position: isP1X ? 'right' : 'left',
             },
@@ -1123,7 +1118,18 @@ export default function App() {
 
       if (localSession) {
         if (isMounted) {
-          if (localSession.matchWinner || localSession.isMatchCompleted) {
+          // Bir turun veya maçın bittiği (kazanan, berabere veya sonuç ekranı) durumları asla geri yükleme;
+          // kullanıcının eski konfeti / galibiyet ekranında takılı kalmasını engellemek için oturumu temizle.
+          const isRoundCompleted =
+            Boolean(localSession.matchWinner) ||
+            Boolean(localSession.isMatchCompleted) ||
+            Boolean(localSession.isRoundResultOpen) ||
+            Boolean(localSession.resultMessage) ||
+            (Array.isArray(localSession.squares) &&
+              (Boolean(getWinningLine(localSession.squares, localSession.gameConfig?.boardSize || 3, localSession.gameConfig?.winLength || 3)) ||
+               isBoardFull(localSession.squares)))
+
+          if (isRoundCompleted) {
             clearLocalSession()
             setSetupRestoreMessage('')
           } else {
@@ -1753,7 +1759,9 @@ export default function App() {
       return
     }
 
-    if (matchWinner) {
+    // Tur bittiğinde veya maç kazanıldığında (konfeti / sonuç ekranı açıkken)
+    // kazanılmış tahtayı localStorage'a kaydetme; oturumu temizle.
+    if (matchWinner || effectiveWinner || isDraw || Boolean(winner)) {
       clearLocalSession()
       return
     }
@@ -1816,6 +1824,7 @@ export default function App() {
     resultMessage,
     loserMessage,
     roundNumber,
+    winner,
     effectiveWinner,
     isDraw,
     showSetupReturnConfirm,
@@ -1979,12 +1988,18 @@ export default function App() {
       symbol: nextOnlineGame.symbol,
       playerName: nextOnlineGame.playerName,
     })
+    if (typeof window !== 'undefined' && window.location.search.includes('room=')) {
+      window.history.replaceState({}, '', window.location.pathname)
+    }
   }
 
   function handleOnlineMenu() {
     setOnlineGame(null)
     setGameConfig(null)
     clearOnlineSession()
+    if (typeof window !== 'undefined' && window.location.search.includes('room=')) {
+      window.history.replaceState({}, '', window.location.pathname)
+    }
   }
 
   if (onlineGame) {
@@ -2128,7 +2143,6 @@ export default function App() {
           winner={winnerPlayerName}
           isDraw={isDraw}
           xIsNext={xIsNext}
-          roundScore={roundScore}
           resultMessage={displayedResultMessage}
           loserMessage={displayedLoserMessage}
           matchWinner={matchWinner}
