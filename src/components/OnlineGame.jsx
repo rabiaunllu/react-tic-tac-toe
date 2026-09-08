@@ -358,9 +358,12 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
   }, [mySymbol, isTr])
 
   async function submitPowerAction(powerId, targetIndex) {
-    setActionError('')
-    setIsPowerPending(true)
+    if (isPowerPendingRef.current || isMovePendingRef.current) {
+      return
+    }
     isPowerPendingRef.current = true
+    setIsPowerPending(true)
+    setActionError('')
 
     try {
       if (powerId === 'vampire') {
@@ -429,7 +432,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
   async function handleRandomBoostPower() {
     registerUserGesture()
 
-    if (!canMove || arenaPowerTargets.boost.length === 0) {
+    if (!canMove || isPowerPendingRef.current || isMovePendingRef.current || arenaPowerTargets.boost.length === 0) {
       setActionError('Bu hedef uygun değil.')
       return
     }
@@ -441,7 +444,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
   async function handleSquareClick(index) {
     registerUserGesture()
 
-    if (!canMove) {
+    if (!canMove || isMovePendingRef.current || isPowerPendingRef.current) {
       return
     }
 
@@ -471,9 +474,10 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
       return
     }
 
-    setActionError('')
-    setIsMovePending(true)
+    // Synchronously lock immediately before optimistic render & async dispatch
     isMovePendingRef.current = true
+    setIsMovePending(true)
+    setActionError('')
     const currentRoomSnapshot = room
 
     // Optimistic UI Update: Render local move immediately (0ms latency feel!)
@@ -1080,6 +1084,8 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
         <RoundResultModal
           roundNumber={room.game.roundNumber}
           winner={room.game.winner}
+          winningSymbol={room.game.winner}
+          mySymbol={mySymbol}
           isDraw={room.game.isDraw}
           matchWinner={room.status === 'completed' ? (room.game.winner ?? mySymbol) : null}
           isForfeit={Boolean(

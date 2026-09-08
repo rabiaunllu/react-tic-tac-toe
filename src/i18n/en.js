@@ -210,6 +210,8 @@ export default {
       timeoutTitle: '⏰ Time Out!',
       forfeitWinTitle: 'You Win!',
       forfeitWinDesc: 'Opponent disconnected. Victory is yours!',
+      forfeitLossTitle: 'Forfeit Defeat',
+      forfeitLossDesc: 'You were forfeited due to a connection timeout.',
       socialShareBtn: '📸 Share Score',
       socialShareCopied: '✓ Score Copied!',
     },

@@ -8,6 +8,7 @@ export default function RoundResultModal({
   roundNumber,
   winner,
   winningSymbol = winner,
+  mySymbol = null,
   isDraw,
   matchWinner,
   isForfeit = false,
@@ -52,6 +53,7 @@ export default function RoundResultModal({
   }, [])
 
   const displayedWinner = matchWinner ?? winner
+  const isMyVictory = mySymbol ? (displayedWinner === mySymbol || winningSymbol === mySymbol) : true
   const isTimeoutWin = Boolean(
     isTimeout ||
     resultMessage?.includes('Süresi Bitti') ||
@@ -77,7 +79,7 @@ export default function RoundResultModal({
   const isSingleAction = !showMenuButton
 
   const heading = isForfeitWin
-    ? (isTr ? 'HÜKMEN GALİBİYET' : 'FORFEIT VICTORY')
+    ? (isMyVictory ? (isTr ? 'HÜKMEN GALİBİYET' : 'FORFEIT VICTORY') : (isTr ? 'HÜKMEN MAĞLUBİYET' : 'FORFEIT DEFEAT'))
     : isTimeoutWin
       ? (isMatchOver ? (isTr ? 'MAÇ BİTTİ (SÜRE AŞIMI)' : 'MATCH OVER (TIME OUT)') : (isTr ? 'SÜRE BİTTİ' : 'TIME OUT'))
       : isMatchOver
@@ -87,18 +89,18 @@ export default function RoundResultModal({
   const resultLabel = isTimeoutWin
     ? (isTr ? `⏰ ${resultMessage || 'SÜRE AŞIMI'}` : `⏰ ${resultMessage || 'TIME OUT'}`)
     : isForfeitWin
-      ? (isTr ? '🏆 RAKİP OYUNDAN AYRILDI' : '🏆 OPPONENT FORFEITED')
+      ? (isMyVictory ? (isTr ? '🏆 RAKİP OYUNDAN AYRILDI' : '🏆 OPPONENT FORFEITED') : (isTr ? '⚠️ BAĞLANTI ZAMAN AŞIMI' : '⚠️ CONNECTION TIMED OUT'))
       : isDraw
         ? (isTr ? 'TUR BERABERE' : 'ROUND DRAW')
         : isMatchOver
           ? (isTr ? `${displayedWinner} MAÇI KAZANDI` : `${displayedWinner} WON THE MATCH`)
           : (isTr ? `${displayedWinner} TURU KAZANDI` : `${displayedWinner} WON THE ROUND`)
 
-  const symbol = isTimeoutWin ? '⏰' : isForfeitWin ? '🏆' : isDraw ? '=' : (winningSymbol || '🏆')
+  const symbol = isTimeoutWin ? '⏰' : isForfeitWin ? (isMyVictory ? '🏆' : '⚠️') : isDraw ? '=' : (winningSymbol || '🏆')
   const symbolModifier = isTimeoutWin
     ? (winningSymbol?.toLowerCase() || 'draw')
     : isForfeitWin
-      ? 'x'
+      ? (isMyVictory ? (winningSymbol?.toLowerCase() || 'x') : 'draw')
       : isDraw
         ? 'draw'
         : (winningSymbol?.toLowerCase() || 'x')
@@ -132,7 +134,7 @@ export default function RoundResultModal({
 
     const resultEmoji = isDraw ? '🤝' : isMatchOver ? '🏆' : '⚡'
     const resultLine = isForfeitWin
-      ? (isTr ? 'Hükmen Galibiyet!' : 'Forfeit Victory!')
+      ? (isMyVictory ? (isTr ? 'Hükmen Galibiyet!' : 'Forfeit Victory!') : (isTr ? 'Hükmen Mağlubiyet!' : 'Forfeit Defeat!'))
       : isDraw
         ? (isTr ? 'Tur Berabere!' : 'Round Draw!')
         : isMatchOver
@@ -191,7 +193,7 @@ export default function RoundResultModal({
   return (
     <div className="round-result-overlay" role="presentation">
       <div className="round-result-modal-wrapper">
-        {!isDraw && <WinConfetti active={true} />}
+        {!isDraw && isMyVictory && <WinConfetti active={true} />}
 
         <section
           className={`round-result-card round-result-card--${symbolModifier}`}
@@ -250,8 +252,8 @@ export default function RoundResultModal({
         <div className="round-result-message" id="round-result-message">
           {isForfeitWin ? (
             <>
-              <strong>{t('modals.roundResult.forfeitWinTitle')}</strong>
-              <small>{t('modals.roundResult.forfeitWinDesc')}</small>
+              <strong>{isMyVictory ? t('modals.roundResult.forfeitWinTitle') : t('modals.roundResult.forfeitLossTitle')}</strong>
+              <small>{isMyVictory ? t('modals.roundResult.forfeitWinDesc') : t('modals.roundResult.forfeitLossDesc')}</small>
             </>
           ) : Array.isArray(resultMessage) ? (
             <>

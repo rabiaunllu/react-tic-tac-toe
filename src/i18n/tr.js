@@ -210,6 +210,8 @@ export default {
       timeoutTitle: '⏰ Süre Doldu!',
       forfeitWinTitle: 'Sen Kazandın!',
       forfeitWinDesc: 'Rakip oyundan ayrıldığı için zafer senindir.',
+      forfeitLossTitle: 'Hükmen Mağlubiyet',
+      forfeitLossDesc: 'Bağlantınız koptuğu için süre aşımına uğradınız.',
       socialShareBtn: '📸 Skoru Paylaş',
       socialShareCopied: '✓ Skormatik Kopyalandı!',
     },
