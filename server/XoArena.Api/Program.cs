@@ -153,14 +153,20 @@ if (!app.Environment.IsDevelopment())
 }
 
 // SECURITY FIX (VULN-02 & SEC-02): Forward real client IP from X-Forwarded-For header.
-// Without clearing KnownNetworks/KnownProxies, reverse proxies (Azure App Service, Cloudflare)
-// cause X-Forwarded-For to be ignored, collapsing all players into one IP bucket.
+// When BehindReverseProxy is enabled (e.g. production behind Cloudflare, Azure App Service, or NGINX),
+// we clear KnownNetworks and KnownProxies so the proxy can reliably forward client IP.
+// If BehindReverseProxy is false (direct edge/dev access), ASP.NET Core retains strict default proxy checking
+// to prevent attackers from spoofing arbitrary X-Forwarded-For headers to bypass rate limits.
+var behindReverseProxy = builder.Configuration.GetValue<bool>("Security:BehindReverseProxy", true);
 var forwardedHeadersOptions = new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
 };
-forwardedHeadersOptions.KnownNetworks.Clear();
-forwardedHeadersOptions.KnownProxies.Clear();
+if (behindReverseProxy)
+{
+    forwardedHeadersOptions.KnownNetworks.Clear();
+    forwardedHeadersOptions.KnownProxies.Clear();
+}
 app.UseForwardedHeaders(forwardedHeadersOptions);
 
 // SECURITY FIX (SEC-04): Standard HTTP defense headers and iframe ancestor permissions for CrazyGames
