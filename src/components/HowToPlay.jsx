@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useTranslation } from '../i18n'
 
 const fallbackGameConfig = {
   boardSize: 3,
@@ -27,12 +28,27 @@ function RuleItem({ icon, title, children }) {
   )
 }
 
+function QuickReferencePower({ icon, title, description }) {
+  return (
+    <span
+      className="quick-reference-item"
+      tabIndex="0"
+      aria-label={`${title}: ${description}`}
+      data-description={description}
+    >
+      {icon} {title}
+    </span>
+  )
+}
+
 export default function HowToPlay({
   gameConfig = fallbackGameConfig,
   gameMode = gameConfig.gameMode ?? 'classic',
   arenaSettings = fallbackArenaSettings,
   onClose,
 }) {
+  const { t, language } = useTranslation()
+  const isTr = language === 'tr'
   const [openSection, setOpenSection] = useState(null)
   const lockedScrollYRef = useRef(null)
 
@@ -40,23 +56,20 @@ export default function HowToPlay({
     {
       id: 'basics',
       icon: '🎯',
-      title: 'Temel Kurallar',
+      title: t('rules.basicsTitle'),
       content: (
         <>
-          <RuleItem icon="🔵" title="Amaç">
-            Rakibinizden önce aynı sembolü (X veya O) belirtilen sayıda yan yana,
-            sütunda veya çaprazda dizerek kazanın.
+          <RuleItem icon="🔵" title={t('rules.basics.goalTitle')}>
+            {t('rules.basics.goalDesc')}
           </RuleItem>
-          <RuleItem icon="📐" title="Izgara Boyutları">
-            3x3 tahtada 3 taş, 4x4 ve 5x5 tahtada 4 taş yan yana kazandırır.
+          <RuleItem icon="📐" title={t('rules.basics.gridTitle')}>
+            {t('rules.basics.gridDesc')}
           </RuleItem>
-          <RuleItem icon="🔁" title="X / O Rotasyonu">
-            Her turda X ve O rolleri otomatik olarak değişir; kimse sürekli
-            avantajlı tarafta kalmaz.
+          <RuleItem icon="🔁" title={t('rules.basics.rotationTitle')}>
+            {t('rules.basics.rotationDesc')}
           </RuleItem>
-          <RuleItem icon="↩️" title="Güçler Sıfırlanır">
-            Her yeni tur başlangıcında tüm güçler sıfırdan verilir. Ancak puanlar
-            ve tur galibiyet sayısı korunur.
+          <RuleItem icon="↩️" title={t('rules.basics.resetTitle')}>
+            {t('rules.basics.resetDesc')}
           </RuleItem>
         </>
       ),
@@ -64,25 +77,25 @@ export default function HowToPlay({
     {
       id: 'modes',
       icon: '🏅',
-      title: 'Oyun Modları',
+      title: t('rules.modesTitle'),
       content: (
-        <div className="how-to-play-card-grid">
-          <article className="how-to-play-info-card">
-            <strong>Klasik Mod</strong>
+        <div className="how-to-play-card-grid how-to-play-mode-grid">
+          <article className="how-to-play-info-card how-to-play-mode-card">
+            <strong>{t('rules.modes.classicTitle')}</strong>
             <ul>
-              <li>Belirlenen tur sayısı kadar oynanır (3, 5, 7, 9 veya özel).</li>
-              <li>Her turu kazanan 1 tur galibiyeti alır.</li>
-              <li>Turların yarısından fazlasını kazanan maçı alır.</li>
-              <li>∞ seçilirse maç hiç bitmez; süresiz oynayabilirsiniz.</li>
+              <li>{t('rules.modes.classic1')}</li>
+              <li>{t('rules.modes.classic2')}</li>
+              <li>{t('rules.modes.classic3')}</li>
+              <li>{t('rules.modes.classic4')}</li>
             </ul>
           </article>
-          <article className="how-to-play-info-card arena">
-            <strong>Arena Modu</strong>
+          <article className="how-to-play-info-card how-to-play-mode-card arena">
+            <strong>{t('rules.modes.arenaTitle')}</strong>
             <ul>
-              <li>Her turun kazanan çizgisindeki çarpanlar puana eklenir.</li>
-              <li>Puanlar turdan tura birikir.</li>
-              <li>Hedef puana (15, 30, 50, 100 veya özel) ilk ulaşan kazanır.</li>
-              <li>∞ modda puan hedefi yoktur, birikmeye devam eder.</li>
+              <li>{t('rules.modes.arena1')}</li>
+              <li>{t('rules.modes.arena2')}</li>
+              <li>{t('rules.modes.arena3')}</li>
+              <li>{t('rules.modes.arena4')}</li>
             </ul>
           </article>
         </div>
@@ -91,125 +104,49 @@ export default function HowToPlay({
     {
       id: 'powers',
       icon: '⚡',
-      title: 'Özel Güçler',
+      title: t('rules.powersTitle'),
       content: (
         <>
-          <RuleItem icon="💣" title="Bomba">
-            Rakibinizin taşlarından birini patlat. Korumalı taşlara kullanılamaz.
+          <RuleItem icon="💣" title={t('rules.powers.bombTitle')}>
+            {t('rules.powers.bombDesc')}
           </RuleItem>
-          <RuleItem icon="🛡️" title="Kalkan">
-            Yerleştirdiğin taşı koru. Korumalı taş bombayla patlatılamaz.
+          <RuleItem icon="🛡️" title={t('rules.powers.shieldTitle')}>
+            {t('rules.powers.shieldDesc')}
           </RuleItem>
-          <RuleItem icon="⚡" title="Boost">
-            Yerleştirdiğin taşın hücre çarpanını 2 katına çıkarır.
+          <RuleItem icon="🕳️" title={t('rules.powers.trapTitle')}>
+            {t('rules.powers.trapDesc')}
           </RuleItem>
-          <RuleItem icon="🕳️" title="Kara Delik">
-            Boş bir kareye gizli Kara Delik kur. Rakip oraya taş koyarsa taşı
-            anında kaybolur ve sırası geçer. Kara Deliği sadece sen görürsün.
+          <RuleItem icon="❄️" title={t('rules.powers.freezeTitle')}>
+            {t('rules.powers.freezeDesc')}
           </RuleItem>
-          <div className="locked-power-note">
-            <strong>Ödüllü özel güçler:</strong> Joker normal Arena gücü değildir;
-            ileride PvC ödüllü özel güç olarak değerlendirilecek. Vampir: Rakibin
-            bir taşının çarpanını alıp kendi taşına ekler.
-          </div>
+          <RuleItem icon="🧛" title={t('rules.powers.vampireTitle')}>
+            {t('rules.powers.vampireDesc')}
+          </RuleItem>
         </>
       ),
     },
     {
-      id: 'multipliers',
-      icon: '🔢',
-      title: 'Çarpan Sistemi',
+      id: 'tactics',
+      icon: '💡',
+      title: t('rules.tacticsTitle'),
       content: (
         <>
-          <RuleItem icon="📊" title="Nasıl Çalışır?">
-            Her karedeki sayı (2x, 3x, 4x), o karede taşınız varken kazandığınızda
-            alacağınız puan çarpanıdır. Kazanan çizgideki tüm çarpanlar toplanır.
+          <RuleItem icon="🎯" title={t('rules.tactics.tip1Title')}>
+            {t('rules.tactics.tip1Desc')}
           </RuleItem>
-          <RuleItem icon="⚡" title="Boost Etkisi">
-            1x + 3x + 2x karelerden oluşan bir çizgiyle kazanırsanız 6 puan
-            alırsınız. Boost kullandıysanız o kare 2 katına çıkar.
+          <RuleItem icon="🛡️" title={t('rules.tactics.tip2Title')}>
+            {t('rules.tactics.tip2Desc')}
+          </RuleItem>
+          <RuleItem icon="✨" title={t('rules.tactics.tip3Title')}>
+            {t('rules.tactics.tip3Desc')}
           </RuleItem>
           {gameMode === 'arena' && (
             <div className="how-to-play-state-line">
-              Çarpanlar: {arenaSettings.multipliersEnabled ? 'Açık' : 'Kapalı'} ·
-              Güçler: {arenaSettings.powersEnabled ? 'Açık' : 'Kapalı'} ·
-              Boost: {arenaSettings.boostMode === 'random' ? 'Rastgele' : 'Seçimli'}
+              {isTr
+                ? `Çarpanlar: ${arenaSettings.multipliersEnabled ? 'Açık' : 'Kapalı'} · Güçler: ${arenaSettings.powersEnabled ? 'Açık' : 'Kapalı'}`
+                : `Multipliers: ${arenaSettings.multipliersEnabled ? 'ON' : 'OFF'} · Powers: ${arenaSettings.powersEnabled ? 'ON' : 'OFF'}`}
             </div>
           )}
-        </>
-      ),
-    },
-    {
-      id: 'ai',
-      icon: '🤖',
-      title: 'Yapay Zeka',
-      content: (
-        <>
-          <RuleItem icon="X" title="İnsan Oyuncu">
-            PvC modunda insan X olarak oynar.
-          </RuleItem>
-          <RuleItem icon="O" title="Bilgisayar">
-            Bilgisayar O oynar. Klasik modda taş koyar; Arena PvC modunda bomba,
-            kalkan, boost ve Kara Delik güçlerini kontrollü şekilde kullanabilir.
-          </RuleItem>
-        </>
-      ),
-    },
-    {
-      id: 'tournament',
-      icon: '⚔️',
-      title: 'Turnuva Modu',
-      content: (
-        <>
-          <RuleItem icon="🔒" title="Yakında">
-            2, 4 veya 6 oyuncu katılabilir. Her oyuncu bir isim alır.
-          </RuleItem>
-          <RuleItem icon="🎲" title="Takım Ataması">
-            Oyuncular rastgele veya manuel olarak Takım A ve Takım B'ye atanır.
-            Takımlar eşit sayıda oyuncu içermelidir.
-          </RuleItem>
-          <RuleItem icon="🔁" title="Maç Rotasyonu">
-            Her takımdan karşılıklı oyuncular birbirleriyle oynar. Her çift iki kez
-            oynar: bir kez A=X, bir kez B=X olarak. Böylece taraflar adil olur.
-          </RuleItem>
-          <RuleItem icon="🏆" title="Puanlama">
-            Galibiyet = 3 puan, beraberlik = 1 puan, mağlubiyet = 0. En yüksek
-            puanlı oyuncu MVP seçilir.
-          </RuleItem>
-          <RuleItem icon="🎮" title="Cihaz Paylaşımı">
-            Her maç öncesi “Cihazı oyuncuya verin” ekranı gösterilir. Bu şekilde
-            oyuncular birbirinin stratejisini görmez.
-          </RuleItem>
-        </>
-      ),
-    },
-    {
-      id: 'tips',
-      icon: '💡',
-      title: 'Strateji İpuçları',
-      content: (
-        <>
-          <RuleItem icon="🎯" title="Tehdit Kontrolü">
-            Yüksek çarpanlı kareleri (3x veya 4x) önce kapat ya da rakibini
-            oralardan uzak tut.
-          </RuleItem>
-          <RuleItem icon="⚡" title="Boost Zamanı">
-            Boost gücünü 3x kare üzerinde kullanırsan 6x puan alırsın; bu oyun
-            belirleyici olabilir.
-          </RuleItem>
-          <RuleItem icon="💣" title="Bomba">
-            Bombayı rakibin kazanacak hamlesini engellemek için kullan. Panikle harcama.
-          </RuleItem>
-          <RuleItem icon="🛡️" title="Kalkan">
-            Kalkanı yüksek çarpanlı bir kare üzerine koy; rakip oraya bomba atamaz.
-          </RuleItem>
-          <RuleItem icon="🕳️" title="Kara Delik">
-            Kara Deliği rakibin en çok tercih ettiği yüksek çarpanlı kareye kur;
-            fark etmeden basarsa sırası boşa gider.
-          </RuleItem>
-          <RuleItem icon="🔁" title="X/O Değişimi">
-            X/O değişimini unutma; bir sonraki turda hangi tarafta olacağını hesapla.
-          </RuleItem>
         </>
       ),
     },
@@ -263,12 +200,12 @@ export default function HowToPlay({
       >
         <div className="how-to-play-header">
           <div>
-            <span className="eyebrow">KURALLAR</span>
-            <h2 id="how-to-play-title">Nasıl Oynanır?</h2>
+            <span className="eyebrow">{isTr ? 'KURALLAR' : 'RULES'}</span>
+            <h2 id="how-to-play-title">{t('rules.title')}</h2>
           </div>
 
           <button type="button" className="panel-close-button" onClick={onClose}>
-            Kapat
+            {t('common.close')}
           </button>
         </div>
 
@@ -310,14 +247,13 @@ export default function HowToPlay({
           </div>
 
           <section className="rule-section quick-reference">
-            <h3>Hızlı Başvuru</h3>
+            <h3>{isTr ? 'Hızlı Başvuru' : 'Quick Reference'}</h3>
             <div className="quick-reference-list">
-              <span>💣 Bomba</span>
-              <span>🛡️ Kalkan</span>
-              <span>⚡ Boost</span>
-              <span>🕳️ Kara Delik</span>
-              <span>🔒🃏 Joker</span>
-              <span>🔒🧛 Vampir</span>
+              <QuickReferencePower icon="💣" title={t('powers.bomb.name')} description={t('powers.bomb.desc')} />
+              <QuickReferencePower icon="🛡️" title={t('powers.shield.name')} description={t('powers.shield.desc')} />
+              <QuickReferencePower icon="🕳️" title={t('powers.trap.name')} description={t('powers.trap.desc')} />
+              <QuickReferencePower icon="❄️" title={t('powers.freeze.name')} description={t('powers.freeze.desc')} />
+              <QuickReferencePower icon="🧛" title={t('powers.vampire.name')} description={t('powers.vampire.desc')} />
             </div>
           </section>
         </div>

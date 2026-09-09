@@ -1,28 +1,52 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 
-const contentSecurityPolicy =
-  "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
+function getApiOrigin(apiBaseUrl) {
+  if (!apiBaseUrl) {
+    return null
+  }
 
-const productionCspPlugin = {
-  name: 'production-csp',
-  apply: 'build',
-  transformIndexHtml() {
-    return [
-      {
-        tag: 'meta',
-        attrs: {
-          'http-equiv': 'Content-Security-Policy',
-          content: contentSecurityPolicy,
+  const apiUrl = new URL(apiBaseUrl)
+
+  if (!['http:', 'https:'].includes(apiUrl.protocol)) {
+    throw new Error('VITE_API_BASE_URL must use http or https.')
+  }
+
+  return apiUrl.origin
+}
+
+function productionCspPlugin(contentSecurityPolicy) {
+  return {
+    name: 'production-csp',
+    apply: 'build',
+    transformIndexHtml() {
+      return [
+        {
+          tag: 'meta',
+          attrs: {
+            'http-equiv': 'Content-Security-Policy',
+            content: contentSecurityPolicy,
+          },
+          injectTo: 'head-prepend',
         },
-        injectTo: 'head-prepend',
-      },
-    ]
-  },
+      ]
+    },
+  }
 }
 
 // https://vite.dev/config/
-export default defineConfig({
-  base: '/react-tic-tac-toe/',
-  plugins: [react(), productionCspPlugin],
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, '.', 'VITE_')
+  const base = env.VITE_BASE_PATH?.trim() || '/'
+  const apiOrigin = getApiOrigin(env.VITE_API_BASE_URL?.trim())
+  const connectSources = ["'self'", apiOrigin, 'https://*.crazygames.com', 'https://games.crazygames.com'].filter(Boolean).join(' ')
+  const contentSecurityPolicy =
+    "default-src 'self'; script-src 'self' https://sdk.crazygames.com; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+    "font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src " +
+    `${connectSources}; object-src 'none'; base-uri 'self'; form-action 'self'`
+
+  return {
+    base,
+    plugins: [react(), productionCspPlugin(contentSecurityPolicy)],
+  }
 })

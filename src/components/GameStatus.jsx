@@ -1,12 +1,16 @@
-export default function GameStatus({
+import { memo } from 'react'
+import { useTranslation } from '../i18n'
+
+const GameStatus = memo(function GameStatus({
   winner,
   isDraw,
-  xIsNext,
-  roundScore,
   resultMessage,
   loserMessage,
   matchWinner,
+  isAiThinking,
 }) {
+  const { t } = useTranslation()
+
   if (matchWinner) {
     return null
   }
@@ -18,9 +22,8 @@ export default function GameStatus({
       <div className="status winner result-status round-result">
         <span className="result-icon">{icon}</span>
         <div className="result-copy">
-          <strong>{winner} turu aldı</strong>
-          <span>+{roundScore} puan</span>
-          <small>{loserMessage || subtitle || title}</small>
+          <strong>{t('game.tookRound', { player: winner })}</strong>
+          <small>{loserMessage || (icon === '⏰' ? title : subtitle) || title}</small>
         </div>
       </div>
     )
@@ -41,13 +44,21 @@ export default function GameStatus({
   }
 
   if (isDraw) {
-    return <div className="status draw">Berabere.</div>
+    return <div className="status draw">{t('game.drawText')}</div>
   }
 
-  return (
-    <div className={`status live-status ${xIsNext ? 'x-turn' : 'o-turn'}`}>
-      <span className="live-status-kicker">Arena sırası</span>
-      <strong>{xIsNext ? 'X hücumda' : 'O hücumda'}</strong>
-    </div>
-  )
-}
+  if (isAiThinking) {
+    return (
+      <div className="status ai-thinking" aria-live="polite" aria-label={t('game.aiThinkingAria')}>
+        <span className="ai-thinking-dots" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </span>
+        {t('game.aiThinkingText')}
+      </div>
+    )
+  }
+
+  return null
+})
+
+export default GameStatus

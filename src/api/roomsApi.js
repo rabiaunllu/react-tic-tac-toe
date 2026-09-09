@@ -1,0 +1,164 @@
+const DEFAULT_API_BASE_URL = 'http://localhost:5150'
+const configuredApiBaseUrl = import.meta.env?.VITE_API_BASE_URL?.trim()
+const onlineFlag = import.meta.env?.VITE_ENABLE_ONLINE?.trim().toLowerCase()
+const isOnlineFlagEnabled = onlineFlag === 'true' || (!import.meta.env?.PROD && !onlineFlag)
+const hasConfiguredApiBaseUrl = Boolean(configuredApiBaseUrl)
+const isCrazyGamesHost =
+  typeof window !== 'undefined' &&
+  (window.location.hostname.includes('crazygames') ||
+   (typeof document !== 'undefined' && document.referrer?.includes('crazygames')))
+const canUseSameOriginApi = Boolean(import.meta.env?.PROD && !hasConfiguredApiBaseUrl && !isCrazyGamesHost)
+
+export const API_BASE_URL = (
+  configuredApiBaseUrl ||
+  (import.meta.env?.DEV ? DEFAULT_API_BASE_URL : '')
+).replace(/\/+$/, '')
+export const IS_ONLINE_ENABLED =
+  isOnlineFlagEnabled && (Boolean(import.meta.env?.DEV) || hasConfiguredApiBaseUrl || canUseSameOriginApi)
+export const ONLINE_UNAVAILABLE_MESSAGE = 'Online mod yakında açılacak.'
+
+export class RoomRequestError extends Error {
+  constructor(message, { status = 0 } = {}) {
+    super(message)
+    this.name = 'RoomRequestError'
+    this.status = status
+  }
+}
+
+export function isRoomNotFoundError(error) {
+  return error instanceof RoomRequestError && error.status === 404
+}
+
+export function isConnectionError(error) {
+  return error instanceof RoomRequestError && error.status === 0
+}
+
+export function getRoomStatusText(status, isTr = true) {
+  const statusMap = isTr
+    ? {
+        waiting: 'Rakip bekleniyor',
+        ready: 'Oyun hazır',
+        playing: 'Maç devam ediyor',
+        completed: 'Tamamlandı',
+      }
+    : {
+        waiting: 'Waiting for opponent',
+        ready: 'Game ready',
+        playing: 'Match in progress',
+        completed: 'Completed',
+      }
+
+  return statusMap[status] ?? (isTr ? 'Durum bilinmiyor' : 'Unknown status')
+}
+
+export async function requestRoomJson(path, options = {}) {
+  let response
+
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+      ...options,
+    })
+  } catch {
+    throw new RoomRequestError('Bağlantı kurulamadı. Tekrar deneniyor...')
+  }
+
+  if (!response.ok) {
+    let errorCode
+
+    try {
+      const errorBody = await response.clone().json()
+      errorCode = String(errorBody.error ?? '')
+    } catch {
+      errorCode = ''
+    }
+
+    if (response.status === 403) {
+      throw new RoomRequestError('Bu oda işlemi için yetkiniz yok.', { status: response.status })
+    }
+
+    if (response.status === 404) {
+      throw new RoomRequestError('Oda bulunamadı. Kodu kontrol et.', { status: response.status })
+    }
+
+    if (response.status === 400) {
+      throw new RoomRequestError('Eksik veya hatalı bilgi var. Oyuncu adını ve oda ayarlarını kontrol et.', {
+        status: response.status,
+      })
+    }
+
+    if (response.status === 409) {
+      const normalizedError = String(errorCode ?? '').toLowerCase()
+
+      if (normalizedError.includes('game is not finished')) {
+        throw new RoomRequestError('Oyun henüz tamamlanmadı.', { status: response.status })
+      }
+
+      if (normalizedError.includes('full')) {
+        throw new RoomRequestError('Bu oda dolu.', { status: response.status })
+      }
+
+      if (normalizedError.includes('not accepting')) {
+        throw new RoomRequestError('Oda yeni katılan oyuncu kabul etmiyor.', { status: response.status })
+      }
+
+      if (errorCode && !/^[a-z\s]+$/i.test(errorCode) && errorCode.includes(' ')) {
+        // Safe custom Turkish error string passed directly from server
+        throw new RoomRequestError(errorCode, { status: response.status })
+      }
+
+      const powerErrorMessages = [
+        ['occupied square', 'Bomba için dolu bir kare seç.'],
+        ['shielded stones', 'Kalkanlı taş bombalanamaz.'],
+        ['your own stone', 'Kalkanı kendi taşına koyabilirsin.'],
+        ['already shielded', 'Bu taş zaten kalkanlı.'],
+        ['boost needs', 'Boost için boş bir kare seç.'],
+        ['already boosted', 'Bu kare zaten boostlu.'],
+        ['black hole needs', 'Kara Delik için boş bir kare seç.'],
+        ['contains a black hole', 'Bu hedef uygun değil.'],
+        ['already been used', 'Bu güç hakkın kalmadı.'],
+        ["not this player's turn", 'Şu anda sıra sende değil.'],
+      ]
+      const powerError = powerErrorMessages.find(([key]) => normalizedError.includes(key))
+
+      if (powerError) {
+        throw new RoomRequestError(powerError[1], { status: response.status })
+      }
+
+      throw new RoomRequestError('Oda şu anda bu işleme uygun değil.', { status: response.status })
+    }
+
+    throw new RoomRequestError('Beklenmeyen bir hata oluştu. Biraz sonra tekrar deneyin.', {
+      status: response.status,
+    })
+  }
+
+  return response.json()
+}
+
+export function startRoom(roomCode, playerId, playerSecret) {
+  const safeCode = encodeURIComponent(String(roomCode ?? '').trim())
+  return requestRoomJson(`/api/rooms/${safeCode}/start`, {
+    method: 'POST',
+    body: JSON.stringify({ playerId, playerSecret }),
+  })
+}
+
+export function leaveRoom(roomCode, playerId, playerSecret, options = {}) {
+  const safeCode = encodeURIComponent(String(roomCode ?? '').trim())
+  return requestRoomJson(`/api/rooms/${safeCode}/leave`, {
+    method: 'POST',
+    body: JSON.stringify({ playerId, playerSecret, isSurrender: Boolean(options.isSurrender) }),
+  })
+}
+
+export function timeoutRoom(roomCode, playerId, playerSecret) {
+  const safeCode = encodeURIComponent(String(roomCode ?? '').trim())
+  return requestRoomJson(`/api/rooms/${safeCode}/timeout`, {
+    method: 'POST',
+    body: JSON.stringify({ playerId, playerSecret }),
+  })
+}

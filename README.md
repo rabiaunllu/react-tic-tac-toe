@@ -1,5 +1,21 @@
 # XO Arena
 
+## Commercial Azure deployment
+
+A single Azure App Service hosts both the ASP.NET Core API and the React frontend for commercial production. GitHub Pages is retained for its current site and is not the production path. See [Azure deployment guide](docs/AZURE_DEPLOYMENT.md) for the build, publish, deployment, and smoke-test steps.
+
+## Search indexing
+
+The production build includes `/robots.txt` and `/sitemap.xml` for the single App Service host. The checked-in URLs use `https://xo-arena.azurewebsites.net`; after deploying to a different App Service hostname or a custom domain, update the URL in `public/robots.txt`, `public/sitemap.xml`, and the `og:url` value in `index.html`, then rebuild and redeploy.
+
+To request indexing in Google Search Console:
+
+1. Add and verify the exact production site property, such as `https://xo-arena.azurewebsites.net/`.
+2. In **Sitemaps**, submit `https://xo-arena.azurewebsites.net/sitemap.xml`.
+3. Use **URL Inspection** for the home page and select **Request indexing**.
+
+Google does not guarantee immediate indexing; crawling and search visibility can take time. Repeat the URL and sitemap updates when a custom domain is introduced.
+
 XO Arena, klasik Tic Tac Toe mantığını Arena modu, özel güçler, çarpanlı hücreler ve puan hedefleriyle genişletmeyi amaçlayan bir React oyun projesidir.
 
 ## Oyun Modları
@@ -83,4 +99,4 @@ Skor korunur; sadece oyun tahtası, sıra, aktif güçler, kalkanlar, boostlar v
 - Turnuva mantığı
 
 ###
-hepimizn bildiği klasik xox oyunun kurallarını bastan yazdıgımız xo arena işte karşınızda. beyin gucumuzu sonuna kadra aktif edeceğimiz, özel güçlerimizle kendi stratejimi geliştirceğimiz, rekabeti sevenler için işte karşınızd arena. 
+hepimizn bildiği klasik xox oyunun kurallarını bastan yazdıgımız xo arena işte karşınızda. beyin gucumuzu sonuna kadra aktif edeceğimiz, özel güçlerimizle kendi stratejimi geliştirceğimiz, rekabeti sevenler için işte karşınızd arena.

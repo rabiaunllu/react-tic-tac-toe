@@ -6,10 +6,12 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "publish:azure": "powershell -ExecutionPolicy Bypass -File ./scripts/Publish-AppService.ps1",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@microsoft/signalr": "^10.0.11",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },
