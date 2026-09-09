@@ -83,23 +83,29 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0
             }));
 
-    // Oda oluşturma: daha sıkı (spam ile yüzlerce oda açılmasın)
-    options.AddFixedWindowLimiter("create-room", opt =>
-    {
-        opt.PermitLimit = createRoomPermits;
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        opt.QueueLimit = 0;
-    });
+    // Oda oluşturma: IP bazında sınırlandırılır (tek bir IP spam ile havuzu tüketmesin)
+    options.AddPolicy("create-room", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = createRoomPermits,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }));
 
-    // Hamle endpoint'i: daha geniş (aktif oyun sırasında yoğun trafik normal)
-    options.AddFixedWindowLimiter("move", opt =>
-    {
-        opt.PermitLimit = movePermits;
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        opt.QueueLimit = 0;
-    });
+    // Hamle endpoint'i: IP bazında sınırlandırılır (aktif oyuncunun meşru trafiği engellenmez, tek bir saldırgan diğer odaları kilitleyemez)
+    options.AddPolicy("move", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = movePermits,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }));
 
     // Oda kodu denemeleri IP bazında sınırlandırılır. Bu, kod tarayan botların
     // özel odaları kaba kuvvetle bulmasını engeller.
@@ -146,13 +152,24 @@ if (!app.Environment.IsDevelopment())
     app.UseStaticFiles();
 }
 
-// SECURITY FIX (VULN-02): Forward real client IP from X-Forwarded-For header.
-// Without this, rate limiting partitions by the proxy's IP, meaning all players
-// worldwide share the same rate limit bucket when behind a reverse proxy.
-// Must be called BEFORE UseRateLimiter to ensure correct IP resolution.
-app.UseForwardedHeaders(new ForwardedHeadersOptions
+// SECURITY FIX (VULN-02 & SEC-02): Forward real client IP from X-Forwarded-For header.
+// Without clearing KnownNetworks/KnownProxies, reverse proxies (Azure App Service, Cloudflare)
+// cause X-Forwarded-For to be ignored, collapsing all players into one IP bucket.
+var forwardedHeadersOptions = new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+};
+forwardedHeadersOptions.KnownNetworks.Clear();
+forwardedHeadersOptions.KnownProxies.Clear();
+app.UseForwardedHeaders(forwardedHeadersOptions);
+
+// SECURITY FIX (SEC-04): Standard HTTP defense headers and iframe ancestor permissions for CrazyGames
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    context.Response.Headers["Content-Security-Policy"] = "frame-ancestors 'self' https://*.crazygames.com https://games.crazygames.com https://www.crazygames.com;";
+    await next();
 });
 
 app.UseCors("Frontend");
@@ -278,7 +295,7 @@ app.MapPost("/api/rooms/{roomCode}/leave", async (
     }
 
     return Results.StatusCode(StatusCodes.Status403Forbidden);
-});
+}).RequireRateLimiting("move");
 
 app.MapPost("/api/rooms/{roomCode}/moves", async (
     string roomCode,
@@ -385,7 +402,7 @@ app.MapPost("/api/rooms/{roomCode}/start", async (
         }),
         _ => Results.Problem("Unexpected start room result.")
     };
-});
+}).RequireRateLimiting("move");
 
 app.MapPost("/api/rooms/{roomCode}/next-round", async (
     string roomCode,
@@ -419,7 +436,7 @@ app.MapPost("/api/rooms/{roomCode}/next-round", async (
         }),
         _ => Results.Problem("Unexpected next round result.")
     };
-});
+}).RequireRateLimiting("move");
 
 app.MapPost("/api/rooms/{roomCode}/timeout", async (
     string roomCode,
@@ -454,7 +471,7 @@ app.MapPost("/api/rooms/{roomCode}/timeout", async (
         }),
         _ => Results.Problem("Unexpected timeout result.")
     };
-});
+}).RequireRateLimiting("move");
 
 /// <summary>
 /// Centralized, defensive helper to broadcast sanitized game room state DTO to the SignalR group.
@@ -504,9 +521,9 @@ static Dictionary<string, string[]> ValidateCreateRoomRequest(CreateRoomRequest 
         errors["gameMode"] = ["Game mode must be classic or arena."];
     }
 
-    if (request.TargetValue <= 0)
+    if (request.TargetValue <= 0 || request.TargetValue > 100)
     {
-        errors["targetValue"] = ["Target value must be positive."];
+        errors["targetValue"] = ["Target value must be between 1 and 100."];
     }
 
     if (!string.IsNullOrWhiteSpace(request.GameMode)

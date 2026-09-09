@@ -97,6 +97,7 @@ const Board = memo(function Board({
           <Square
             key={index}
             index={index}
+            boardSize={safeBoardSize}
             value={square}
             multiplier={multipliers[index]}
             isWinningSquare={winningLine?.includes(index)}

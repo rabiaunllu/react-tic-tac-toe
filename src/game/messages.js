@@ -77,6 +77,39 @@ export function translateResultMessage(message, lang = 'tr') {
 
   if (Array.isArray(message)) {
     const icon = message[0]
+    if (icon === '⏰') {
+      const meta = message[3]
+      if (meta && meta.type === 'timeout') {
+        const { timedOutPlayerName, winnerName } = meta
+        const displayTimedOut = targetLang === 'en'
+          ? (timedOutPlayerName === 'Oyuncu' ? 'Player' : timedOutPlayerName)
+          : (timedOutPlayerName === 'Player' ? 'Oyuncu' : timedOutPlayerName)
+        const displayWinner = targetLang === 'en'
+          ? (winnerName === 'Oyuncu' ? 'Player' : winnerName)
+          : (winnerName === 'Player' ? 'Oyuncu' : winnerName)
+
+        return targetLang === 'en'
+          ? ['⏰', `${displayTimedOut}'s time ran out!`, `Round won by ${displayWinner}.`, meta]
+          : ['⏰', `${displayTimedOut} Süresi Bitti!`, `Turu ${displayWinner} kazandı.`, meta]
+      }
+      if (typeof message[1] === 'string') {
+        const matchTr = message[1].match(/^(.*?)\s*Süresi Bitti!/i)
+        const matchEn = message[1].match(/^(.*?)(?:'s time ran out!| Time Is Up!| Timed Out!)/i)
+        let rawPlayer = matchTr ? matchTr[1] : (matchEn ? matchEn[1] : 'Player')
+        if (targetLang === 'en' && rawPlayer === 'Oyuncu') rawPlayer = 'Player'
+        if (targetLang === 'tr' && rawPlayer === 'Player') rawPlayer = 'Oyuncu'
+
+        const subMatchTr = typeof message[2] === 'string' ? message[2].match(/^Turu\s*(.*?)\s*kazandı\./i) : null
+        const subMatchEn = typeof message[2] === 'string' ? message[2].match(/^Round won by\s*(.*?)\./i) : null
+        let rawWinner = subMatchTr ? subMatchTr[1] : (subMatchEn ? subMatchEn[1] : 'Bot')
+        if (targetLang === 'en' && rawWinner === 'Oyuncu') rawWinner = 'Player'
+        if (targetLang === 'tr' && rawWinner === 'Player') rawWinner = 'Oyuncu'
+
+        return targetLang === 'en'
+          ? ['⏰', `${rawPlayer}'s time ran out!`, `Round won by ${rawWinner}.`]
+          : ['⏰', `${rawPlayer} Süresi Bitti!`, `Turu ${rawWinner} kazandı.`]
+      }
+    }
     const winIdx = WINNER_MESSAGES_TR.findIndex((m) => m[0] === icon)
     if (winIdx !== -1) {
       return targetLang === 'en' ? WINNER_MESSAGES_EN[winIdx] : WINNER_MESSAGES_TR[winIdx]

@@ -433,7 +433,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
     registerUserGesture()
 
     if (!canMove || isPowerPendingRef.current || isMovePendingRef.current || arenaPowerTargets.boost.length === 0) {
-      setActionError('Bu hedef uygun değil.')
+      setActionError(isTr ? 'Bu hedef uygun değil.' : 'Invalid target.')
       return
     }
 
@@ -453,15 +453,15 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
 
       if ((playerPowers[playerId]?.[activePower] ?? 0) <= 0) {
         setActivePower(null)
-        setActionError('Bu güç bitti.')
+        setActionError(isTr ? 'Bu güç bitti.' : 'Power depleted.')
         return
       }
 
       if (!activePowerTargets.includes(index)) {
         setActionError(
           activePower === 'bomb' || activePower === 'shield'
-            ? 'Önce uygun bir taş seç.'
-            : 'Bu hedef uygun değil.'
+            ? (isTr ? 'Önce uygun bir taş seç.' : 'Select an eligible mark first.')
+            : (isTr ? 'Bu hedef uygun değil.' : 'Invalid target.')
         )
         return
       }

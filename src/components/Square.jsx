@@ -6,6 +6,7 @@ import { useTranslation } from '../i18n'
 
 const Square = memo(function Square({
   index,
+  boardSize = 3,
   value,
   multiplier,
   isWinningSquare,
@@ -26,6 +27,14 @@ const Square = memo(function Square({
 }) {
   const { language } = useTranslation()
   const isTr = language === 'tr'
+
+  const size = boardSize || 3
+  const row = Math.floor(index / size) + 1
+  const col = (index % size) + 1
+  const posText = isTr ? `Satır ${row}, Sütun ${col}` : `Row ${row}, Column ${col}`
+  const defaultLabel = value
+    ? `${posText}: ${value} ${isTr ? 'taşı' : 'mark'}`
+    : `${posText}: ${isTr ? 'Boş' : 'Empty'}`
 
   const className = [
     'square',
@@ -57,10 +66,10 @@ const Square = memo(function Square({
       disabled={isLocked || isFrozen}
       aria-label={
         isFrozen
-          ? (isTr ? 'Donmuş kare' : 'Frozen cell')
+          ? (isTr ? `${posText}: Donmuş kare` : `${posText}: Frozen cell`)
           : isPowerTarget
-            ? (isTr ? `${powerTargetLabel ?? 'Güç'} için uygun kare` : `Eligible cell for ${powerTargetLabel ?? 'Power'}`)
-            : undefined
+            ? (isTr ? `${posText}: ${powerTargetLabel ?? 'Güç'} için uygun kare` : `${posText}: Eligible cell for ${powerTargetLabel ?? 'Power'}`)
+            : defaultLabel
       }
     >
       {multiplier && <span className="multiplier-badge">{multiplier}x</span>}

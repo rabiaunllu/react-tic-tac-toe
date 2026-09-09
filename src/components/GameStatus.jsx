@@ -23,7 +23,7 @@ const GameStatus = memo(function GameStatus({
         <span className="result-icon">{icon}</span>
         <div className="result-copy">
           <strong>{t('game.tookRound', { player: winner })}</strong>
-          <small>{loserMessage || subtitle || title}</small>
+          <small>{loserMessage || (icon === '⏰' ? title : subtitle) || title}</small>
         </div>
       </div>
     )

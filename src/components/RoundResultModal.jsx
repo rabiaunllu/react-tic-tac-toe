@@ -56,21 +56,25 @@ export default function RoundResultModal({
   const isMyVictory = mySymbol ? (displayedWinner === mySymbol || winningSymbol === mySymbol) : true
   const isTimeoutWin = Boolean(
     isTimeout ||
-    resultMessage?.includes('Süresi Bitti') ||
-    resultMessage?.includes('Süren Bitti') ||
-    resultMessage?.includes('Timed Out') ||
-    resultMessage?.includes('Time Is Up')
+    (typeof resultMessage === 'string' && (
+      resultMessage.includes('Süresi Bitti') ||
+      resultMessage.includes('Süren Bitti') ||
+      resultMessage.includes('Timed Out') ||
+      resultMessage.includes('Time Is Up')
+    ))
   )
   const isForfeitWin = Boolean(
     !isTimeoutWin && (
       isForfeit ||
-      resultMessage?.includes('ayrıldı') ||
-      resultMessage?.includes('Pes Etti') ||
-      resultMessage?.includes('çekildi') ||
-      resultMessage?.includes('Hükmen') ||
-      resultMessage?.includes('hükmen') ||
-      resultMessage?.includes('forfeit') ||
-      resultMessage?.includes('left')
+      (typeof resultMessage === 'string' && (
+        resultMessage.includes('ayrıldı') ||
+        resultMessage.includes('Pes Etti') ||
+        resultMessage.includes('çekildi') ||
+        resultMessage.includes('Hükmen') ||
+        resultMessage.includes('hükmen') ||
+        resultMessage.includes('forfeit') ||
+        resultMessage.includes('left')
+      ))
     )
   )
   const isMatchOver = Boolean(matchWinner) || isForfeitWin
@@ -86,8 +90,15 @@ export default function RoundResultModal({
         ? (isTr ? 'MAÇ SONUCU' : 'MATCH RESULT')
         : (isTr ? `TUR ${roundNumber} SONUCU` : `ROUND ${roundNumber} RESULT`)
 
+  const getTimeoutLabel = () => {
+    if (typeof resultMessage === 'string' && resultMessage.trim()) {
+      return resultMessage.startsWith('⏰') ? resultMessage : `⏰ ${resultMessage}`
+    }
+    return isTr ? '⏰ SÜRE AŞIMI' : '⏰ TIME OUT'
+  }
+
   const resultLabel = isTimeoutWin
-    ? (isTr ? `⏰ ${resultMessage || 'SÜRE AŞIMI'}` : `⏰ ${resultMessage || 'TIME OUT'}`)
+    ? getTimeoutLabel()
     : isForfeitWin
       ? (isMyVictory ? (isTr ? '🏆 RAKİP OYUNDAN AYRILDI' : '🏆 OPPONENT FORFEITED') : (isTr ? '⚠️ BAĞLANTI ZAMAN AŞIMI' : '⚠️ CONNECTION TIMED OUT'))
       : isDraw

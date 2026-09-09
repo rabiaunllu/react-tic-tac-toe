@@ -38,6 +38,8 @@ export default class ErrorBoundary extends Component {
       return this.props.children
     }
 
+    const isTr = typeof document !== 'undefined' && document.documentElement.lang === 'tr'
+
     return (
       <main className="app-shell" style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <section
@@ -46,12 +48,12 @@ export default class ErrorBoundary extends Component {
         >
           <div style={{ fontSize: '3.5rem', marginBottom: '1rem' }}>⚠️</div>
           <h2 style={{ marginBottom: '0.5rem', color: 'var(--text-primary, #e2e8f0)' }}>
-            Beklenmeyen Bir Hata
+            {isTr ? 'Beklenmeyen Bir Hata' : 'Unexpected Error'}
           </h2>
           <p style={{ color: 'var(--text-secondary, #94a3b8)', marginBottom: '2rem', lineHeight: 1.6 }}>
-            Uygulama beklenmedik bir sorunla karşılaştı.
+            {isTr ? 'Uygulama beklenmedik bir sorunla karşılaştı.' : 'The game encountered an unexpected issue.'}
             <br />
-            Sayfayı yenileyerek veya menüye dönerek devam edebilirsin.
+            {isTr ? 'Sayfayı yenileyerek veya menüye dönerek devam edebilirsin.' : 'You can continue by reloading or continuing.'}
           </p>
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
             <button
@@ -59,14 +61,14 @@ export default class ErrorBoundary extends Component {
               className="start-game-button"
               onClick={() => window.location.reload()}
             >
-              🔄 Sayfayı Yenile
+              🔄 {isTr ? 'Sayfayı Yenile' : 'Reload Page'}
             </button>
             <button
               type="button"
               className="viral-btn-secondary"
               onClick={this.handleReset}
             >
-              ← Devam Et
+              ← {isTr ? 'Devam Et' : 'Continue'}
             </button>
           </div>
         </section>
