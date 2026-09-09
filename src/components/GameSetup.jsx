@@ -127,6 +127,9 @@ export default function GameSetup({
   const [onlineBoostMode] = useState('random')
   const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false)
 
+  const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000
+  const [nowTimestamp, setNowTimestamp] = useState(() => Date.now())
+
   // Skin / Cosmetic state
   const [selectedSkin, setSelectedSkin] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -141,13 +144,23 @@ export default function GameSetup({
         const saved = window.localStorage.getItem('xo-unlocked-skins')
         if (saved) {
           const parsed = JSON.parse(saved)
-          if (Array.isArray(parsed)) return parsed
+          if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+            return parsed
+          }
+          if (Array.isArray(parsed)) {
+            const map = { neon: true }
+            const initialNow = Date.now()
+            parsed.forEach((id) => {
+              map[id] = initialNow + TWENTY_FOUR_HOURS_MS
+            })
+            return map
+          }
         }
       } catch {
         // ignore parse error
       }
     }
-    return ['neon']
+    return { neon: true }
   })
 
   const [pendingUnlockSkin, setPendingUnlockSkin] = useState(null)
@@ -156,8 +169,21 @@ export default function GameSetup({
 
   function isSkinUnlocked(skinId) {
     const skinObj = SKINS.find((s) => s.id === skinId)
-    return Boolean(skinObj?.isFree || unlockedSkins.includes(skinId))
+    if (skinObj?.isFree) return true
+    const expiresAt = unlockedSkins[skinId]
+    if (!expiresAt) return false
+    return typeof expiresAt === 'number' && expiresAt > nowTimestamp
   }
+
+  function getSkinRemainingHours(skinId) {
+    const expiresAt = unlockedSkins[skinId]
+    if (!expiresAt || typeof expiresAt !== 'number') return null
+    const diffMs = expiresAt - nowTimestamp
+    if (diffMs <= 0) return null
+    return Math.ceil(diffMs / (1000 * 60 * 60))
+  }
+
+  const activeSkinId = isSkinUnlocked(selectedSkin) ? selectedSkin : 'neon'
 
   function handleSelectSkin(skin) {
     registerUserGesture()
@@ -193,7 +219,13 @@ export default function GameSetup({
       },
       onAdFinished: () => {
         setIsUnlockingSkin(false)
-        const newUnlocked = Array.from(new Set([...unlockedSkins, pendingUnlockSkin.id]))
+        const currentNow = Date.now()
+        setNowTimestamp(currentNow)
+        const expiresAt = currentNow + TWENTY_FOUR_HOURS_MS
+        const newUnlocked = {
+          ...unlockedSkins,
+          [pendingUnlockSkin.id]: expiresAt,
+        }
         setUnlockedSkins(newUnlocked)
         if (typeof window !== 'undefined') {
           window.localStorage.setItem('xo-unlocked-skins', JSON.stringify(newUnlocked))
@@ -213,12 +245,18 @@ export default function GameSetup({
     })
   }
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    document.body.setAttribute('data-skin', activeSkinId)
+  }, [activeSkinId])
+
   function renderSkinOptionsRow() {
     return (
       <div className="skin-options-row">
         {SKINS.map((skin) => {
-          const isActive = selectedSkin === skin.id
+          const isActive = activeSkinId === skin.id
           const isUnlocked = isSkinUnlocked(skin.id)
+          const remainingHours = !skin.isFree && isUnlocked ? getSkinRemainingHours(skin.id) : null
 
           return (
             <button
@@ -228,7 +266,9 @@ export default function GameSetup({
               onClick={() => handleSkinClick(skin)}
               title={
                 isUnlocked
-                  ? t(`skins.${skin.id}`) || skin.name
+                  ? skin.isFree
+                    ? (t(`skins.${skin.id}`) || skin.name)
+                    : `${t(`skins.${skin.id}`) || skin.name} (${t('skinUnlock.hoursRemaining', { hours: remainingHours || 24 })})`
                   : `${t(`skins.${skin.id}`) || skin.name} (${t('skinUnlock.locked')})`
               }
             >
@@ -239,6 +279,11 @@ export default function GameSetup({
               {!isUnlocked && (
                 <span className="skin-lock-badge" aria-label={t('skinUnlock.locked')}>
                   🔒
+                </span>
+              )}
+              {!skin.isFree && isUnlocked && (
+                <span className="skin-pass-badge" title={t('skinUnlock.hoursRemaining', { hours: remainingHours || 24 })}>
+                  ⏱️
                 </span>
               )}
             </button>

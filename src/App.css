@@ -7677,6 +7677,16 @@ body[data-skin="ice"] .o-mark-square .square-value {
   padding: 2px 4px;
 }
 
+.skin-pass-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  line-height: 1;
+  margin-left: 3px;
+  opacity: 0.9;
+}
+
 /* Modal Overlay & Card */
 .skin-unlock-overlay {
   z-index: 100;
