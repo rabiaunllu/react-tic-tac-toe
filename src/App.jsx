@@ -1893,16 +1893,7 @@ export default function App() {
     writeOnlineSession(session)
   }
 
-  function handleNextRound() {
-    registerUserGesture()
-    playSound('click')
-    // Asla oyun esnasında çıkmaz; sadece her 3 turda bir (3, 6, 9...) tur bitiminde gösterilir:
-    if (roundNumber % 3 === 0) {
-      requestMidgameAd({
-        onAdStarted: () => setAdMuted(true),
-        onAdFinished: () => setAdMuted(false),
-      })
-    }
+  function proceedToNextRound() {
     const nextRound = roundNumber + 1
     // Oyuna HER TURDA DAİMA X başlar; Yan Yana modda oyuncular sırayla X ve O olurlar
     resetGame(arenaSettings, gameMode)
@@ -1915,16 +1906,29 @@ export default function App() {
     setIsRoundResultDismissed(false)
   }
 
-  function handleNewMatch() {
+  function handleNextRound() {
     registerUserGesture()
     playSound('click')
-    // Maç bittiğinde en az 3 tur oynandıysa göster
-    if (roundNumber >= 3) {
+    // Asla oyun esnasında çıkmaz; sadece her 3 turda bir (3, 6, 9...) tur bitiminde gösterilir.
+    // Yeni tur, süre sayacı ve bot hamlesi SADECE reklam tamamen bittiğinde başlar!
+    if (roundNumber % 3 === 0) {
       requestMidgameAd({
         onAdStarted: () => setAdMuted(true),
-        onAdFinished: () => setAdMuted(false),
+        onAdFinished: () => {
+          setAdMuted(false)
+          proceedToNextRound()
+        },
+        onAdError: () => {
+          setAdMuted(false)
+          proceedToNextRound()
+        },
       })
+    } else {
+      proceedToNextRound()
     }
+  }
+
+  function proceedToNewMatch() {
     setTimeoutWinner(null)
     turnDeadlineRef.current = null
     lastTurnKeyRef.current = ''
@@ -1957,6 +1961,27 @@ export default function App() {
     setIsRewarding(false)
     setRewardedPowerMessage('')
     setIsRewardedPowerPickerOpen(false)
+  }
+
+  function handleNewMatch() {
+    registerUserGesture()
+    playSound('click')
+    // Maç bittiğinde en az 3 tur oynandıysa reklam göster; yeni maç reklam bitince başlar
+    if (roundNumber >= 3) {
+      requestMidgameAd({
+        onAdStarted: () => setAdMuted(true),
+        onAdFinished: () => {
+          setAdMuted(false)
+          proceedToNewMatch()
+        },
+        onAdError: () => {
+          setAdMuted(false)
+          proceedToNewMatch()
+        },
+      })
+    } else {
+      proceedToNewMatch()
+    }
   }
 
   function handleResetScores() {
