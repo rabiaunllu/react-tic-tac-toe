@@ -4,7 +4,7 @@
  * Gracefully falls back to no-op when running locally or on other platforms.
  */
 
-export const ENABLE_CRAZYGAMES = false
+export const ENABLE_CRAZYGAMES = true
 
 let isSdkInitialized = false
 let isSdkInitializing = false
