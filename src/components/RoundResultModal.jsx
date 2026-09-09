@@ -153,7 +153,7 @@ export default function RoundResultModal({
           : (isTr ? `${displayedWinner} Turu Kazandı!` : `${displayedWinner} Won the Round!`)
 
     const shareLines = [
-      `⚡ XO ARENA ${resultEmoji}`,
+      `⚡ XO TACTIX ${resultEmoji}`,
       `${modeEmoji} Mod: ${modeLabel} (${boardLabel})`,
       `🎮 ${resultLine}`,
       `📊 Skor: ${p1ScoreVal} - ${p2ScoreVal} ${streakText}`.trim(),

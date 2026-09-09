@@ -38,7 +38,8 @@ public sealed class RoomsHub : Hub
 
         if (room is null)
         {
-            throw new HubException("Room not found.");
+            _logger.LogInformation("JoinRoomGroup: Room {RoomCode} not found or has expired.", normalizedCode);
+            return false;
         }
 
         // Strict Authorization: Verify caller is an authentic player belonging to this room with constant-time equality

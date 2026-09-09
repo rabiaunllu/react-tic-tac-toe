@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, lazy, Suspense } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import './App.css'
 import Board from './components/Board'
 import GameStatus from './components/GameStatus'
@@ -10,12 +10,8 @@ import RoundResultPreviewBar from './components/RoundResultPreviewBar'
 import FloatingEmote from './components/FloatingEmote'
 import QuickEmoteBar from './components/QuickEmoteBar'
 import SoundToggle from './components/SoundToggle'
-
-// PERFORMANCE OPTIMIZATION (Action 14): Code split heavy components.
-// OnlineGame bundles @microsoft/signalr (~85KB) + OnlineGame (~42KB).
-// Lazy-loading eliminates ~127KB from the initial page load!
-const OnlineGame = lazy(() => import('./components/OnlineGame'))
-const RoundResultModal = lazy(() => import('./components/RoundResultModal'))
+import OnlineGame from './components/OnlineGame'
+import RoundResultModal from './components/RoundResultModal'
 
 // PERFORMANCE OPTIMIZATION (Action 15): Decouple main thread entry from aiPlayer.js.
 // AI calculations run in aiWorker.js. By loading aiPlayer dynamically on demand,
@@ -2071,21 +2067,7 @@ export default function App() {
   }
 
   if (onlineGame) {
-    return (
-      <Suspense fallback={
-        <main className="app-shell">
-          <section className="game-card setup-card">
-            <div style={{ padding: '60px 20px', textAlign: 'center' }}>
-              <div style={{ color: 'var(--x-color, #6ee7ff)', fontSize: '18px', fontWeight: 'bold' }}>
-                ⚡ {t('setup.onlineModal.loadingRoom') || 'Loading Online Arena...'}
-              </div>
-            </div>
-          </section>
-        </main>
-      }>
-        <OnlineGame initialOnlineGame={onlineGame} onMenu={handleOnlineMenu} />
-      </Suspense>
-    )
+    return <OnlineGame initialOnlineGame={onlineGame} onMenu={handleOnlineMenu} />
   }
 
   if (!isSessionRestoreChecked) {
@@ -2093,7 +2075,7 @@ export default function App() {
       <main className="app-shell">
         <section className="game-card setup-card">
           <header className="game-header brand-header setup-brand-header">
-            <h1>XO ARENA</h1>
+            <h1>XO TACTIX</h1>
             <p>{isTr ? 'Kayıt kontrol ediliyor...' : 'Checking saved session...'}</p>
           </header>
         </section>
@@ -2116,7 +2098,7 @@ export default function App() {
     <main className="app-shell">
       <section className="game-card">
         <header className="game-header brand-header">
-          <h1>XO ARENA</h1>
+          <h1>XO TACTIX</h1>
           <p>{t('setup.slogan') || (isTr ? 'Taşını koy. Gücünü kullan. Rövanşı al.' : 'Place your mark. Unleash powers. Claim revenge.')}</p>
           <div className="match-chip-row" aria-label={t('common.matchInfo') || (isTr ? 'Maç bilgileri' : 'Match details')}>
             <span className={`match-chip ${gameMode}`}>{modeChip}</span>
@@ -2348,29 +2330,27 @@ export default function App() {
       {(effectiveWinner || isDraw) &&
         !showSetupReturnConfirm &&
         (!isRoundResultDismissed || Boolean(matchWinner)) && (
-        <Suspense fallback={null}>
-          <RoundResultModal
-            roundNumber={roundNumber}
-            winner={winnerPlayerName}
-            winningSymbol={effectiveWinner}
-            isDraw={isDraw}
-            matchWinner={matchWinner}
-            scores={{ p1: p1Score, p2: p2Score }}
-            player1Name={player1Name}
-            player2Name={player2Name}
-            scoreLabel={scoreLabel}
-            resultMessage={displayedResultMessage}
-            loserMessage={displayedLoserMessage}
-            onNextRound={handleNextRound}
-            onNewMatch={handleNewMatch}
-            onMenu={handleResultMenu}
-            onClose={matchWinner ? undefined : () => setIsRoundResultDismissed(true)}
-            gameMode={gameMode}
-            boardSize={boardSize}
-            winStreak={humanWinStreak}
-            opponentType={opponentType}
-          />
-        </Suspense>
+        <RoundResultModal
+          roundNumber={roundNumber}
+          winner={winnerPlayerName}
+          winningSymbol={effectiveWinner}
+          isDraw={isDraw}
+          matchWinner={matchWinner}
+          scores={{ p1: p1Score, p2: p2Score }}
+          player1Name={player1Name}
+          player2Name={player2Name}
+          scoreLabel={scoreLabel}
+          resultMessage={displayedResultMessage}
+          loserMessage={displayedLoserMessage}
+          onNextRound={handleNextRound}
+          onNewMatch={handleNewMatch}
+          onMenu={handleResultMenu}
+          onClose={matchWinner ? undefined : () => setIsRoundResultDismissed(true)}
+          gameMode={gameMode}
+          boardSize={boardSize}
+          winStreak={humanWinStreak}
+          opponentType={opponentType}
+        />
       )}
 
     </main>

@@ -1,6 +1,6 @@
 export default {
   meta: {
-    title: 'XO ARENA — Taktiksel Güçlerle Donatılmış Tic-Tac-Toe',
+    title: 'XO TACTIX — Taktiksel Güçlerle Donatılmış Tic-Tac-Toe',
     description: 'Sıradan bir SOS değil, gerçek bir arena! Bomba, Kalkan, Dondur ve Vampir güçleriyle hamleni yap, çarpanları topla, rövanşı al.',
   },
   common: {
@@ -112,7 +112,9 @@ export default {
       confirmLeaveAction: 'Evet, Ayrıl',
       errorEmptyName: 'Oyuncu adı boş olamaz.',
       errorEmptyCode: 'Lütfen 6 haneli oda kodunu gir.',
+      errorInvalidCode: 'Geçerli bir 6 haneli oda kodu girin.',
       errorHostLeft: 'Oda sahibi odadan ayrıldı veya oda kapatıldı.',
+      loadingRoom: 'Arena Yükleniyor...',
     },
     rulesButton: '📖 Nasıl Oynanır?',
     arenaPowers: 'ARENA GÜÇLERİ',
