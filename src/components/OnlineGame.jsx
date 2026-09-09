@@ -759,6 +759,8 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
         symbol: mySymbol,
         playerName: myPlayer?.name ?? '',
       })
+    } else if (room.status === 'completed') {
+      clearOnlineSession()
     }
   }, [roomCode, playerId, playerSecret, mySymbol, myPlayer?.name, room.status])
 
@@ -771,6 +773,9 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
       // Proceed with local menu navigation
     }
     clearOnlineSession()
+    if (typeof window !== 'undefined' && window.location.search.includes('room=')) {
+      window.history.replaceState({}, '', window.location.pathname)
+    }
     onMenu()
   }
 

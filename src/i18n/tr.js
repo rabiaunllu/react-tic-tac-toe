@@ -13,7 +13,7 @@ export default {
     restart: 'Yeniden Başlat',
     nextRound: 'Sonraki Tur',
     newMatch: 'Yeni Maç',
-    newMatchViral: '🎮 Yeni Maç ⚡',
+    newMatchViral: ' Yeni Maç ',
     score: 'Skor',
     point: 'Puan',
     round: 'Tur',
@@ -279,5 +279,6 @@ export default {
     wellplayed: 'İyi oyundu!',
     noway: 'Olamaz!',
     hurry: 'Acele et!',
+    sleep: 'Uyuma!',
   },
 }

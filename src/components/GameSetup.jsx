@@ -148,6 +148,13 @@ export default function GameSetup({
     if (typeof window === 'undefined') return
     const savedSkin = window.localStorage.getItem('xo-arena-skin') || 'neon'
     document.body.setAttribute('data-skin', savedSkin)
+
+    // URL Deep Link temizliği: Link ile gelindiğinde oda kodu state'e aktarılır,
+    // ancak adres çubuğundaki "?room=..." hemen temizlenir. Böylece kullanıcı
+    // oyun bittikten veya ayrıldıktan sonra sayfayı yenilediğinde (F5) modal tekrar açılmaz.
+    if (window.location.search.includes('room=')) {
+      window.history.replaceState({}, '', window.location.pathname)
+    }
   }, [])
 
   const selectedBoard = boardOptions.find((board) => board.size === boardSize)

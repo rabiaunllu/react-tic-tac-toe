@@ -64,10 +64,24 @@ export function hasStoredOnlineSession() {
   return canUseSessionStorage() && window.sessionStorage.getItem(ONLINE_SESSION_KEY) !== null
 }
 
+// Local game sessions expire after 2 hours to prevent stale ghost games / win screens from persisting
+export const LOCAL_SESSION_TTL_MS = 2 * 60 * 60 * 1000 // 2 hours in milliseconds
+
 export function isValidLocalSession(session) {
+  if (!session) return false
+
+  // Reject sessions without a valid numeric timestamp or expired sessions (older than 2 hours)
+  if (typeof session.savedAt !== 'number' || Number.isNaN(session.savedAt)) {
+    return false
+  }
+
+  const ageMs = Date.now() - session.savedAt
+  if (ageMs > LOCAL_SESSION_TTL_MS || ageMs < 0) {
+    return false
+  }
+
   return Boolean(
-    session &&
-      session.gameConfig &&
+    session.gameConfig &&
       typeof session.gameMode === 'string' &&
       typeof session.opponentType === 'string' &&
       Array.isArray(session.squares) &&
@@ -100,7 +114,7 @@ export function readLocalSession() {
 }
 
 export function writeLocalSession(session) {
-  writeSession(LOCAL_SESSION_KEY, session)
+  writeSession(LOCAL_SESSION_KEY, { ...session, savedAt: Date.now() })
 }
 
 export function clearLocalSession() {

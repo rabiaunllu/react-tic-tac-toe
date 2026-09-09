@@ -279,5 +279,6 @@ export default {
     wellplayed: 'Well played!',
     noway: 'No way!',
     hurry: 'Hurry up!',
+    sleep: "Don't sleep!",
   },
 }
