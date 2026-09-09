@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://xo-arena-api-rabia-had9dfgta9cvcuhs.francecentral-01.azurewebsites.net/sitemap.xml
+Sitemap: https://xotactix.me/sitemap.xml

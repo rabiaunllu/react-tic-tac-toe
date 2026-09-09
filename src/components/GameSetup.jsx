@@ -421,8 +421,8 @@ export default function GameSetup({
     const safeRoomCode = encodeURIComponent(String(roomCode).trim())
     const link = `${window.location.origin}${window.location.pathname}?room=${safeRoomCode}`
     const challengeText = isTr
-      ? `⚔️ XO Arena'da seninle kapışmak istiyorum! Odaya katılmak için tıkla:\n${link}\n\nOda Kodu: ${roomCode}`
-      : `⚔️ I challenge you to an XO Arena duel! Click to join:\n${link}\n\nRoom Code: ${roomCode}`
+      ? `⚔️ XO Tactix'te seninle kapışmak istiyorum! Odaya katılmak için tıkla:\n${link}\n\nOda Kodu: ${roomCode}`
+      : `⚔️ I challenge you to an XO Tactix duel! Click to join:\n${link}\n\nRoom Code: ${roomCode}`
 
     const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(challengeText)}`
     window.open(waUrl, '_blank', 'noopener,noreferrer')
@@ -437,13 +437,13 @@ export default function GameSetup({
     const safeRoomCode = encodeURIComponent(String(roomCode).trim())
     const link = `${window.location.origin}${window.location.pathname}?room=${safeRoomCode}`
     const challengeText = isTr
-      ? `⚔️ XO Arena'da seninle kapışmak istiyorum! Odaya katılmak için tıkla:\n${link}\n\nOda Kodu: ${roomCode}`
-      : `⚔️ I challenge you to an XO Arena duel! Click to join:\n${link}\n\nRoom Code: ${roomCode}`
+      ? `⚔️ XO Tactix'te seninle kapışmak istiyorum! Odaya katılmak için tıkla:\n${link}\n\nOda Kodu: ${roomCode}`
+      : `⚔️ I challenge you to an XO Tactix duel! Click to join:\n${link}\n\nRoom Code: ${roomCode}`
 
     if (typeof navigator !== 'undefined' && navigator.share) {
       try {
         await navigator.share({
-          title: isTr ? 'XO Arena Düellosu' : 'XO Arena Challenge',
+          title: isTr ? 'XO Tactix Düellosu' : 'XO Tactix Challenge',
           text: challengeText,
           url: link,
         })
@@ -618,7 +618,7 @@ export default function GameSetup({
 
         {/* ── Brand Hero Header ── */}
         <header className="game-header brand-header setup-brand-header">
-          <h1>XO ARENA</h1>
+          <h1>XO TACTIX</h1>
           <p>{t('setup.slogan')}</p>
         </header>
 

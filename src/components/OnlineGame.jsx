@@ -106,16 +106,15 @@ function createOnlineRoundMessage(room, mySymbol, isTr = true) {
 
   const isTimeout = Boolean(room.game.isTimeout)
   if (isTimeout) {
-    const timedOutPlayerSymbol = room.game.timedOutPlayerSymbol ?? (room.game.winner === 'X' ? 'O' : 'X')
-    const iTimedOut = timedOutPlayerSymbol === mySymbol
-    if (iTimedOut) {
+    const isWinner = room.game.winner === mySymbol
+    if (isWinner) {
       return isTr
-        ? ['⏰ Süren Bitti!', 'Hamle süren dolduğu için turu rakip kazandı.']
-        : ['⏰ Time Is Up!', 'Turn timer expired. Opponent won the round.']
+        ? ['⏰ Rakibin Süresi Bitti!', 'Rakibin hamle süresi doldu. Turu sen kazandın!']
+        : ['⏰ Opponent Timed Out!', 'Opponent ran out of time. You won the round!']
     }
     return isTr
-      ? ['⏰ Rakibin Süresi Bitti!', 'Rakibin hamle süresi doldu. Turu sen kazandın!']
-      : ['⏰ Opponent Timed Out!', 'Opponent ran out of time. You won the round!']
+      ? ['⏰ Süren Bitti!', 'Hamle süren dolduğu için turu rakip kazandı.']
+      : ['⏰ Time Is Up!', 'Turn timer expired. Opponent won the round.']
   }
 
   const isForfeit = Boolean(
@@ -205,7 +204,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
   const playerSecret = initialOnlineGame.playerSecret
   const ownerPlayer = room.players[0]
   const guestPlayer = room.players[1]
-  const myPlayer = room.players.find((player) => player.id === playerId)
+  const myPlayer = room.players.find((player) => String(player.id).toLowerCase() === String(playerId).toLowerCase())
   const mySymbol = myPlayer?.symbol ?? ''
   const currentSymbol = room.game.xIsNext ? 'X' : 'O'
   const isArena = room.gameMode === 'arena'
@@ -343,19 +342,23 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
 
     const nextResultSignature = getResultSignature(nextRoom)
     const nextCurrentSymbol = nextRoom.game.xIsNext ? 'X' : 'O'
+    const nextMyPlayer = nextRoom.players?.find(
+      (player) => String(player.id).toLowerCase() === String(playerId).toLowerCase()
+    )
+    const nextMySymbol = nextMyPlayer?.symbol ?? mySymbol
 
     if (nextResultSignature !== onlineRoundMessageSignatureRef.current) {
       onlineRoundMessageSignatureRef.current = nextResultSignature
-      setOnlineRoundMessage(createOnlineRoundMessage(nextRoom, mySymbol, isTr))
+      setOnlineRoundMessage(createOnlineRoundMessage(nextRoom, nextMySymbol, isTr))
       setIsRoundResultDismissed(false)
     }
 
-    if (nextCurrentSymbol !== mySymbol || nextRoom.game.winner || nextRoom.game.isDraw) {
+    if (nextCurrentSymbol !== nextMySymbol || nextRoom.game.winner || nextRoom.game.isDraw) {
       setActivePower(null)
     }
 
     setRoom(nextRoom)
-  }, [mySymbol, isTr])
+  }, [playerId, mySymbol, isTr])
 
   async function submitPowerAction(powerId, targetIndex) {
     if (isPowerPendingRef.current || isMovePendingRef.current) {
@@ -783,7 +786,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
     <main className="app-shell">
       <section className="game-card online-game-card">
         <header className="game-header brand-header">
-          <h1>XO ARENA</h1>
+          <h1>XO TACTIX</h1>
           <p>{t('setup.slogan')}</p>
           <div className="match-chip-row" aria-label={t('common.matchInfo')}>
             <span className={`match-chip ${room.gameMode}`}>{room.gameMode === 'arena' ? 'ARENA' : (isTr ? 'KLASİK' : 'CLASSIC')}</span>

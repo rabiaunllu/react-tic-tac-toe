@@ -1,6 +1,6 @@
 export default {
   meta: {
-    title: 'XO ARENA — Tactical Tic-Tac-Toe Powered with Superpowers',
+    title: 'XO TACTIX — Tactical Tic-Tac-Toe Powered with Superpowers',
     description: 'Not your ordinary Tic-Tac-Toe, a real battle arena! Drop marks, unleash Bomb, Shield, Freeze, and Vampire powers, claim multipliers, and conquer your revenge.',
   },
   common: {
@@ -112,7 +112,9 @@ export default {
       confirmLeaveAction: 'Yes, Leave',
       errorEmptyName: 'Player name cannot be empty.',
       errorEmptyCode: 'Please enter a 6-digit room code.',
+      errorInvalidCode: 'Please enter a valid 6-digit room code.',
       errorHostLeft: 'Host left the game or room has closed.',
+      loadingRoom: 'Loading Online Arena...',
     },
     rulesButton: '📖 How to Play?',
     arenaPowers: 'ARENA POWERS',
