@@ -74,9 +74,30 @@ export async function gameplayStop() {
  * @param {Function} [options.onAdFinished] - Called when ad ends (resume audio/game)
  * @param {Function} [options.onAdError] - Called if ad fails or is skipped
  */
-export function requestMidgameAd({ onAdFinished } = {}) {
-  // Player-first design: intrusive midgame ads disabled to keep gameplay uninterrupted
-  if (onAdFinished) onAdFinished()
+export function requestMidgameAd({ onAdStarted, onAdFinished, onAdError } = {}) {
+  if (!ENABLE_CRAZYGAMES || typeof window === 'undefined' || !window.CrazyGames?.SDK?.ad?.requestAd) {
+    if (onAdFinished) onAdFinished()
+    return
+  }
+
+  try {
+    window.CrazyGames.SDK.ad.requestAd('midgame', {
+      adStarted: () => {
+        if (onAdStarted) onAdStarted()
+      },
+      adFinished: () => {
+        if (onAdFinished) onAdFinished()
+      },
+      adError: (error) => {
+        console.warn('[CrazyGames] Midgame ad notice:', error)
+        if (onAdError) onAdError(error)
+        if (onAdFinished) onAdFinished()
+      },
+    })
+  } catch (error) {
+    console.warn('[CrazyGames] Midgame ad request error:', error)
+    if (onAdFinished) onAdFinished()
+  }
 }
 
 /**

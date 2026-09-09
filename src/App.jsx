@@ -1896,10 +1896,13 @@ export default function App() {
   function handleNextRound() {
     registerUserGesture()
     playSound('click')
-    requestMidgameAd({
-      onAdStarted: () => setAdMuted(true),
-      onAdFinished: () => setAdMuted(false),
-    })
+    // Asla oyun esnasında çıkmaz; sadece her 3 turda bir (3, 6, 9...) tur bitiminde gösterilir:
+    if (roundNumber % 3 === 0) {
+      requestMidgameAd({
+        onAdStarted: () => setAdMuted(true),
+        onAdFinished: () => setAdMuted(false),
+      })
+    }
     const nextRound = roundNumber + 1
     // Oyuna HER TURDA DAİMA X başlar; Yan Yana modda oyuncular sırayla X ve O olurlar
     resetGame(arenaSettings, gameMode)
@@ -1915,10 +1918,13 @@ export default function App() {
   function handleNewMatch() {
     registerUserGesture()
     playSound('click')
-    requestMidgameAd({
-      onAdStarted: () => setAdMuted(true),
-      onAdFinished: () => setAdMuted(false),
-    })
+    // Maç bittiğinde en az 3 tur oynandıysa göster
+    if (roundNumber >= 3) {
+      requestMidgameAd({
+        onAdStarted: () => setAdMuted(true),
+        onAdFinished: () => setAdMuted(false),
+      })
+    }
     setTimeoutWinner(null)
     turnDeadlineRef.current = null
     lastTurnKeyRef.current = ''
