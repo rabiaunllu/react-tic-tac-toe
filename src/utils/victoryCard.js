@@ -111,12 +111,12 @@ export function generateVictoryCardCanvas({
   ctx.textAlign = 'center'
   ctx.textBaseline = 'top'
 
-  // Brand Logo: XO ARENA
+  // Brand Logo: XO TACTIX
   ctx.font = '900 42px "Orbitron", "Inter", system-ui, sans-serif'
   ctx.fillStyle = gold
   ctx.shadowColor = 'rgba(255, 209, 102, 0.9)'
   ctx.shadowBlur = 18
-  ctx.fillText('⚡ XO ARENA ⚡', width / 2, 44)
+  ctx.fillText('⚡ XO TACTIX ⚡', width / 2, 44)
   ctx.shadowBlur = 0
 
   // Mode & Board Pill Badge
@@ -279,8 +279,8 @@ export function generateVictoryCardCanvas({
 
   // Punchy Viral Challenge Text
   const viralCta = isTr
-    ? '⚔️ Skoruma meydan okuyabilir misin? Hemen oyna 👉 xo-arena.com'
-    : '⚔️ Think you can beat my score? Play now 👉 xo-arena.com'
+    ? '⚔️ Skoruma meydan okuyabilir misin? Hemen oyna 👉 xotactix.me'
+    : '⚔️ Think you can beat my score? Play now 👉 xotactix.me'
 
   ctx.font = '800 20px system-ui, sans-serif'
   ctx.fillStyle = '#ffffff'
@@ -313,7 +313,7 @@ export async function shareOrDownloadVictoryCard(options) {
         return
       }
 
-      const filename = `XO-Arena-Duel-${Date.now()}.png`
+      const filename = `XO-Tactix-Duel-${Date.now()}.png`
 
       // 1. Native Mobile Image Sharing (Instagram Stories, WhatsApp, AirDrop, etc.)
       if (
@@ -326,8 +326,8 @@ export async function shareOrDownloadVictoryCard(options) {
           const file = new File([blob], filename, { type: 'image/png' })
           if (navigator.canShare({ files: [file] })) {
             await navigator.share({
-              title: 'XO ARENA Duel',
-              text: '⚔️ XO ARENA maç sonucum! Bana meydan okuyabilir misin?',
+              title: 'XO TACTIX Duel',
+              text: '⚔️ XO TACTIX maç sonucum! Bana meydan okuyabilir misin?',
               files: [file],
             })
             resolve(true)
