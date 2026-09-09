@@ -61,7 +61,14 @@ function playTone({ frequency, duration, delay = 0, type = 'sine', volume = 0.04
   }
 }
 
+let isAdMuted = false
+
+export function setAdMuted(muted) {
+  isAdMuted = Boolean(muted)
+}
+
 export function isSoundEnabled() {
+  if (isAdMuted) return false
   return readStoredSoundEnabled()
 }
 

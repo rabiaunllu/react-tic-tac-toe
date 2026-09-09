@@ -199,6 +199,17 @@ export default function GameSetup({
     setOnlineError('')
   }
 
+  useEffect(() => {
+    if (!activeModal) return
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') {
+        closeModal()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [activeModal])
+
   function resetOnlineLobby() {
     setOnlineFlow(null)
     setOnlineLobby(null)
@@ -357,12 +368,18 @@ export default function GameSetup({
       return
     }
 
+    if (!/^[A-Z0-9]{6}$/.test(roomCode)) {
+      setOnlineError(t('setup.onlineModal.errorInvalidCode') || 'Geçerli bir 6 haneli oda kodu girin.')
+      return
+    }
+
     setOnlineError('')
     setOnlineConnectionMessage('')
     setOnlineLoadingAction('join')
 
     try {
-      const access = await requestRoomJson(`/api/rooms/${roomCode}/join`, {
+      const safeCode = encodeURIComponent(roomCode)
+      const access = await requestRoomJson(`/api/rooms/${safeCode}/join`, {
         method: 'POST',
         body: JSON.stringify({ playerName }),
       })
@@ -507,7 +524,8 @@ export default function GameSetup({
       }
 
       try {
-        const room = await requestRoomJson(`/api/rooms/${roomCode}`)
+        const safeCode = encodeURIComponent(String(roomCode ?? '').trim())
+        const room = await requestRoomJson(`/api/rooms/${safeCode}`)
 
         if (!isPollingActive) {
           return
@@ -717,7 +735,14 @@ export default function GameSetup({
             aria-modal="true"
             onClick={(e) => e.stopPropagation()}
           >
-            <button type="button" className="viral-modal-close" onClick={closeModal}>×</button>
+            <button
+              type="button"
+              className="viral-modal-close"
+              onClick={closeModal}
+              aria-label={t('common.close') || 'Kapat'}
+            >
+              ×
+            </button>
 
             <div className="viral-modal-header">
               <span className="viral-modal-icon">
@@ -929,7 +954,14 @@ export default function GameSetup({
             aria-modal="true"
             onClick={(e) => e.stopPropagation()}
           >
-            <button type="button" className="viral-modal-close" onClick={closeModal}>×</button>
+            <button
+              type="button"
+              className="viral-modal-close"
+              onClick={closeModal}
+              aria-label={t('common.close') || 'Kapat'}
+            >
+              ×
+            </button>
 
             <div className="viral-modal-header">
               <span className="viral-modal-icon">👥</span>
@@ -990,7 +1022,14 @@ export default function GameSetup({
             aria-modal="true"
             onClick={(e) => e.stopPropagation()}
           >
-            <button type="button" className="viral-modal-close" onClick={closeModal}>×</button>
+            <button
+              type="button"
+              className="viral-modal-close"
+              onClick={closeModal}
+              aria-label={t('common.close') || 'Kapat'}
+            >
+              ×
+            </button>
 
             <div className="viral-modal-header">
               <span className="viral-modal-icon">🌐</span>

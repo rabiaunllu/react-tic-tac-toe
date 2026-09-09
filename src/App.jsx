@@ -28,6 +28,8 @@ function getAiPlayerModule() {
   return aiPlayerModulePromise
 }
 import { useTranslation } from './i18n'
+import { initCrazyGamesSdk, gameplayStart, gameplayStop, requestMidgameAd } from './services/crazyGamesService'
+import { setAdMuted } from './game/soundManager'
 import {
   calculateRoundScore,
   calculateWinner,
@@ -156,6 +158,10 @@ export default function App() {
   const clearAllTimeouts = useCallback(() => {
     activeTimeoutsRef.current.forEach((id) => window.clearTimeout(id))
     activeTimeoutsRef.current.clear()
+  }, [])
+
+  useEffect(() => {
+    initCrazyGamesSdk()
   }, [])
 
   useEffect(() => {
@@ -290,16 +296,21 @@ export default function App() {
   const activePowerTargets = powersEnabled && activePower ? arenaPowerTargets[activePower] ?? [] : null
   // Reklam altyapısı ileride aktif edilecek — şimdilik UI'dan gizli
   const isRewardedPowerAvailable = false
-  const scoreLabel = 'Puan'
-  const modeChip = gameMode === 'arena' ? 'ARENA' : 'KLASİK'
+  const isArena = gameMode === 'arena'
+  const scoreLabel = isArena
+    ? (t('common.point') || (isTr ? 'Puan' : 'Points'))
+    : (t('common.score') || (isTr ? 'Skor' : 'Score'))
+  const modeChip = isArena
+    ? (t('setup.settingsModal.arena') || 'Arena').toUpperCase()
+    : (t('setup.settingsModal.classic') || 'Classic').toUpperCase()
   const targetChip = gameConfig
     ? gameConfig.isInfinite
-      ? 'SONSUZ'
-      : gameConfig.gameMode === 'classic'
-        ? `${gameConfig.targetValue} TUR`
-        : `${gameConfig.targetValue} PUAN`
-    : 'YENİ MAÇ'
-  const lineChip = `${winLength} TAŞ`
+      ? (t('common.infinite') || '∞')
+      : !isArena
+        ? `${gameConfig.targetValue} ${(t('common.round') || (isTr ? 'TUR' : 'ROUNDS')).toUpperCase()}`
+        : `${gameConfig.targetValue} ${(t('common.point') || (isTr ? 'PUAN' : 'POINTS')).toUpperCase()}`
+    : (t('common.newMatch') || (isTr ? 'YENİ MAÇ' : 'NEW MATCH'))
+  const lineChip = `${winLength} ${isTr ? 'TAŞ' : 'IN-A-ROW'}`
 
   // ── Quick Emote Callbacks ──────────────────────────────────────────────────
   const handleSendEmote = useCallback((emoteId) => {
@@ -446,11 +457,16 @@ export default function App() {
         }
       }
 
-      setResultMessage(['⏰', `${timedOutPlayerName} Süresi Bitti!`, `Turu ${winnerName} kazandı.`])
+      const timeoutTitle = t('events.timeoutNotification', { player: timedOutPlayerName }) ||
+        (isTr ? `${timedOutPlayerName} Süresi Bitti!` : `${timedOutPlayerName}'s time ran out!`)
+      const timeoutSub = t('events.timeoutWinnerBanner', { winner: winnerName }) ||
+        (isTr ? `Turu ${winnerName} kazandı.` : `Round won by ${winnerName}.`)
+
+      setResultMessage(['⏰', timeoutTitle, timeoutSub, { type: 'timeout', timedOutPlayerName, winnerName }])
       setLoserMessage(null)
       playSound('win')
     },
-    [winner, matchWinner, isDraw, timeoutWinner, resultMessage, gameMode, isP1X, xPlayerName, oPlayerName, opponentType, aiSymbol, humanSymbol, triggerBotEmote]
+    [winner, matchWinner, isDraw, timeoutWinner, resultMessage, gameMode, isP1X, xPlayerName, oPlayerName, opponentType, aiSymbol, humanSymbol, triggerBotEmote, t, isTr]
   )
 
   // Turn timer countdown effect (Mutlak zaman damgası ile sayfa yenileme hilesi engellendi)
@@ -654,7 +670,11 @@ export default function App() {
 
     if (powerId === 'vampire') {
       if (vampireSources.length === 0 || vampireTargets.length === 0) {
-        setActionError('Vampir için uygun çarpanlı rakip taşı ve çarpansız kendi taşın gerekli.')
+        setActionError(
+          isTr
+            ? 'Vampir için uygun çarpanlı rakip taşı ve çarpansız kendi taşın gerekli.'
+            : 'Vampire requires an opponent mark with a multiplier and an unboosted mark of your own.'
+        )
         setActivePower(null)
         return
       }
@@ -835,7 +855,11 @@ export default function App() {
     const targetIndex = vampireTargets[0]
 
     if (sourceIndex === undefined || targetIndex === undefined) {
-      setActionError('Vampir için uygun çarpanlı rakip taşı ve çarpansız kendi taşın gerekli.')
+      setActionError(
+        isTr
+          ? 'Vampir için uygun çarpanlı rakip taşı ve çarpansız kendi taşın gerekli.'
+          : 'Vampire requires an opponent mark with a multiplier and an unboosted mark of your own.'
+      )
       setActivePower(null)
       return
     }
@@ -845,7 +869,11 @@ export default function App() {
     playSound('power')
     setActivePower(null)
     setHasUsedPowerThisTurn(true)
-    setRewardedPowerMessage(`Vampir ${transferredMultiplier}x çarpanı çekiyor...`)
+    setRewardedPowerMessage(
+      isTr
+        ? `Vampir ${transferredMultiplier}x çarpanı çekiyor...`
+        : `Vampire draining ${transferredMultiplier}x multiplier...`
+    )
 
     setVampireTransferEvent({
       sourceIndex,
@@ -912,15 +940,15 @@ export default function App() {
 
       if ((playerPowers[currentPlayer]?.[activePower] ?? 0) <= 0) {
         setActivePower(null)
-        setActionError('Bu güç bitti.')
+        setActionError(isTr ? 'Bu güç bitti.' : 'Power depleted.')
         return
       }
 
       if (!activePowerTargets.includes(index)) {
         setActionError(
           activePower === 'bomb' || activePower === 'shield'
-            ? 'Önce uygun bir taş seç.'
-            : 'Bu hedef uygun değil.'
+            ? (isTr ? 'Önce uygun bir taş seç.' : 'Select an eligible mark first.')
+            : (isTr ? 'Bu hedef uygun değil.' : 'Invalid target.')
         )
         return
       }
@@ -1365,9 +1393,17 @@ export default function App() {
                 setXIsNext(aiSymbol === 'X' ? false : true)
               }
             }).catch(() => {
-              hasAiMoved = true
-              if (emergencyTimeoutId) clearSafeTimeout(emergencyTimeoutId)
-              setXIsNext(aiSymbol === 'X' ? false : true)
+              if (hasAiMoved) return
+              const emptySquares = squares
+                .map((sq, idx) => (sq === null && !lockedSquares.includes(idx) && !frozenSquares.includes(idx) ? idx : null))
+                .filter((idx) => idx !== null)
+              if (emptySquares.length > 0) {
+                placeAiStone(emptySquares[Math.floor(Math.random() * emptySquares.length)])
+              } else {
+                hasAiMoved = true
+                if (emergencyTimeoutId) clearSafeTimeout(emergencyTimeoutId)
+                setXIsNext(aiSymbol === 'X' ? false : true)
+              }
             })
           }
           return
@@ -1584,9 +1620,23 @@ export default function App() {
           })
           if (fallbackMove !== null) placeAiStone(fallbackMove)
         } catch {
-          // Sessizce geç
+          if (hasAiMoved) return
+          const emptySquares = squares
+            .map((sq, idx) => (sq === null && !lockedSquares.includes(idx) && !frozenSquares.includes(idx) ? idx : null))
+            .filter((idx) => idx !== null)
+          if (emptySquares.length > 0) {
+            placeAiStone(emptySquares[Math.floor(Math.random() * emptySquares.length)])
+          }
         }
-      }).catch(() => {})
+      }).catch(() => {
+        if (hasAiMoved) return
+        const emptySquares = squares
+          .map((sq, idx) => (sq === null && !lockedSquares.includes(idx) && !frozenSquares.includes(idx) ? idx : null))
+          .filter((idx) => idx !== null)
+        if (emptySquares.length > 0) {
+          placeAiStone(emptySquares[Math.floor(Math.random() * emptySquares.length)])
+        }
+      })
     }
 
     const postAiTask = () => {
@@ -1850,6 +1900,10 @@ export default function App() {
   function handleNextRound() {
     registerUserGesture()
     playSound('click')
+    requestMidgameAd({
+      onAdStarted: () => setAdMuted(true),
+      onAdFinished: () => setAdMuted(false),
+    })
     const nextRound = roundNumber + 1
     // Oyuna HER TURDA DAİMA X başlar; Yan Yana modda oyuncular sırayla X ve O olurlar
     resetGame(arenaSettings, gameMode)
@@ -1865,6 +1919,10 @@ export default function App() {
   function handleNewMatch() {
     registerUserGesture()
     playSound('click')
+    requestMidgameAd({
+      onAdStarted: () => setAdMuted(true),
+      onAdFinished: () => setAdMuted(false),
+    })
     setTimeoutWinner(null)
     turnDeadlineRef.current = null
     lastTurnKeyRef.current = ''
@@ -1906,6 +1964,7 @@ export default function App() {
   }
 
   function handleResultMenu() {
+    gameplayStop()
     setTimeoutWinner(null)
     setShowSetupReturnConfirm(false)
     setShowScoreResetConfirm(false)
@@ -1938,6 +1997,7 @@ export default function App() {
   }
 
   function handleStartGame(config) {
+    gameplayStart()
     setOnlineGame(null)
     setSetupRestoreMessage('')
     setGameConfig(config)
@@ -2034,7 +2094,7 @@ export default function App() {
         <section className="game-card setup-card">
           <header className="game-header brand-header setup-brand-header">
             <h1>XO ARENA</h1>
-            <p>Kayıt kontrol ediliyor...</p>
+            <p>{isTr ? 'Kayıt kontrol ediliyor...' : 'Checking saved session...'}</p>
           </header>
         </section>
       </main>
@@ -2057,8 +2117,8 @@ export default function App() {
       <section className="game-card">
         <header className="game-header brand-header">
           <h1>XO ARENA</h1>
-          <p>Taşını koy. Gücünü kullan. Rövanşı al.</p>
-          <div className="match-chip-row" aria-label="Maç bilgileri">
+          <p>{t('setup.slogan') || (isTr ? 'Taşını koy. Gücünü kullan. Rövanşı al.' : 'Place your mark. Unleash powers. Claim revenge.')}</p>
+          <div className="match-chip-row" aria-label={t('common.matchInfo') || (isTr ? 'Maç bilgileri' : 'Match details')}>
             <span className={`match-chip ${gameMode}`}>{modeChip}</span>
             <span className="match-chip">{targetChip}</span>
             <span className="match-chip">{boardSize}x{boardSize}</span>
@@ -2076,10 +2136,10 @@ export default function App() {
               setShowSetupReturnConfirm(true)
             }}
           >
-            Ana Menü
+            {t('common.mainMenu')}
           </button>
           <button className="score-reset-button" onClick={handleRequestScoreReset}>
-            Yeniden Başlat
+            {t('common.restart')}
           </button>
           <SoundToggle>
             {gameMode === 'arena' && (
@@ -2096,8 +2156,8 @@ export default function App() {
 
         {showSetupReturnConfirm && (
           <div className="setup-return-confirm" role="alertdialog" aria-modal="true">
-            <strong>Ana Menüye dönülsün mü?</strong>
-            <p>Mevcut maç sonlandırılacak ve ana menüye dönülecektir.</p>
+            <strong>{t('modals.confirmMenuTitle')}</strong>
+            <p>{t('modals.confirmMenuDesc')}</p>
 
             <div className="setup-return-actions">
               <button
@@ -2108,7 +2168,7 @@ export default function App() {
                   setShowSetupReturnConfirm(false)
                 }}
               >
-                Vazgeç
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -2116,12 +2176,13 @@ export default function App() {
                 onClick={() => {
                   registerUserGesture()
                   playSound('click')
+                  gameplayStop()
                   setShowSetupReturnConfirm(false)
                   setGameConfig(null)
                   clearLocalSession()
                 }}
               >
-                Menüye Dön
+                {t('modals.confirmMenuAction')}
               </button>
             </div>
           </div>
@@ -2129,19 +2190,19 @@ export default function App() {
 
         {showScoreResetConfirm && (
           <div className="setup-return-confirm" role="alertdialog" aria-modal="true">
-            <strong>Maç yeniden başlatılsın mı?</strong>
-            <p>Tüm skorlar ve tahta sıfırlanıp yeni bir maç başlatılacak.</p>
+            <strong>{t('modals.confirmRestartTitle')}</strong>
+            <p>{t('modals.confirmRestartDesc')}</p>
 
             <div className="setup-return-actions">
               <button type="button" onClick={handleCancelScoreReset}>
-                Vazgeç
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
                 className="danger-action"
                 onClick={handleConfirmScoreReset}
               >
-                Yeniden Başlat
+                {t('modals.confirmRestartAction')}
               </button>
             </div>
           </div>
@@ -2165,7 +2226,7 @@ export default function App() {
 
         {blackHoleEvent && (
           <div className="black-hole-message" role="status" aria-live="assertive">
-            KARA DELİK! {blackHoleEvent.player} taşı yutuldu!
+            {isTr ? `KARA DELİK! ${blackHoleEvent.player} taşı yutuldu!` : `BLACK HOLE! ${blackHoleEvent.player}'s mark was swallowed!`}
           </div>
         )}
 

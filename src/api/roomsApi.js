@@ -3,7 +3,11 @@ const configuredApiBaseUrl = import.meta.env?.VITE_API_BASE_URL?.trim()
 const onlineFlag = import.meta.env?.VITE_ENABLE_ONLINE?.trim().toLowerCase()
 const isOnlineFlagEnabled = onlineFlag === 'true' || (!import.meta.env?.PROD && !onlineFlag)
 const hasConfiguredApiBaseUrl = Boolean(configuredApiBaseUrl)
-const canUseSameOriginApi = Boolean(import.meta.env?.PROD && !hasConfiguredApiBaseUrl)
+const isCrazyGamesHost =
+  typeof window !== 'undefined' &&
+  (window.location.hostname.includes('crazygames') ||
+   (typeof document !== 'undefined' && document.referrer?.includes('crazygames')))
+const canUseSameOriginApi = Boolean(import.meta.env?.PROD && !hasConfiguredApiBaseUrl && !isCrazyGamesHost)
 
 export const API_BASE_URL = (
   configuredApiBaseUrl ||

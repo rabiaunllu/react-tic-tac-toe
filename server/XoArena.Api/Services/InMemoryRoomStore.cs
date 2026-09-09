@@ -21,11 +21,17 @@ public sealed class InMemoryRoomStore : IRoomStore
             [RoomStatuses.Reconnecting] = TimeSpan.FromMinutes(5)
         };
 
+    private const int MaxActiveRooms = 10000;
     private readonly ConcurrentDictionary<string, Room> rooms = new(StringComparer.OrdinalIgnoreCase);
 
     public Room Create(CreateRoomOptions options)
     {
         CleanupExpiredRooms();
+
+        if (rooms.Count >= MaxActiveRooms)
+        {
+            throw new InvalidOperationException("Sunucu oda kapasitesi dolu. Lütfen daha sonra tekrar deneyin.");
+        }
 
         while (true)
         {
