@@ -1525,7 +1525,7 @@ export default function GameSetup({
                 <span className="skin-preview-name">
                   {t(`skins.${pendingUnlockSkin.id}`) || pendingUnlockSkin.name}
                 </span>
-                <span className="skin-preview-badge">✨ EXCLUSIVE</span>
+                <span className="skin-preview-badge">{t('skinUnlock.exclusiveBadge')}</span>
               </div>
               <p className="skin-unlock-prompt">
                 {t('skinUnlock.prompt', {

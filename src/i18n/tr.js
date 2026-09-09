@@ -234,6 +234,7 @@ export default {
     watching: 'Reklam yükleniyor...',
     success: 'Tebrikler! Tema başarıyla açıldı!',
     locked: 'Kilitli',
+    exclusiveBadge: '✨ ÖZEL TEMA',
   },
   rules: {
     title: 'NASIL OYNANIR?',

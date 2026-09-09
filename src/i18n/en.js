@@ -234,6 +234,7 @@ export default {
     watching: 'Loading video...',
     success: 'Congratulations! Theme unlocked successfully!',
     locked: 'Locked',
+    exclusiveBadge: '✨ EXCLUSIVE',
   },
   rules: {
     title: 'HOW TO PLAY',
