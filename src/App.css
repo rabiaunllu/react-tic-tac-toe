@@ -7643,3 +7643,183 @@ body[data-skin="ice"] .o-mark-square .square-value {
   font-size: 13.5px;
   margin: 0;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Rewarded Ad Theme Unlock — Player-First Customization
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.skin-option-btn {
+  position: relative;
+}
+
+.skin-option-btn--locked {
+  opacity: 0.82;
+  border-style: dashed;
+}
+
+.skin-option-btn--locked:hover {
+  opacity: 1;
+  border-color: var(--gold, #ffd166);
+}
+
+.skin-lock-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  font-size: 11px;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(255, 209, 102, 0.5);
+  border-radius: 8px;
+  padding: 1px 4px;
+  line-height: 1;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* Modal Overlay & Card */
+.skin-unlock-overlay {
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.skin-unlock-modal-card {
+  max-width: 420px;
+  width: 100%;
+  background: linear-gradient(135deg, rgba(17, 24, 39, 0.96), rgba(11, 17, 33, 0.98));
+  border: 1px solid rgba(255, 209, 102, 0.35);
+  box-shadow: 0 0 35px rgba(255, 209, 102, 0.15), 0 20px 40px rgba(0, 0, 0, 0.6);
+  border-radius: 20px;
+  padding: 24px;
+  text-align: center;
+  animation: modal-pop-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.skin-unlock-header {
+  margin-bottom: 18px;
+}
+
+.skin-unlock-icon {
+  font-size: 38px;
+  display: inline-block;
+  margin-bottom: 8px;
+  filter: drop-shadow(0 0 12px rgba(255, 209, 102, 0.4));
+}
+
+.skin-unlock-title {
+  color: var(--gold, #ffd166);
+  font-family: 'Orbitron', system-ui, sans-serif;
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  margin: 0 0 6px;
+  text-shadow: 0 0 12px rgba(255, 209, 102, 0.3);
+}
+
+.skin-unlock-subtitle {
+  color: rgba(202, 218, 255, 0.72);
+  font-size: 13.5px;
+  margin: 0;
+}
+
+.skin-unlock-body {
+  margin-bottom: 22px;
+}
+
+.skin-preview-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 209, 102, 0.25);
+  border-radius: 12px;
+  margin-bottom: 14px;
+}
+
+.skin-preview-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.skin-preview-badge {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: var(--gold, #ffd166);
+  background: rgba(255, 209, 102, 0.12);
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 209, 102, 0.3);
+}
+
+.skin-unlock-prompt {
+  color: rgba(202, 218, 255, 0.88);
+  font-size: 14px;
+  line-height: 1.45;
+  margin: 0 0 10px;
+}
+
+.skin-unlock-notice {
+  color: var(--green, #72f5a4);
+  font-weight: 700;
+  font-size: 14px;
+  margin: 8px 0 0;
+  animation: pulse-glow 1s ease-in-out infinite alternate;
+}
+
+.skin-unlock-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.skin-unlock-watch-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 13px 20px;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ffd166, #ff9f1c);
+  color: #0b1121;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 18px rgba(255, 209, 102, 0.35);
+}
+
+.skin-unlock-watch-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(255, 209, 102, 0.5);
+  background: linear-gradient(135deg, #ffe08a, #ffa929);
+}
+
+.skin-unlock-watch-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.skin-unlock-cancel-btn {
+  background: transparent;
+  border: 1px solid rgba(202, 218, 255, 0.2);
+  color: rgba(202, 218, 255, 0.7);
+  padding: 10px;
+  border-radius: 12px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.skin-unlock-cancel-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  border-color: rgba(202, 218, 255, 0.35);
+}

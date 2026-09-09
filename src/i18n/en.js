@@ -225,6 +225,16 @@ export default {
     cosmic: 'Cosmic Purple',
     ice: 'Ice Crystal',
   },
+  skinUnlock: {
+    title: 'UNLOCK EXCLUSIVE THEME',
+    subtitle: 'Watch a short video to unlock this theme permanently',
+    prompt: 'Watch a rewarded video to unlock the {{skinName}} theme?',
+    watchBtn: '🎬 WATCH & UNLOCK',
+    cancelBtn: 'Cancel',
+    watching: 'Loading video...',
+    success: 'Congratulations! Theme unlocked successfully!',
+    locked: 'Locked',
+  },
   rules: {
     title: 'HOW TO PLAY',
     subtitle: 'Tactics, powers, and master strategy guide',

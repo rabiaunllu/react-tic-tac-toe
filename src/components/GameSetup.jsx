@@ -14,6 +14,7 @@ import { useTranslation } from '../i18n'
 import { playSound, registerUserGesture } from '../game/soundManager'
 import SetupHeroBanner from './SetupHeroBanner'
 import PowerSimulation from './PowerSimulation'
+import { requestRewardedAd } from '../services/crazyGamesService'
 
 const HowToPlay = lazy(() => import('./HowToPlay'))
 
@@ -36,10 +37,10 @@ const turnTimeOptions = [
 
 const SKINS = [
   { id: 'neon', name: 'Siber Neon', icon: '⚡', isFree: true },
-  { id: 'gold', name: 'Altın Efsane', icon: '🌟', isFree: true },
-  { id: 'emerald', name: 'Zümrüt Retro', icon: '🌲', isFree: true },
-  { id: 'cosmic', name: 'Kozmik Mor', icon: '🔮', isFree: true },
-  { id: 'ice', name: 'Buz Kristali', icon: '❄️', isFree: true },
+  { id: 'gold', name: 'Altın Efsane', icon: '🌟', isFree: false },
+  { id: 'emerald', name: 'Zümrüt Retro', icon: '🌲', isFree: false },
+  { id: 'cosmic', name: 'Kozmik Mor', icon: '🔮', isFree: false },
+  { id: 'ice', name: 'Buz Kristali', icon: '❄️', isFree: false },
 ]
 
 // Security: strip HTML/JS injection chars and enforce max length on player names
@@ -134,6 +135,30 @@ export default function GameSetup({
     return 'neon'
   })
 
+  const [unlockedSkins, setUnlockedSkins] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = window.localStorage.getItem('xo-unlocked-skins')
+        if (saved) {
+          const parsed = JSON.parse(saved)
+          if (Array.isArray(parsed)) return parsed
+        }
+      } catch {
+        // ignore parse error
+      }
+    }
+    return ['neon']
+  })
+
+  const [pendingUnlockSkin, setPendingUnlockSkin] = useState(null)
+  const [isUnlockingSkin, setIsUnlockingSkin] = useState(false)
+  const [skinUnlockNotice, setSkinUnlockNotice] = useState('')
+
+  function isSkinUnlocked(skinId) {
+    const skinObj = SKINS.find((s) => s.id === skinId)
+    return Boolean(skinObj?.isFree || unlockedSkins.includes(skinId))
+  }
+
   function handleSelectSkin(skin) {
     registerUserGesture()
     playSound('click')
@@ -142,6 +167,85 @@ export default function GameSetup({
       window.localStorage.setItem('xo-arena-skin', skin.id)
       document.body.setAttribute('data-skin', skin.id)
     }
+  }
+
+  function handleSkinClick(skin) {
+    registerUserGesture()
+    playSound('click')
+    if (isSkinUnlocked(skin.id)) {
+      handleSelectSkin(skin)
+    } else {
+      setSkinUnlockNotice('')
+      setPendingUnlockSkin(skin)
+    }
+  }
+
+  function handleConfirmSkinUnlock() {
+    if (!pendingUnlockSkin || isUnlockingSkin) return
+    registerUserGesture()
+    playSound('click')
+    setIsUnlockingSkin(true)
+    setSkinUnlockNotice(t('skinUnlock.watching'))
+
+    requestRewardedAd({
+      onAdStarted: () => {
+        // Video playing
+      },
+      onAdFinished: () => {
+        setIsUnlockingSkin(false)
+        const newUnlocked = Array.from(new Set([...unlockedSkins, pendingUnlockSkin.id]))
+        setUnlockedSkins(newUnlocked)
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem('xo-unlocked-skins', JSON.stringify(newUnlocked))
+        }
+        handleSelectSkin(pendingUnlockSkin)
+        playSound('power')
+        setSkinUnlockNotice(t('skinUnlock.success'))
+        setTimeout(() => {
+          setPendingUnlockSkin(null)
+          setSkinUnlockNotice('')
+        }, 1100)
+      },
+      onAdError: () => {
+        setIsUnlockingSkin(false)
+        setSkinUnlockNotice('')
+      },
+    })
+  }
+
+  function renderSkinOptionsRow() {
+    return (
+      <div className="skin-options-row">
+        {SKINS.map((skin) => {
+          const isActive = selectedSkin === skin.id
+          const isUnlocked = isSkinUnlocked(skin.id)
+
+          return (
+            <button
+              key={skin.id}
+              className={`setup-option skin-option-btn ${isActive ? 'active' : ''} ${!isUnlocked ? 'skin-option-btn--locked' : ''}`}
+              type="button"
+              onClick={() => handleSkinClick(skin)}
+              title={
+                isUnlocked
+                  ? t(`skins.${skin.id}`) || skin.name
+                  : `${t(`skins.${skin.id}`) || skin.name} (${t('skinUnlock.locked')})`
+              }
+            >
+              <span className="skin-btn-content">
+                {skin.icon} {t(`skins.${skin.id}`) || skin.name}
+              </span>
+              {isActive && <span className="skin-check-badge">✓</span>}
+              {!isUnlocked && (
+                <span className="skin-lock-badge" aria-label={t('skinUnlock.locked')}>
+                  🔒
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+    )
   }
 
   useEffect(() => {
@@ -896,25 +1000,7 @@ export default function GameSetup({
             {/* ── Single-Row Non-Wrapping Skin / Theme Selector ── */}
             <div className="setup-group">
               <span className="setup-label">{t('setup.settingsModal.skinTheme')}</span>
-              <div className="skin-options-row">
-                {SKINS.map((skin) => {
-                  const isActive = selectedSkin === skin.id
-
-                  return (
-                    <button
-                      key={skin.id}
-                      className={`setup-option skin-option-btn ${isActive ? 'active' : ''}`}
-                      type="button"
-                      onClick={() => handleSelectSkin(skin)}
-                    >
-                      <span className="skin-btn-content">
-                        {skin.icon} {t(`skins.${skin.id}`) || skin.name}
-                      </span>
-                      {isActive && <span className="skin-check-badge">✓</span>}
-                    </button>
-                  )
-                })}
-              </div>
+              {renderSkinOptionsRow()}
             </div>
 
             <div className={`setup-summary ${gameMode}`}>
@@ -1169,25 +1255,7 @@ export default function GameSetup({
                     {/* Theme Skin Setting for Host */}
                     <div className="setup-group">
                       <span className="setup-label">{t('setup.settingsModal.skinTheme')}</span>
-                      <div className="skin-options-row">
-                        {SKINS.map((skin) => {
-                          const isActive = selectedSkin === skin.id
-
-                          return (
-                            <button
-                              key={skin.id}
-                              className={`setup-option skin-option-btn ${isActive ? 'active' : ''}`}
-                              type="button"
-                              onClick={() => handleSelectSkin(skin)}
-                            >
-                              <span className="skin-btn-content">
-                                {skin.icon} {t(`skins.${skin.id}`) || skin.name}
-                              </span>
-                              {isActive && <span className="skin-check-badge">✓</span>}
-                            </button>
-                          )
-                        })}
-                      </div>
+                      {renderSkinOptionsRow()}
                     </div>
 
                     <button
@@ -1255,25 +1323,7 @@ export default function GameSetup({
                     {/* Theme Skin Setting for Guest */}
                     <div className="setup-group">
                       <span className="setup-label">{t('setup.settingsModal.skinTheme')}</span>
-                      <div className="skin-options-row">
-                        {SKINS.map((skin) => {
-                          const isActive = selectedSkin === skin.id
-
-                          return (
-                            <button
-                              key={skin.id}
-                              className={`setup-option skin-option-btn ${isActive ? 'active' : ''}`}
-                              type="button"
-                              onClick={() => handleSelectSkin(skin)}
-                            >
-                              <span className="skin-btn-content">
-                                {skin.icon} {t(`skins.${skin.id}`) || skin.name}
-                              </span>
-                              {isActive && <span className="skin-check-badge">✓</span>}
-                            </button>
-                          )
-                        })}
-                      </div>
+                      {renderSkinOptionsRow()}
                     </div>
 
                     <button
@@ -1448,6 +1498,67 @@ export default function GameSetup({
             onClose={() => setIsHowToPlayOpen(false)}
           />
         </Suspense>
+      )}
+
+      {/* ── REWARDED AD THEME UNLOCK MODAL ── */}
+      {pendingUnlockSkin && (
+        <div
+          className="viral-modal-overlay skin-unlock-overlay"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => {
+            if (!isUnlockingSkin) setPendingUnlockSkin(null)
+          }}
+        >
+          <div
+            className="viral-modal-card skin-unlock-modal-card"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="skin-unlock-header">
+              <span className="skin-unlock-icon">{pendingUnlockSkin.icon}</span>
+              <h3 className="skin-unlock-title">{t('skinUnlock.title')}</h3>
+              <p className="skin-unlock-subtitle">{t('skinUnlock.subtitle')}</p>
+            </div>
+
+            <div className="skin-unlock-body">
+              <div className="skin-preview-card" data-skin={pendingUnlockSkin.id}>
+                <span className="skin-preview-name">
+                  {t(`skins.${pendingUnlockSkin.id}`) || pendingUnlockSkin.name}
+                </span>
+                <span className="skin-preview-badge">✨ EXCLUSIVE</span>
+              </div>
+              <p className="skin-unlock-prompt">
+                {t('skinUnlock.prompt', {
+                  skinName: t(`skins.${pendingUnlockSkin.id}`) || pendingUnlockSkin.name,
+                })}
+              </p>
+              {skinUnlockNotice && (
+                <p className="skin-unlock-notice" role="status">
+                  {skinUnlockNotice}
+                </p>
+              )}
+            </div>
+
+            <div className="skin-unlock-actions">
+              <button
+                type="button"
+                className="skin-unlock-watch-btn"
+                onClick={handleConfirmSkinUnlock}
+                disabled={isUnlockingSkin}
+              >
+                {isUnlockingSkin ? '⏳ ...' : t('skinUnlock.watchBtn')}
+              </button>
+              <button
+                type="button"
+                className="skin-unlock-cancel-btn"
+                onClick={() => setPendingUnlockSkin(null)}
+                disabled={isUnlockingSkin}
+              >
+                {t('skinUnlock.cancelBtn')}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </main>
   )

@@ -74,14 +74,29 @@ export async function gameplayStop() {
  * @param {Function} [options.onAdFinished] - Called when ad ends (resume audio/game)
  * @param {Function} [options.onAdError] - Called if ad fails or is skipped
  */
-export function requestMidgameAd({ onAdStarted, onAdFinished, onAdError } = {}) {
+export function requestMidgameAd({ onAdFinished } = {}) {
+  // Player-first design: intrusive midgame ads disabled to keep gameplay uninterrupted
+  if (onAdFinished) onAdFinished()
+}
+
+/**
+ * Requests a rewarded ad from CrazyGames SDK.
+ * Players choose to watch a video voluntarily in exchange for unlocking themes/powers.
+ *
+ * @param {Object} options
+ * @param {Function} [options.onAdStarted] - Called when video starts (pause audio)
+ * @param {Function} [options.onAdFinished] - Called when video finishes successfully (grant reward)
+ * @param {Function} [options.onAdError] - Called if video fails to load or user closes early
+ */
+export function requestRewardedAd({ onAdStarted, onAdFinished, onAdError } = {}) {
   if (!ENABLE_CRAZYGAMES || typeof window === 'undefined' || !window.CrazyGames?.SDK?.ad?.requestAd) {
+    // Dev/fallback environment: simulate watched ad
     if (onAdFinished) onAdFinished()
     return
   }
 
   try {
-    window.CrazyGames.SDK.ad.requestAd('midgame', {
+    window.CrazyGames.SDK.ad.requestAd('rewarded', {
       adStarted: () => {
         if (onAdStarted) onAdStarted()
       },
@@ -89,14 +104,13 @@ export function requestMidgameAd({ onAdStarted, onAdFinished, onAdError } = {}) 
         if (onAdFinished) onAdFinished()
       },
       adError: (error) => {
-        console.warn('[CrazyGames] Ad notice:', error)
+        console.warn('[CrazyGames] Rewarded ad notice:', error)
         if (onAdError) onAdError(error)
-        if (onAdFinished) onAdFinished()
       },
     })
   } catch (error) {
-    console.warn('[CrazyGames] Ad request error:', error)
-    if (onAdFinished) onAdFinished()
+    console.warn('[CrazyGames] Rewarded ad request error:', error)
+    if (onAdError) onAdError(error)
   }
 }
 

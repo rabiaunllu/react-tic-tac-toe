@@ -225,6 +225,16 @@ export default {
     cosmic: 'Kozmik Mor',
     ice: 'Buz Kristali',
   },
+  skinUnlock: {
+    title: 'ÖZEL TEMA KİLİDİ',
+    subtitle: 'Kısa bir video izleyerek bu temayı kalıcı olarak açın',
+    prompt: '{{skinName}} temasını açmak için ödüllü reklamı izlemek istiyor musunuz?',
+    watchBtn: '🎬 İZLE VE KİLİDİ AÇ',
+    cancelBtn: 'Vazgeç',
+    watching: 'Reklam yükleniyor...',
+    success: 'Tebrikler! Tema başarıyla açıldı!',
+    locked: 'Kilitli',
+  },
   rules: {
     title: 'NASIL OYNANIR?',
     subtitle: 'Taktik, güçler ve kazanma rehberi',
