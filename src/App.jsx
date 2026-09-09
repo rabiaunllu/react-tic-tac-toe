@@ -369,11 +369,19 @@ export default function App() {
         if (opponentType === 'ai' && (gameMode === 'classic' || gameMode === 'arena')) {
           setHumanWinStreak((currentStreak) => {
             if (nextWinner === humanSymbol) {
-              return currentStreak < 0 ? 1 : Math.min(currentStreak + 1, 3)
+              // Ani zorluk sıçramalarını (whiplash / rubber-banding) engelle:
+              // Oyuncu yenilgi serisindeyken (-2, -3) tek galibiyetle anında +1 şampiyon seviyesine fırlatma.
+              // Kademeli olarak nötr seviyeye (0) getirerek maç dengesini ve akıcılığını koru.
+              if (currentStreak < -1) return -1
+              if (currentStreak === -1) return 0
+              return Math.min(currentStreak + 1, 3)
             }
 
             if (nextWinner === aiSymbol) {
-              return currentStreak > 0 ? -1 : Math.max(currentStreak - 1, -3)
+              // Oyuncu galibiyet serisindeyken 1 kez yenildiğinde ani sert düşüşü engelle
+              if (currentStreak > 1) return 1
+              if (currentStreak === 1) return 0
+              return Math.max(currentStreak - 1, -3)
             }
 
             return currentStreak

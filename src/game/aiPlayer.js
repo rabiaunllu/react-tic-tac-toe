@@ -201,105 +201,164 @@ export function getAdaptiveDdaConfig({
   consecutiveDraws = 0,
   roundNumber = 1,
 } = {}) {
-  // 1. İLK ROUND: Kullanıcının talebi doğrultusunda ilk oyun kesinlikle HARDCORE / ZOR oynasın (0 taviz)
-  // Round 1'de bot %100 tavizsiz Büyükusta seviyesindedir.
-  if (roundNumber <= 1) {
-    return {
-      mode: 'grandmaster',
-      skipAntiExploit: false,
-      forkHesitationChance: 0,
-      suboptimalMoveChance: 0,
-      pityBlockMissChance: 0,
-      skipOwnFork: false,
-    }
-  }
-
-  // 2. BERABERLİK KİLİTLENMESİ (Draw Breakout) - Can sıkıcı sonsuz beraberlik durumunu çözme
-  // 3+ Beraberlik: Oyuncunun 3'lü dizip zafer alması için güçlü kapı arala
+  // 1. BERABERLİK KİLİTLENMESİ (Draw Breakout) - Can sıkıcı sonsuz beraberlik durumunu kırma
+  // Beraberlik yaşandığında tur sayısına bakılmaksızın anında devreye girerek tekdüzeliği kırar.
+  // Bot asla kör hata ("mallaşma") yapmaz; çatal savunması ve konumsal esneklik ile oyunu açar.
   if (consecutiveDraws >= 3) {
     return {
       mode: 'draw_breakout_extreme',
       skipAntiExploit: true,
-      forkHesitationChance: 0.90,
-      suboptimalMoveChance: 0.60,
-      pityBlockMissChance: 0.70,
-      skipOwnFork: true,
+      forkHesitationChance: 0.75,
+      suboptimalMoveChance: 0.45,
+      pityBlockMissChance: 0.35,
+      skipOwnFork: false,
+      scoreTolerance: 450,
+      powerPacingChance: 0.60,
+      earlyShieldDelayChance: 0.60,
+      trapBaitChance: 0.0,
     }
   }
 
-  // 2 Beraberlik: Kilitlenmeyi kırmak için seviyeyi belirgin düşür
   if (consecutiveDraws === 2) {
     return {
       mode: 'draw_breakout_strong',
       skipAntiExploit: true,
-      forkHesitationChance: 0.65,
-      suboptimalMoveChance: 0.40,
-      pityBlockMissChance: 0.40,
-      skipOwnFork: true,
+      forkHesitationChance: 0.55,
+      suboptimalMoveChance: 0.32,
+      pityBlockMissChance: 0.22,
+      skipOwnFork: false,
+      scoreTolerance: 350,
+      powerPacingChance: 0.45,
+      earlyShieldDelayChance: 0.45,
+      trapBaitChance: 0.10,
     }
   }
 
-  // 1 Beraberlik (ve 1. turdan sonra): Katı teoriyi hafif esnet
   if (consecutiveDraws === 1) {
     return {
       mode: 'draw_breakout_mild',
       skipAntiExploit: true,
-      forkHesitationChance: 0.38,
+      forkHesitationChance: 0.40,
       suboptimalMoveChance: 0.24,
-      pityBlockMissChance: 0,
+      pityBlockMissChance: 0.12,
       skipOwnFork: false,
+      scoreTolerance: 250,
+      powerPacingChance: 0.30,
+      earlyShieldDelayChance: 0.35,
+      trapBaitChance: 0.20,
+    }
+  }
+
+  // 2. İLK ROUND: Bot galibiyet oranı ~%80 olarak hedeflenmiştir (oyuncu ~%20 şans bulur).
+  // Bot açılışta asla hata yapmaz; ancak oyun geliştikçe (>= 3 taş) insan benzeri çok nadir (%5) dikkatsizlik yapabilir.
+  if (roundNumber <= 1) {
+    return {
+      mode: 'grandmaster_r1',
+      skipAntiExploit: Math.random() < 0.15,
+      forkHesitationChance: 0.18,
+      suboptimalMoveChance: 0.16,
+      pityBlockMissChance: 0.05,
+      skipOwnFork: false,
+      scoreTolerance: 120,
+      powerPacingChance: 0.18,
+      earlyShieldDelayChance: 0.20,
+      trapBaitChance: 0.35,
     }
   }
 
   // 3. RAKİP KÖTÜYSE / SÜREKLİ KAYBEDİYORSA (Loss Recovery / Anti-Churn)
-  // 3 veya daha fazla maç üst üste kaybeden oyuncuyu oyunda tutmak için acil kurtarma
+  // Kademeli esnetme: Ani güç patlamalarını ve kopuşları önler
   if (humanWinStreak <= -3) {
     return {
       mode: 'loss_recovery_rescue',
       skipAntiExploit: true,
-      forkHesitationChance: 0.85,
-      suboptimalMoveChance: 0.55,
-      pityBlockMissChance: 0.70,
+      forkHesitationChance: 0.70,
+      suboptimalMoveChance: 0.45,
+      pityBlockMissChance: 0.50,
       skipOwnFork: true,
+      scoreTolerance: 500,
+      powerPacingChance: 0.65,
+      earlyShieldDelayChance: 0.65,
+      trapBaitChance: 0.0,
     }
   }
 
-  // 2 maç üst üste kaybeden oyuncuya kademeli nefes aldırma
   if (humanWinStreak === -2) {
     return {
       mode: 'loss_recovery_moderate',
       skipAntiExploit: true,
-      forkHesitationChance: 0.60,
-      suboptimalMoveChance: 0.35,
-      pityBlockMissChance: 0.40,
+      forkHesitationChance: 0.45,
+      suboptimalMoveChance: 0.32,
+      pityBlockMissChance: 0.28,
       skipOwnFork: true,
+      scoreTolerance: 350,
+      powerPacingChance: 0.50,
+      earlyShieldDelayChance: 0.50,
+      trapBaitChance: 0.10,
     }
   }
 
-  // 1 maç kaybetmişse: Hala çok güçlü (hardcore), ancak açılış teorisini hafifçe esnetebilir
   if (humanWinStreak === -1) {
     return {
       mode: 'loss_recovery_mild',
       skipAntiExploit: true,
-      forkHesitationChance: 0.28,
-      suboptimalMoveChance: 0.18,
-      pityBlockMissChance: 0,
+      forkHesitationChance: 0.30,
+      suboptimalMoveChance: 0.24,
+      pityBlockMissChance: 0.14,
       skipOwnFork: false,
+      scoreTolerance: 240,
+      powerPacingChance: 0.30,
+      earlyShieldDelayChance: 0.35,
+      trapBaitChance: 0.20,
     }
   }
 
-  // 4. BAŞA BAŞ / NORMAL OYUN (Round 2+, Skor eşit veya oyuncu önde):
-  // "Bir milim daha esnekleştirilmiş Büyükusta":
-  // Bot hala %88-90 oranında saf Büyükustadır; aptalca 3'lü dizilim kaçırmaz (pityBlockMissChance = 0).
-  // Sadece oyuncu çok zekice bir çatal kurduğunda %14 ihtimalle tereddüt eder ve %10 ihtimalle
-  // en iyi 1. hamle yerine neredeyse eşit güçteki 2. en iyi hamleyi seçerek tatlı bir rekabet alanı sunar.
+  // 4. OYUNCU ÜSTÜNLÜK KURMUŞSA (Human Winning Streak - 2+ galibiyet serisi)
+  if (humanWinStreak >= 2) {
+    return {
+      mode: 'grandmaster_peak',
+      skipAntiExploit: false,
+      forkHesitationChance: 0.12,
+      suboptimalMoveChance: 0.10,
+      pityBlockMissChance: 0,
+      skipOwnFork: false,
+      scoreTolerance: 60,
+      powerPacingChance: 0.15,
+      earlyShieldDelayChance: 0.15,
+      trapBaitChance: 0.40,
+    }
+  }
+
+  // 5. OYUNCU 1 MAÇ KAZANMIŞSA (Human Win Streak 1 - Ani zorluk sıçraması olmadan dengeli rekabet)
+  if (humanWinStreak === 1) {
+    return {
+      mode: 'grandmaster_competitive',
+      skipAntiExploit: Math.random() < 0.18,
+      forkHesitationChance: 0.20,
+      suboptimalMoveChance: 0.18,
+      pityBlockMissChance: 0.04,
+      skipOwnFork: false,
+      scoreTolerance: 140,
+      powerPacingChance: 0.20,
+      earlyShieldDelayChance: 0.22,
+      trapBaitChance: 0.30,
+    }
+  }
+
+  // 6. BAŞA BAŞ / NORMAL OYUN (Round 2+, Skor eşit, humanWinStreak === 0):
+  // Hedef: Bot galibiyet oranı ~%75 (oyuncu iyi oynarsa ~%25 şans bulur).
+  // Bot insan benzeri çok nadir (%7) dikkatsizlik gösterebilir (yalnızca >= 3 taş durumunda).
   return {
     mode: 'grandmaster_flexible',
-    skipAntiExploit: false,
-    forkHesitationChance: 0.14,
-    suboptimalMoveChance: 0.10,
-    pityBlockMissChance: 0,
+    skipAntiExploit: Math.random() < 0.25,
+    forkHesitationChance: 0.26,
+    suboptimalMoveChance: 0.22,
+    pityBlockMissChance: 0.07,
     skipOwnFork: false,
+    scoreTolerance: 200,
+    powerPacingChance: 0.25,
+    earlyShieldDelayChance: 0.30,
+    trapBaitChance: 0.25,
   }
 }
 
@@ -320,6 +379,17 @@ export function getAdaptiveAiMove({
 }) {
   const dda = getClassicDdaConfig({ humanWinStreak, consecutiveDraws, roundNumber, gameMode })
 
+  const totalStones = squares.filter(Boolean).length
+
+  // L0: Klasik Açılış Kitaplığı (Opening Variety)
+  // Boş tahtada (%100 merkez oynamak yerine) merkez ve 4 köşe arasında dengeli seçim yaparak
+  // ezber tekdüzeliğini ve kaçınılmaz beraberlik kilitlenmesini kırar.
+  // Köşe açılışları Tic-Tac-Toe teorisinde hem saldırgan hem de çatal kurmaya en elverişli açılışlardır.
+  if (totalStones === 0 && boardSize === 3 && winLength === 3) {
+    const openings = [4, 0, 2, 6, 8]
+    return openings[Math.floor(Math.random() * openings.length)]
+  }
+
   // L1: Kendi Kazanma Hamlesi (Her zaman %100 infaz edilir)
   const winningMove = findWinningMove(squares, boardSize, winLength, aiPlayer, blockedIndexes)
   if (winningMove !== null) return winningMove
@@ -330,7 +400,9 @@ export function getAdaptiveAiMove({
   if (blockingMove !== null) {
     // Klasik modda beraberlik 2+'ya ulaşmışsa veya oyuncu 2+ kez kaybetmişse,
     // kullanıcının 3'lü yapıp kazanabilmesi için kontrollü fırsat tanı
-    if (dda.pityBlockMissChance > 0 && Math.random() < dda.pityBlockMissChance) {
+    const totalStones = squares.filter(Boolean).length
+    const canExperienceInattention = totalStones >= 3
+    if (canExperienceInattention && dda.pityBlockMissChance > 0 && Math.random() < dda.pityBlockMissChance) {
       // Bloke etmeyip konumsal hamleye devam et; blockingMove karesi kesinlikle seçilmemeli!
       excludedMoves.push(blockingMove)
     } else {
@@ -394,7 +466,13 @@ export function getAdaptiveAiMove({
   // L5: Merkez Kareyi Ele Geçir (Eğer boşsa)
   const centerIdx = getCenterIndex(boardSize)
   if (!squares[centerIdx] && !effectiveBlocked.includes(centerIdx)) {
-    return centerIdx
+    // Beraberlik serisi kırma: Eğer en az 1 beraberlik varsa (%100 merkeze kilitlenmek yerine)
+    // %35 şansla pas geçip L6 konumsal/çatal hamlelerinin çalışmasına izin ver
+    if (dda.skipAntiExploit && consecutiveDraws >= 1 && Math.random() < 0.35) {
+      // Pas geç, L6 konumsal çeşitlilik seçsin
+    } else {
+      return centerIdx
+    }
   }
 
   // L6: Pozisyonel ve Stratejik Hamle
@@ -751,13 +829,18 @@ function generateActions(state, context, plyFromRoot = 0) {
       if (isOurThreat) return true
 
       // 2. Rakibin zafer karesi mi? (Rakip kazandım sanıp basacak)
-      const isOppThreat = context.lines.some((line) => {
-        if (!line.includes(idx)) return false
-        const oppCount = line.filter((c) => squares[c] === opponent).length
-        const emptyCount = line.filter((c) => !squares[c] && !unavailable.includes(c)).length
-        return oppCount === context.winLength - 1 && emptyCount === 1
-      })
-      if (isOppThreat) return true
+      const allowTrapBait = context.dda?.trapBaitChance !== undefined
+        ? Math.random() < context.dda.trapBaitChance
+        : true
+      if (allowTrapBait) {
+        const isOppThreat = context.lines.some((line) => {
+          if (!line.includes(idx)) return false
+          const oppCount = line.filter((c) => squares[c] === opponent).length
+          const emptyCount = line.filter((c) => !squares[c] && !unavailable.includes(c)).length
+          return oppCount === context.winLength - 1 && emptyCount === 1
+        })
+        if (isOppThreat) return true
+      }
 
       // 3. Rakibin çatal noktası mı?
       const forks = getForkSquares(squares, context.boardSize, context.winLength, opponent, unavailable, context.lines)
@@ -802,6 +885,16 @@ function generateActions(state, context, plyFromRoot = 0) {
       const priorityShieldStones = ownStones.filter((idx) => {
         if (!oppHasBomb) return false
 
+        // DDA: Erken oyunda (<= 3 taş) kalkanı hemen basmayıp oyuncuya bomba fırsatı tanı
+        const totalStones = squares.filter(Boolean).length
+        if (
+          totalStones <= 3 &&
+          context.dda?.earlyShieldDelayChance > 0 &&
+          Math.random() < context.dda.earlyShieldDelayChance
+        ) {
+          return false
+        }
+
         // Test 1: Bu taş rakibin kaç zafer hattını tek başına kesiyor?
         const blockedLinesCount = context.lines.filter((line) => {
           if (!line.includes(idx)) return false
@@ -812,7 +905,6 @@ function generateActions(state, context, plyFromRoot = 0) {
 
         // Çift-blokçu taşlar (>= 2 hat kesenler) patlatılırsa oyun biter, MUTLAKA kalkanlanmalıdır!
         // Tek-blokçu taşlar ise kalkanı erken harcamamak için sadece geç oyunda (>= 6 taş) kalkanlanır.
-        const totalStones = squares.filter(Boolean).length
         if (blockedLinesCount >= 2 || (blockedLinesCount === 1 && totalStones >= 6)) return true
 
         // Test 2: Rakip zıt köşeleri (0-8 veya 2-6) tutmuşsa merkez tek başına o çaprazı keser, MUTLAKA kalkanlanmalıdır!
@@ -1078,7 +1170,7 @@ function searchArena(state, context, depth, alpha, beta, plyFromRoot) {
 
 /* ── Opening Book ─────────────────────────────────────────────────────────── */
 
-function getArenaOpeningAction(state, context) {
+function getArenaOpeningAction(state, context, dda = {}) {
   const { squares, powers, boosted, blocked } = state
   const { boardSize, aiPlayer } = context
   const stoneCount = squares.filter((s) => s !== null).length
@@ -1098,10 +1190,10 @@ function getArenaOpeningAction(state, context) {
 
   const availableCorners = corners.filter((c) => empty.includes(c))
   let target
-  if (empty.includes(center)) {
+  if (empty.includes(center) && !dda.skipAntiExploit) {
     target = center
   } else if (availableCorners.length > 0) {
-    // Rakip merkeze oynadığında 4 simetrik köşeden birini dinamik olarak seç (ezber zincirini kırar)
+    // 4 simetrik köşeden birini dinamik olarak seç (ezber zincirini kırar)
     target = availableCorners[Math.floor(Math.random() * availableCorners.length)]
   } else {
     target = empty[Math.floor(Math.random() * empty.length)]
@@ -1148,7 +1240,7 @@ export function getArenaAiPowerAction({
 
   transpositionTable.clear()
   const lines = getBoardLines(boardSize, winLength)
-  const context = { boardSize, winLength, multipliers, aiPlayer, humanPlayer, lines }
+  const context = { boardSize, winLength, multipliers, aiPlayer, humanPlayer, lines, dda }
   const zeroPowers = { bomb: 0, shield: 0, trap: 0, freeze: 0, vampire: 0, boost: 0 }
 
   const initialState = {
@@ -1166,7 +1258,7 @@ export function getArenaAiPowerAction({
   }
 
   // 1. Opening Book — instant response for first move
-  const opening = getArenaOpeningAction(initialState, context)
+  const opening = getArenaOpeningAction(initialState, context, dda)
   if (opening) return opening
 
   const rootActions = generateActions(initialState, context, 0)
@@ -1210,8 +1302,11 @@ export function getArenaAiPowerAction({
 
   // If opponent has open or locked threats, FILTER candidate actions to ONLY those that neutralize the threat
   let candidateActions = rootActions
+  const totalStones = squares.filter(Boolean).length
+  // İnsan benzeri dikkatsizlik: Bot açılışta asla hata yapmaz; yalnızca oyun geliştiğinde (>= 3 taş) ve çok nadiren dikkatsizlik gösterebilir.
+  const canExperienceInattention = totalStones >= 3
   const shouldMissThreatBlock =
-    dda.pityBlockMissChance > 0 && Math.random() < dda.pityBlockMissChance
+    canExperienceInattention && dda.pityBlockMissChance > 0 && Math.random() < dda.pityBlockMissChance
 
   if (humanThreatLines.length > 0) {
     const openThreats = humanThreatLines.filter((t) => !t.isLocked)
@@ -1428,9 +1523,19 @@ export function getArenaAiPowerAction({
   // Büyükusta hamleleri arasından rastgele birini seçerek botun öngörülemez ve dinamik olmasını sağla.
   const bestScore = ranked[0].score
   const isDecisiveWin = bestScore >= ARENA_WIN - 20
-  const scoreTolerance = isDecisiveWin ? 0 : 1.0
+  const scoreTolerance = isDecisiveWin ? 0 : (dda.scoreTolerance ?? 1.0)
   const topTier = ranked.filter((r) => bestScore - r.score <= scoreTolerance)
   let chosen = topTier[Math.floor(Math.random() * topTier.length)].action
+
+  // DDA Power Pacing: Kesin zafer yoksa ve güç harcamak yerine eşit/yakın güçte normal taş hamlesi varsa gücü sakla
+  if (!isDecisiveWin && dda.powerPacingChance > 0 && Math.random() < dda.powerPacingChance) {
+    if (chosen.type !== 'move') {
+      const normalMoveInTopTier = topTier.find((r) => r.action.type === 'move')
+      if (normalMoveInTopTier) {
+        chosen = normalMoveInTopTier.action
+      }
+    }
+  }
 
   // DDA Suboptimal Selection: Kayıp telafisi veya kilitlenmede rakibe taktiksel alan aç
   if (
