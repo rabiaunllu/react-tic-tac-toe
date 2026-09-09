@@ -1328,7 +1328,6 @@ export default function GameSetup({
                           className="online-copy-action online-copy-action--whatsapp"
                           onClick={handleShareWhatsApp}
                         >
-                          <span className="online-action-icon" aria-hidden="true">💬</span>
                           <span>{t('setup.onlineModal.shareWhatsApp')}</span>
                         </button>
                         <button
@@ -1336,7 +1335,6 @@ export default function GameSetup({
                           className={`online-copy-action online-copy-action--invite ${isLinkCopied ? 'online-copy-action--copied' : ''}`}
                           onClick={handleShareOther}
                         >
-                          <span className="online-action-icon" aria-hidden="true">{isLinkCopied ? '✓' : (canNativeShare ? '🚀' : '🔗')}</span>
                           <span>
                             {isLinkCopied
                               ? t('setup.onlineModal.copiedLink')
