@@ -721,9 +721,11 @@ public sealed class InMemoryRoomStore : IRoomStore
 
             // SECURITY: Server-side elapsed time validation.
             // Client cannot claim timeout before the actual turn time has expired.
-            // Adds a 2-second grace buffer to account for network latency.
+            // Dynamically scales network latency grace buffer between 0.8s and 2.0s (15% of turn time)
+            // to ensure blitz rounds (e.g. 5s) are fair while long turns have ample latency cushion.
             var elapsed = DateTimeOffset.UtcNow - room.UpdatedAt;
-            var minimumElapsed = TimeSpan.FromSeconds(room.TurnTimeLimit - 2);
+            var graceBufferSeconds = Math.Clamp(room.TurnTimeLimit * 0.15, 0.8, 2.0);
+            var minimumElapsed = TimeSpan.FromSeconds(room.TurnTimeLimit - graceBufferSeconds);
             if (elapsed < minimumElapsed)
             {
                 return TimeoutRoomResult.Conflict("Turn time limit has not expired yet.");
