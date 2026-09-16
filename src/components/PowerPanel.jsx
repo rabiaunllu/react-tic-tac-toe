@@ -9,6 +9,7 @@ export default function PowerPanel({
   playerName,
   score = 0,
   scoreLabel,
+  showScore = true,
   isActivePlayer = true,
   canInteract = isActivePlayer,
   isPowersEnabled = true,
@@ -31,7 +32,9 @@ export default function PowerPanel({
   const displayScoreLabel = scoreLabel ?? t('common.score')
   const basePowers = getAvailablePowerDefinitions(powerOptions)
   const extraPowers = getPowerDefinitions(extraPowerIds)
-  const availablePowers = [...basePowers, ...extraPowers]
+  const availablePowers = [...basePowers, ...extraPowers.filter((power) => (
+    !basePowers.some((basePower) => basePower.id === power.id)
+  ))]
   const selectedPower = availablePowers.find((power) => power.id === activePower)
 
   function renderPowerIcon(power) {
@@ -91,10 +94,12 @@ export default function PowerPanel({
             </button>
           )}
         </div>
-        <div className="player-score">
-          <small>{displayScoreLabel}</small>
-          <strong>{score}</strong>
-        </div>
+        {showScore && (
+          <div className="player-score">
+            <small>{displayScoreLabel}</small>
+            <strong>{score}</strong>
+          </div>
+        )}
       </div>
 
       {timeLimit > 0 && (
@@ -147,41 +152,7 @@ export default function PowerPanel({
 
       {isPowersEnabled && (
         <div className="power-list">
-          {basePowers.map((power) => {
-            const count = powerCounts[power.id]
-            const isActive = canInteract && activePower === power.id
-            const isDisabled = !canInteract || count === 0 || hasUsedPowerThisTurn
-            const powerName = t(`powers.${power.id}.name`) || power.name
-            const powerDesc = t(`powers.${power.id}.desc`) || power.description
-
-            return (
-              <button
-                key={power.id}
-                className={`power-button ${isActive ? 'active' : ''}`}
-                disabled={isDisabled}
-                aria-label={`${powerName}: ${powerDesc}`}
-                data-hint={hasUsedPowerThisTurn ? (isTr ? 'Bu tur güç kilitli' : 'Powers locked this turn') : powerDesc}
-                title={
-                  count === 0
-                    ? (isTr ? 'Bu güç bitti.' : 'Power depleted.')
-                    : hasUsedPowerThisTurn
-                      ? (isTr ? 'Bu turda zaten bir güç kullandın. Lütfen taşını koy.' : 'Already used a power this turn. Place a mark.')
-                      : powerDesc
-                }
-                onClick={() => handlePowerClick(power.id, isActive)}
-              >
-                <span className="power-icon">{renderPowerIcon(power)}</span>
-                <span className="power-name">{powerName}</span>
-                <span className="power-count">{count}</span>
-              </button>
-            )
-          })}
-        </div>
-      )}
-
-      {isPowersEnabled && extraPowers.length > 0 && (
-        <div className="power-list rewarded-power-list">
-          {extraPowers.map((power) => {
+          {availablePowers.map((power) => {
             const count = powerCounts[power.id]
             const isActive = canInteract && activePower === power.id
             const isDisabled = !canInteract || count === 0 || hasUsedPowerThisTurn

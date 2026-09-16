@@ -32,6 +32,16 @@ export default function RoundResultModal({
   boardSize = 3,
   winStreak = 0,
   opponentType = 'human',
+  campaignLevel = null,
+  dailyChallenge = null,
+  dailyReward = 0,
+  missionStars = 0,
+  missionCompleted = false,
+  missionAttempted = false,
+  onNextLevel = null,
+  hasNextLevel = false,
+  missionFailure = null,
+  moves = 0,
 }) {
   const { t, language } = useTranslation()
   const isTr = language === 'tr'
@@ -53,7 +63,9 @@ export default function RoundResultModal({
   }, [])
 
   const displayedWinner = matchWinner ?? winner
-  const isMyVictory = mySymbol ? (displayedWinner === mySymbol || winningSymbol === mySymbol) : true
+  const isMyVictory = mySymbol
+    ? winningSymbol === mySymbol || (!winningSymbol && matchWinner === player1Name)
+    : true
   const isTimeoutWin = Boolean(
     isTimeout ||
     (typeof resultMessage === 'string' && (
@@ -225,7 +237,8 @@ export default function RoundResultModal({
           <button
             type="button"
             className="round-result-close"
-            aria-label={t('game.watchBoard')}
+            aria-label={isTr ? 'Tahtayı İncele' : 'Inspect Board'}
+            title={isTr ? 'Tahtayı incelemek için kapat' : 'Close to inspect board'}
             onClick={() => {
               registerUserGesture()
               playSound('click')
@@ -246,25 +259,63 @@ export default function RoundResultModal({
 
         <h2 id="round-result-title">{resultLabel}</h2>
 
-        <div className="round-result-score" aria-label={`${isTr ? 'Skor' : 'Score'} ${p1ScoreVal} - ${p2ScoreVal}`}>
-          <div>
-            <strong>{p1ScoreVal}</strong>
-            <span>{p1Label}</span>
+        {campaignLevel || dailyChallenge ? (
+          <div className="round-result-mission-stats">
+            <div className="mission-stat-item">
+              <span>{isTr ? 'HAMLE' : 'MOVES'}</span>
+              <strong>{moves ?? 1}</strong>
+            </div>
+            {campaignLevel && (
+              <div className="mission-stat-item">
+                <span>{isTr ? 'YILDIZ' : 'STARS'}</span>
+                <strong className="mission-stat-stars">
+                  {isMyVictory && missionCompleted
+                    ? `${'★'.repeat(Math.max(1, missionStars))}${'☆'.repeat(Math.max(0, 3 - missionStars))}`
+                    : '☆☆☆'}
+                </strong>
+              </div>
+            )}
+            {dailyChallenge && (
+              <div className="mission-stat-item">
+                <span>{isTr ? 'ÖDÜL' : 'REWARD'}</span>
+                <strong style={{ color: isMyVictory && missionCompleted ? '#4ade80' : '#94a3b8' }}>
+                  {isMyVictory && missionCompleted ? `+${dailyReward} TP` : (isTr ? 'Ödül Yok' : 'No Reward')}
+                </strong>
+              </div>
+            )}
+            <div className="mission-stat-item">
+              <span>{isTr ? 'DURUM' : 'STATUS'}</span>
+              <strong style={{ color: isMyVictory && missionCompleted ? '#38bdf8' : '#f43f5e', fontSize: '15px' }}>
+                {isMyVictory && missionCompleted ? (isTr ? 'BAŞARILI' : 'PASSED') : (isTr ? 'BAŞARISIZ' : 'FAILED')}
+              </strong>
+            </div>
           </div>
+        ) : (
+          <div className="round-result-score" aria-label={`${isTr ? 'Skor' : 'Score'} ${p1ScoreVal} - ${p2ScoreVal}`}>
+            <div>
+              <strong>{p1ScoreVal}</strong>
+              <span>{p1Label}</span>
+            </div>
 
-          <span aria-hidden="true">VS</span>
+            <span aria-hidden="true">VS</span>
 
-          <div>
-            <strong>{p2ScoreVal}</strong>
-            <span>{p2Label}</span>
+            <div>
+              <strong>{p2ScoreVal}</strong>
+              <span>{p2Label}</span>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="round-result-message" id="round-result-message">
           {isForfeitWin ? (
             <>
               <strong>{isMyVictory ? t('modals.roundResult.forfeitWinTitle') : t('modals.roundResult.forfeitLossTitle')}</strong>
               <small>{isMyVictory ? t('modals.roundResult.forfeitWinDesc') : t('modals.roundResult.forfeitLossDesc')}</small>
+            </>
+          ) : !isDraw && !isMyVictory ? (
+            <>
+              <strong>💀 {isTr ? 'Bu tur kaçtı.' : 'Round lost.'}</strong>
+              <small>{loserMessage || (isTr ? 'Rövanş şart oldu.' : 'Rematch is calling.')}</small>
             </>
           ) : Array.isArray(resultMessage) ? (
             <>
@@ -278,6 +329,31 @@ export default function RoundResultModal({
             </>
           )}
         </div>
+
+        {campaignLevel && !isDraw && isMyVictory && missionCompleted && (
+          <div className="mission-result-reward mission-result-reward--campaign">
+            <strong>{isTr ? 'Bulmaca seferi tamamlandı' : 'Puzzle quest complete'}</strong>
+            <span>{'★'.repeat(Math.max(1, missionStars))}{'☆'.repeat(Math.max(0, 3 - missionStars))}</span>
+          </div>
+        )}
+
+        {dailyChallenge && !isDraw && isMyVictory && missionCompleted && (
+          <div className="mission-result-reward mission-result-reward--daily">
+            <strong>{isTr ? 'Günün görevi tamamlandı' : 'Daily challenge complete'}</strong>
+            <span>{isTr ? `+${dailyReward} TP · Seri korundu` : `+${dailyReward} XP · Streak secured`}</span>
+          </div>
+        )}
+
+        {(campaignLevel || dailyChallenge) && !isDraw && isMyVictory && missionAttempted && !missionCompleted && (
+          <div className="mission-result-reward mission-result-reward--failed">
+            <strong>{isTr ? 'Görev koşulu tamamlanmadı' : 'Mission condition not met'}</strong>
+            <span>
+              {missionFailure
+                ? (isTr ? missionFailure.messageTr : missionFailure.messageEn)
+                : (isTr ? 'Bu galibiyet ödül veya seri kazandırmadı.' : 'This win did not grant the reward or streak.')}
+            </span>
+          </div>
+        )}
 
         {/* ── Social Victory Share Button ── */}
         {!isMenuConfirmOpen && (
@@ -327,7 +403,20 @@ export default function RoundResultModal({
           </div>
         ) : (
           <div className={`round-result-actions ${isSingleAction ? 'round-result-actions--single' : ''}`}>
-            {isMatchOver ? (
+            {campaignLevel && isMyVictory && missionCompleted && hasNextLevel && onNextLevel ? (
+              <button
+                type="button"
+                className="round-result-btn--viral"
+                onClick={() => {
+                  registerUserGesture()
+                  playSound('click')
+                  onNextLevel()
+                }}
+                autoFocus
+              >
+                {isTr ? 'SONRAKİ SEVİYE ➔' : 'NEXT LEVEL ➔'}
+              </button>
+            ) : isMatchOver ? (
               <button
                 type="button"
                 className="round-result-btn--viral"
@@ -380,6 +469,20 @@ export default function RoundResultModal({
               </button>
             )}
           </div>
+        )}
+
+        {onClose && !isMenuConfirmOpen && (
+          <button
+            type="button"
+            className="round-result-inspect-btn"
+            onClick={() => {
+              registerUserGesture()
+              playSound('click')
+              onClose()
+            }}
+          >
+            👀 {isTr ? 'Tahtayı İncele (Kazanan Hamleyi Gör)' : 'Inspect Board (See Winning Move)'}
+          </button>
         )}
       </section>
       </div>

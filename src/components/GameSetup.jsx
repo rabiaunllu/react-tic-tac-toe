@@ -14,9 +14,40 @@ import { useTranslation } from '../i18n'
 import { playSound, registerUserGesture } from '../game/soundManager'
 import SetupHeroBanner from './SetupHeroBanner'
 import PowerSimulation from './PowerSimulation'
-import { requestRewardedAd } from '../services/crazyGamesService'
+import { initCrazyGamesSdk, requestRewardedAd, getInviteLink, getInviteParam, updateRoom, leftRoom } from '../services/crazyGamesService'
+import {
+  safeGetItem,
+  safeSetItem,
+  STORAGE_KEYS,
+  sanitizeCampaignProgress,
+  sanitizeDailyChallenge,
+} from '../services/storageService'
+
+function getDailyStatus() {
+  try {
+    const now = new Date()
+    const today = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0')
+    const data = sanitizeDailyChallenge(safeGetItem(STORAGE_KEYS.DAILY, {}))
+    const isCompleted = data.lastCompleted === today || Boolean(data.history?.[today]?.completed)
+    return { isCompleted, streak: data.streak || 0 }
+  } catch {
+    return { isCompleted: false, streak: 0 }
+  }
+}
+
+function getCampaignStatus() {
+  try {
+    const data = sanitizeCampaignProgress(safeGetItem(STORAGE_KEYS.CAMPAIGN, {}))
+    const count = Object.keys(data.completedLevels || {}).length
+    return { completedCount: count }
+  } catch {
+    return { completedCount: 0 }
+  }
+}
 
 const HowToPlay = lazy(() => import('./HowToPlay'))
+const Campaign = lazy(() => import('./Campaign'))
+const DailyChallenge = lazy(() => import('./DailyChallenge'))
 
 const boardOptions = [
   { size: 3, label: '3x3', description: 'Klasik hızlı oyun', winLength: 3 },
@@ -76,8 +107,9 @@ function getCurrentOnlinePlayer(room, playerName, preferredSymbol) {
 
 function getInitialDeepLinkRoom() {
   if (typeof window === 'undefined') return null
+  const sdkRoom = getInviteParam('room')
   const params = new URLSearchParams(window.location.search)
-  const roomParam = params.get('room')
+  const roomParam = sdkRoom || params.get('room')
   if (roomParam && IS_ONLINE_ENABLED) {
     const sanitizedRoom = roomParam.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8)
     if (isValidRoomCodeInput(sanitizedRoom)) {
@@ -127,41 +159,77 @@ export default function GameSetup({
   const [onlineBoostMode] = useState('random')
   const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false)
 
+  useEffect(() => {
+    if (!onlineLobby?.room?.roomCode) return
+    updateRoom({
+      roomId: onlineLobby.room.roomCode,
+      isJoinable: onlineLobby.room.status === 'waiting',
+      inviteParams: { room: onlineLobby.room.roomCode },
+    })
+    return () => {
+      leftRoom()
+    }
+  }, [onlineLobby?.room?.roomCode, onlineLobby?.room?.status])
+
+  useEffect(() => {
+    let isSubscribed = true
+    const checkInviteParam = async () => {
+      await initCrazyGamesSdk()
+      if (!isSubscribed) return
+      const room = getInviteParam('room')
+      if (room && isValidRoomCodeInput(room.toUpperCase())) {
+        const sanitized = room.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8)
+        setJoinRoomCode(sanitized)
+        setOnlineFlow('join')
+        setActiveModal('online_modal')
+      }
+    }
+    void checkInviteParam()
+    return () => {
+      isSubscribed = false
+    }
+  }, [])
+
   const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000
   const [nowTimestamp, setNowTimestamp] = useState(() => Date.now())
 
+  const [dailyStatus, setDailyStatus] = useState(getDailyStatus)
+  const [campaignStatus, setCampaignStatus] = useState(getCampaignStatus)
+
   // Skin / Cosmetic state
   const [selectedSkin, setSelectedSkin] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return window.localStorage.getItem('xo-arena-skin') || 'neon'
-    }
-    return 'neon'
+    return safeGetItem(STORAGE_KEYS.ACTIVE_SKIN, 'neon')
   })
 
   const [unlockedSkins, setUnlockedSkins] = useState(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = window.localStorage.getItem('xo-unlocked-skins')
-        if (saved) {
-          const parsed = JSON.parse(saved)
-          if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
-            return parsed
-          }
-          if (Array.isArray(parsed)) {
-            const map = { neon: true }
-            const initialNow = Date.now()
-            parsed.forEach((id) => {
-              map[id] = initialNow + TWENTY_FOUR_HOURS_MS
-            })
-            return map
-          }
-        }
-      } catch {
-        // ignore parse error
-      }
+    const saved = safeGetItem(STORAGE_KEYS.SKINS, null)
+    if (saved && typeof saved === 'object' && !Array.isArray(saved)) {
+      return saved
+    }
+    if (Array.isArray(saved)) {
+      const map = { neon: true }
+      const initialNow = Date.now()
+      saved.forEach((id) => {
+        map[id] = initialNow + TWENTY_FOUR_HOURS_MS
+      })
+      return map
     }
     return { neon: true }
   })
+
+  // Multi-tab real-time synchronization
+  useEffect(() => {
+    const handleStorage = () => {
+      setDailyStatus(getDailyStatus())
+      setCampaignStatus(getCampaignStatus())
+      const savedSkins = safeGetItem(STORAGE_KEYS.SKINS, { neon: true })
+      setUnlockedSkins(savedSkins)
+      const currentSkin = safeGetItem(STORAGE_KEYS.ACTIVE_SKIN, 'neon')
+      setSelectedSkin(currentSkin)
+    }
+    window.addEventListener('storage', handleStorage)
+    return () => window.removeEventListener('storage', handleStorage)
+  }, [])
 
   const [pendingUnlockSkin, setPendingUnlockSkin] = useState(null)
   const [isUnlockingSkin, setIsUnlockingSkin] = useState(false)
@@ -172,7 +240,8 @@ export default function GameSetup({
     if (skinObj?.isFree) return true
     const expiresAt = unlockedSkins[skinId]
     if (!expiresAt) return false
-    return typeof expiresAt === 'number' && expiresAt > nowTimestamp
+    if (expiresAt === true) return true
+    return expiresAt > nowTimestamp
   }
 
   function getSkinRemainingHours(skinId) {
@@ -189,8 +258,8 @@ export default function GameSetup({
     registerUserGesture()
     playSound('click')
     setSelectedSkin(skin.id)
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem('xo-arena-skin', skin.id)
+    safeSetItem(STORAGE_KEYS.ACTIVE_SKIN, skin.id)
+    if (typeof document !== 'undefined') {
       document.body.setAttribute('data-skin', skin.id)
     }
   }
@@ -227,9 +296,7 @@ export default function GameSetup({
           [pendingUnlockSkin.id]: expiresAt,
         }
         setUnlockedSkins(newUnlocked)
-        if (typeof window !== 'undefined') {
-          window.localStorage.setItem('xo-unlocked-skins', JSON.stringify(newUnlocked))
-        }
+        safeSetItem(STORAGE_KEYS.SKINS, newUnlocked)
         handleSelectSkin(pendingUnlockSkin)
         playSound('power')
         setSkinUnlockNotice(t('skinUnlock.success'))
@@ -561,20 +628,22 @@ export default function GameSetup({
     }
   }
 
-  function handleShareWhatsApp() {
+  async function handleCopyInviteLink() {
     registerUserGesture()
     playSound('click')
     const roomCode = onlineLobby?.room?.roomCode
-    if (!roomCode) return
+    if (!roomCode || !navigator.clipboard) return
 
     const safeRoomCode = encodeURIComponent(String(roomCode).trim())
-    const link = `${window.location.origin}${window.location.pathname}?room=${safeRoomCode}`
-    const challengeText = isTr
-      ? `⚔️ XO Tactix'te seninle kapışmak istiyorum! Odaya katılmak için tıkla:\n${link}\n\nOda Kodu: ${roomCode}`
-      : `⚔️ I challenge you to an XO Tactix duel! Click to join:\n${link}\n\nRoom Code: ${roomCode}`
+    const link = getInviteLink({ room: safeRoomCode }) || `${window.location.origin}${window.location.pathname}?room=${safeRoomCode}`
 
-    const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(challengeText)}`
-    window.open(waUrl, '_blank', 'noopener,noreferrer')
+    try {
+      await navigator.clipboard.writeText(link)
+      setIsLinkCopied(true)
+      setTimeout(() => setIsLinkCopied(false), 2200)
+    } catch {
+      // ignore
+    }
   }
 
   async function handleShareOther() {
@@ -584,7 +653,7 @@ export default function GameSetup({
     if (!roomCode) return
 
     const safeRoomCode = encodeURIComponent(String(roomCode).trim())
-    const link = `${window.location.origin}${window.location.pathname}?room=${safeRoomCode}`
+    const link = getInviteLink({ room: safeRoomCode }) || `${window.location.origin}${window.location.pathname}?room=${safeRoomCode}`
     const challengeText = isTr
       ? `⚔️ XO Tactix'te seninle kapışmak istiyorum! Odaya katılmak için tıkla:\n${link}\n\nOda Kodu: ${roomCode}`
       : `⚔️ I challenge you to an XO Tactix duel! Click to join:\n${link}\n\nRoom Code: ${roomCode}`
@@ -602,15 +671,7 @@ export default function GameSetup({
       }
     }
 
-    if (navigator.clipboard) {
-      try {
-        await navigator.clipboard.writeText(link)
-        setIsLinkCopied(true)
-        setTimeout(() => setIsLinkCopied(false), 2200)
-      } catch {
-        // ignore
-      }
-    }
+    await handleCopyInviteLink()
   }
 
   function handleOnlineFlowBack() {
@@ -773,6 +834,33 @@ export default function GameSetup({
 
         <SetupHeroBanner />
 
+        {/* ── Quick Play: 1-Click Arena Game (CG Requirement: Max 1 click to gameplay) ── */}
+        <button
+          type="button"
+          className="quick-play-button"
+          onClick={() => {
+            registerUserGesture()
+            playSound('click')
+            onStartGame({
+              boardSize: 3,
+              winLength: 3,
+              opponentType: 'ai',
+              gameMode: 'arena',
+              targetValue: 15,
+              isInfinite: false,
+              turnTimeLimit: 15,
+              firstMove: 'alternating',
+              player1Name: isTr ? 'Oyuncu' : 'Player',
+              player2Name: 'Bot',
+              difficultyOverride: 'medium',
+            })
+          }}
+        >
+          <span className="quick-play-icon">⚡</span>
+          <span className="quick-play-text">{isTr ? 'Hızlı Oyna' : 'Quick Play'}</span>
+          <span className="quick-play-desc">{isTr ? 'Arena 3x3 • Bot • Güçler Aktif' : 'Arena 3x3 • Bot • Powers On'}</span>
+        </button>
+
         {/* ── Viral Mode Action Cards Grid ── */}
         <div className="viral-mode-grid">
           <button
@@ -807,10 +895,61 @@ export default function GameSetup({
             onClick={() => handleSelectMode('online')}
             disabled={!IS_ONLINE_ENABLED}
           >
+            {!IS_ONLINE_ENABLED && (
+              <div className="viral-card-badge viral-card-badge--soon">
+                {isTr ? 'YAKINDA' : 'SOON'}
+              </div>
+            )}
             <div className="viral-card-icon">🌐</div>
             <div className="viral-card-content">
               <h3>{t('setup.modes.online')}</h3>
-              <p>{t('setup.modes.onlineDesc')}</p>
+              <p>
+                {!IS_ONLINE_ENABLED
+                  ? (isTr ? 'Online mod yeni güncellemeyle açılacak' : 'Online multiplayer coming in next update')
+                  : t('setup.modes.onlineDesc')}
+              </p>
+            </div>
+            <div className="viral-card-arrow">→</div>
+          </button>
+
+          <button
+            type="button"
+            className="viral-mode-card viral-mode-card--campaign"
+            onClick={() => {
+              registerUserGesture()
+              playSound('click')
+              setActiveModal('campaign_modal')
+            }}
+          >
+            <div className="viral-card-badge viral-card-badge--campaign">
+              {campaignStatus.completedCount > 0 ? `${campaignStatus.completedCount}/30 ${isTr ? 'BÖLÜM' : 'LEVELS'}` : (isTr ? '30 BULMACA' : '30 PUZZLES')}
+            </div>
+            <div className="viral-card-icon">🧩</div>
+            <div className="viral-card-content">
+              <h3>{isTr ? 'Bulmaca Seferi' : 'Puzzle Quest'}</h3>
+              <p>{isTr ? '30 taktik bulmacayı çöz, ustalığını kanıtla' : 'Solve 30 tactical puzzles and prove your mastery'}</p>
+            </div>
+            <div className="viral-card-arrow">→</div>
+          </button>
+
+          <button
+            type="button"
+            className="viral-mode-card viral-mode-card--daily"
+            onClick={() => {
+              registerUserGesture()
+              playSound('click')
+              setActiveModal('daily_modal')
+            }}
+          >
+            <div className={`viral-card-badge viral-card-badge--daily ${dailyStatus.isCompleted ? 'is-completed' : ''}`}>
+              {dailyStatus.isCompleted
+                ? `✓ ${isTr ? 'TAMAMLANDI' : 'DONE'}${dailyStatus.streak > 0 ? ` · 🔥 ${dailyStatus.streak}` : ''}`
+                : `⚡ ${isTr ? 'GÖREV HAZIR' : 'NEW MISSION'}${dailyStatus.streak > 0 ? ` · 🔥 ${dailyStatus.streak}` : ''}`}
+            </div>
+            <div className="viral-card-icon">📅</div>
+            <div className="viral-card-content">
+              <h3>{isTr ? 'Günlük Görev' : 'Daily Challenge'}</h3>
+              <p>{isTr ? 'Her gün yeni bulmaca, seri bonusları' : 'New puzzle daily, streak bonuses'}</p>
             </div>
             <div className="viral-card-arrow">→</div>
           </button>
@@ -1420,22 +1559,24 @@ export default function GameSetup({
                       <div className="online-copy-buttons-group">
                         <button
                           type="button"
-                          className="online-copy-action online-copy-action--whatsapp"
-                          onClick={handleShareWhatsApp}
-                        >
-                          <span>{t('setup.onlineModal.shareWhatsApp')}</span>
-                        </button>
-                        <button
-                          type="button"
                           className={`online-copy-action online-copy-action--invite ${isLinkCopied ? 'online-copy-action--copied' : ''}`}
-                          onClick={handleShareOther}
+                          onClick={handleCopyInviteLink}
                         >
                           <span>
                             {isLinkCopied
                               ? t('setup.onlineModal.copiedLink')
-                              : (canNativeShare ? t('setup.onlineModal.shareOther') : t('setup.onlineModal.copyLink'))}
+                              : `🔗 ${t('setup.onlineModal.copyLink')}`}
                           </span>
                         </button>
+                        {canNativeShare && (
+                          <button
+                            type="button"
+                            className="online-copy-action online-copy-action--share"
+                            onClick={handleShareOther}
+                          >
+                            <span>📤 {t('setup.onlineModal.shareOther')}</span>
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1605,6 +1746,72 @@ export default function GameSetup({
           </div>
         </div>
       )}
+      {activeModal === 'campaign_modal' && (
+        <Suspense
+          fallback={
+            <div className="loading-fallback-overlay" role="status" aria-live="polite">
+              <div className="loading-fallback-spinner" />
+              <span>{isTr ? 'Bulmaca Seferi Yükleniyor...' : 'Loading Puzzle Quest...'}</span>
+            </div>
+          }
+        >
+          <Campaign
+            onPlayLevel={(levelConfig) => {
+              setActiveModal(null)
+              onStartGame({
+                boardSize: levelConfig.boardSize,
+                winLength: levelConfig.winLength,
+                opponentType: 'ai',
+                gameMode: 'arena',
+                targetValue: 1,
+                isInfinite: false,
+                turnTimeLimit: levelConfig.timeLimit || 15,
+                firstMove: 'human',
+                player1Name: isTr ? 'Oyuncu' : 'Player',
+                player2Name: 'Bot',
+                campaignLevel: levelConfig,
+                difficultyOverride: levelConfig.difficulty || 'medium',
+              })
+            }}
+            onBack={() => setActiveModal(null)}
+            language={language}
+          />
+        </Suspense>
+      )}
+
+      {activeModal === 'daily_modal' && (
+        <Suspense
+          fallback={
+            <div className="loading-fallback-overlay" role="status" aria-live="polite">
+              <div className="loading-fallback-spinner" />
+              <span>{isTr ? 'Günün Görevi Yükleniyor...' : 'Loading Daily Challenge...'}</span>
+            </div>
+          }
+        >
+          <DailyChallenge
+            onPlayChallenge={(challengeConfig) => {
+              setActiveModal(null)
+              onStartGame({
+                boardSize: challengeConfig.boardSize || 3,
+                winLength: challengeConfig.winLength || 3,
+                opponentType: 'ai',
+                gameMode: challengeConfig.gameMode || 'arena',
+                targetValue: 1,
+                isInfinite: false,
+                turnTimeLimit: challengeConfig.timeLimit || 15,
+                firstMove: 'human',
+                player1Name: isTr ? 'Oyuncu' : 'Player',
+                player2Name: 'Bot',
+                dailyChallenge: challengeConfig,
+                difficultyOverride: challengeConfig.difficulty || 'hard',
+              })
+            }}
+            onBack={() => setActiveModal(null)}
+            language={language}
+          />
+        </Suspense>
+      )}
+
     </main>
   )
 }

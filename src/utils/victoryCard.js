@@ -279,8 +279,8 @@ export function generateVictoryCardCanvas({
 
   // Punchy Viral Challenge Text
   const viralCta = isTr
-    ? '⚔️ Skoruma meydan okuyabilir misin? Hemen oyna 👉 xotactix.me'
-    : '⚔️ Think you can beat my score? Play now 👉 xotactix.me'
+    ? '⚔️ Skoruma meydan okuyabilir misin? Hemen oyna 👉 XO Tactix'
+    : '⚔️ Think you can beat my score? Play now 👉 XO Tactix'
 
   ctx.font = '800 20px system-ui, sans-serif'
   ctx.fillStyle = '#ffffff'

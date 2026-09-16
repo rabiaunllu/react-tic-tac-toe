@@ -1,17 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import Board from './components/Board'
 import GameStatus from './components/GameStatus'
 import ArenaSettings from './components/ArenaSettings'
 import PowerPanel from './components/PowerPanel'
 import GameSetup from './components/GameSetup'
-import { ARENA_POWER_NAMES, createInitialPowerCounts, rewardedPowerIds } from './game/powers'
+import { ARENA_POWER_NAMES, createInitialPowerCounts, missionPowerIds, rewardedPowerIds } from './game/powers'
 import RoundResultPreviewBar from './components/RoundResultPreviewBar'
 import FloatingEmote from './components/FloatingEmote'
 import QuickEmoteBar from './components/QuickEmoteBar'
 import SoundToggle from './components/SoundToggle'
 import OnlineGame from './components/OnlineGame'
 import RoundResultModal from './components/RoundResultModal'
+import IntroAnimation from './components/IntroAnimation'
+import TutorialOverlay from './components/TutorialOverlay'
 
 // PERFORMANCE OPTIMIZATION (Action 15): Decouple main thread entry from aiPlayer.js.
 // AI calculations run in aiWorker.js. By loading aiPlayer dynamically on demand,
@@ -24,7 +26,16 @@ function getAiPlayerModule() {
   return aiPlayerModulePromise
 }
 import { useTranslation } from './i18n'
-import { initCrazyGamesSdk, gameplayStart, gameplayStop, requestMidgameAd } from './services/crazyGamesService'
+import {
+  initCrazyGamesSdk,
+  gameplayStart,
+  gameplayStop,
+  requestMidgameAd,
+  requestRewardedAd,
+  triggerHappytime,
+  loadingStart,
+  loadingStop,
+} from './services/crazyGamesService'
 import { setAdMuted } from './game/soundManager'
 import {
   calculateRoundScore,
@@ -57,6 +68,22 @@ import {
   requestRoomJson,
 } from './api/roomsApi'
 import { playSound, registerUserGesture } from './game/soundManager'
+import { addXP, loadProgress, saveProgress, unlockAchievement } from './game/progression'
+import {
+  extractMissionBoardSetup,
+  evaluateMissionConstraints,
+  evaluateMissionStars,
+  unlockSkinReward,
+  getLevelById,
+} from './game/levels'
+import {
+  safeGetItem,
+  safeSetItem,
+  STORAGE_KEYS,
+  sanitizeCampaignProgress,
+  sanitizeDailyChallenge,
+  syncAllWithCrazyGamesCloud,
+} from './services/storageService'
 
 const defaultBoardSize = 3
 
@@ -81,6 +108,36 @@ function createInitialPlayerPowers(powerOptions = { gameMode: 'arena' }) {
   }
 }
 
+function createMissionPowers(config, gameMode, opponentType) {
+  const defaults = createInitialPowerCounts({
+    gameMode,
+    opponentType,
+    playContext: 'local',
+  })
+  const mission = config?.campaignLevel ?? config?.dailyChallenge
+  const initialPowers = mission?.initialPowers
+  const botPowers = mission?.botPowers ?? {}
+  const missionDefaults = mission && initialPowers
+    ? missionPowerIds.reduce((counts, powerId) => ({ ...counts, [powerId]: 0 }), {})
+    : defaults
+
+  return {
+    X: { ...missionDefaults, ...(initialPowers ?? {}) },
+    O: mission && initialPowers ? { ...missionDefaults, ...botPowers } : { ...defaults },
+  }
+}
+
+function isDailyChallengeCompletedForDate(date) {
+  if (!date) return false
+  try {
+    const progress = sanitizeDailyChallenge(safeGetItem(STORAGE_KEYS.DAILY, {}))
+    return Boolean(progress.history?.[date]?.completed || progress.lastCompleted === date)
+  } catch (error) {
+    console.error('Failed to verify daily challenge progress', error)
+    return false
+  }
+}
+
 export default function App() {
   const { t, language } = useTranslation()
   const isTr = language === 'tr'
@@ -95,6 +152,8 @@ export default function App() {
   const [activePower, setActivePower] = useState(null)
   const [shieldedSquares, setShieldedSquares] = useState([])
   const [lockedSquares, setLockedSquares] = useState([])
+  const [blockedSquares, setBlockedSquares] = useState([])
+  const [currentMoves, setCurrentMoves] = useState(0)
   const [frozenSquares, setFrozenSquares] = useState([])
   const [frozenBy, setFrozenBy] = useState(null)
   const [boostedSquares, setBoostedSquares] = useState([])
@@ -118,9 +177,15 @@ export default function App() {
   const [isRoundResultDismissed, setIsRoundResultDismissed] = useState(false)
   const [roundNumber, setRoundNumber] = useState(1)
   const [humanWinStreak, setHumanWinStreak] = useState(0)
+  const [missionResult, setMissionResult] = useState(null)
   const [consecutiveDraws, setConsecutiveDraws] = useState(0)
   const [floatingEmotes, setFloatingEmotes] = useState([])
   const botHurrySentRef = useRef(false)
+  const missionCompletionRef = useRef(null)
+  const missionInitialPowersRef = useRef(null)
+  const missionInitialFilledCountRef = useRef(0)
+  const missionTotalTurnsRef = useRef(0)
+  const missionFailureRef = useRef(null)
   const [rewardedPowerClaimed, setRewardedPowerClaimed] = useState(false)
   const [isRewarding, setIsRewarding] = useState(false)
   const [rewardedPowerMessage, setRewardedPowerMessage] = useState('')
@@ -132,6 +197,18 @@ export default function App() {
   const lastTurnKeyRef = useRef('')
   const lastTickSecondRef = useRef(15)
   const isSessionRestoredRef = useRef(false)
+
+  // Intro animation state — show only on first visit (no stored session, no gameConfig)
+  const [showIntro, setShowIntro] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return !window.localStorage.getItem('xo-intro-seen') &&
+           !hasStoredOnlineSession() &&
+           !hasStoredLocalSession()
+  })
+
+  // In-game tutorial state
+  const [tutorialStep, setTutorialStep] = useState(0)  // 0 = not active, 1-6 = active steps
+  const [isTutorialActive, setIsTutorialActive] = useState(false)
 
   const activeTimeoutsRef = useRef(new Set())
 
@@ -157,7 +234,23 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    initCrazyGamesSdk()
+    let isSubscribed = true
+    const initApp = async () => {
+      try {
+        await initCrazyGamesSdk()
+        if (!isSubscribed) return
+        await loadingStart()
+        await syncAllWithCrazyGamesCloud()
+      } catch (err) {
+        console.warn('[App] Initialization notice:', err)
+      } finally {
+        await loadingStop()
+      }
+    }
+    void initApp()
+    return () => {
+      isSubscribed = false
+    }
   }, [])
 
   useEffect(() => {
@@ -174,10 +267,20 @@ export default function App() {
     opponentType,
     playContext: 'local',
   }
+  const activeMission = gameConfig?.campaignLevel ?? gameConfig?.dailyChallenge
+  const missionExtraPowerIds = activeMission
+    ? missionPowerIds.filter((powerId) => (
+      (activeMission.initialPowers?.[powerId] ?? 0) > 0 ||
+      activeMission.constraints?.requirePower === powerId
+    ))
+    : []
   const winner = calculateWinner(squares, boardSize, winLength)
   const winningLine = getWinningLine(squares, boardSize, winLength)
   const multipliersEnabled = gameMode === 'arena' && arenaSettings.multipliersEnabled
-  const powersEnabled = gameMode === 'arena' && arenaSettings.powersEnabled
+  const powersEnabled = gameMode === 'arena' &&
+    arenaSettings.powersEnabled &&
+    !gameConfig?.campaignLevel?.constraints?.noPowers &&
+    !gameConfig?.dailyChallenge?.constraints?.noPowers
   const isDraw = !winner && isBoardFull(squares)
   const currentPlayer = xIsNext ? 'X' : 'O'
 
@@ -240,16 +343,22 @@ export default function App() {
     !isDraw
   )
   const turnTimeLimit = gameConfig?.turnTimeLimit ?? 0
+  const difficultyOverride = gameConfig?.difficultyOverride ?? null
+  const aiPersonality = gameConfig?.aiPersonality || gameConfig?.campaignLevel?.aiPersonality || gameConfig?.dailyChallenge?.aiPersonality || null
   const isAiThinking = isAiTurn
+  const effectiveLockedSquares = useMemo(
+    () => [...lockedSquares, ...blockedSquares],
+    [lockedSquares, blockedSquares]
+  )
   const hasGameStarted =
     squares.some(Boolean) ||
     shieldedSquares.length > 0 ||
-    lockedSquares.length > 0 ||
+    effectiveLockedSquares.length > 0 ||
     boostedSquares.length > 0 ||
     traps.length > 0
   const boostTargets = squares
     .map((square, index) =>
-      square || boostedSquares.includes(index) || lockedSquares.includes(index)
+      square || boostedSquares.includes(index) || effectiveLockedSquares.includes(index)
         ? null
         : index
     )
@@ -279,13 +388,13 @@ export default function App() {
       square === currentPlayer && !shieldedSquares.includes(index) ? [index] : []
     ),
     boost: squares.flatMap((square, index) =>
-      !square && !boostedSquares.includes(index) && !lockedSquares.includes(index) ? [index] : []
+      !square && !boostedSquares.includes(index) && !effectiveLockedSquares.includes(index) ? [index] : []
     ),
     trap: squares.flatMap((square, index) =>
-      !square && !lockedSquares.includes(index) && !traps.some((trap) => trap.index === index && trap.owner === currentPlayer) ? [index] : []
+      !square && !effectiveLockedSquares.includes(index) && !traps.some((trap) => trap.index === index && trap.owner === currentPlayer) ? [index] : []
     ),
     freeze: squares.flatMap((square, index) =>
-      !square && !lockedSquares.includes(index) && !frozenSquares.includes(index) ? [index] : []
+      !square && !effectiveLockedSquares.includes(index) && !frozenSquares.includes(index) ? [index] : []
     ),
     vampire: vampireSources.length > 0 && vampireTargets.length > 0 ? vampireSources : [],
   }
@@ -293,18 +402,25 @@ export default function App() {
   // Reklam altyapısı ileride aktif edilecek — şimdilik UI'dan gizli
   const isRewardedPowerAvailable = false
   const isArena = gameMode === 'arena'
+  const isMissionMode = Boolean(gameConfig?.campaignLevel || gameConfig?.dailyChallenge)
   const scoreLabel = isArena
     ? (t('common.point') || (isTr ? 'Puan' : 'Points'))
     : (t('common.score') || (isTr ? 'Skor' : 'Score'))
-  const modeChip = isArena
-    ? (t('setup.settingsModal.arena') || 'Arena').toUpperCase()
-    : (t('setup.settingsModal.classic') || 'Classic').toUpperCase()
+  const modeChip = gameConfig?.campaignLevel
+    ? (isTr ? 'BULMACA' : 'PUZZLE')
+    : gameConfig?.dailyChallenge
+      ? (isTr ? 'GÖREV' : 'MISSION')
+      : isArena
+        ? (t('setup.settingsModal.arena') || 'Arena').toUpperCase()
+        : (t('setup.settingsModal.classic') || 'Classic').toUpperCase()
   const targetChip = gameConfig
-    ? gameConfig.isInfinite
-      ? (t('common.infinite') || '∞')
-      : !isArena
-        ? `${gameConfig.targetValue} ${(t('common.round') || (isTr ? 'TUR' : 'ROUNDS')).toUpperCase()}`
-        : `${gameConfig.targetValue} ${(t('common.point') || (isTr ? 'PUAN' : 'POINTS')).toUpperCase()}`
+    ? isMissionMode
+      ? (isTr ? 'TEK TUR' : 'SINGLE ROUND')
+      : gameConfig.isInfinite
+        ? (t('common.infinite') || '∞')
+        : !isArena
+          ? `${gameConfig.targetValue} ${(t('common.round') || (isTr ? 'TUR' : 'ROUNDS')).toUpperCase()}`
+          : `${gameConfig.targetValue} ${(t('common.point') || (isTr ? 'PUAN' : 'POINTS')).toUpperCase()}`
     : (t('common.newMatch') || (isTr ? 'YENİ MAÇ' : 'NEW MATCH'))
   const lineChip = `${winLength} ${isTr ? 'TAŞ' : 'IN-A-ROW'}`
 
@@ -373,6 +489,115 @@ export default function App() {
               (winningPlayerKey === 'p1' ? (currentScores.X ?? 0) : (currentScores.O ?? 0))) +
             nextRoundScore,
         }))
+
+        const mission = gameConfig?.campaignLevel ?? gameConfig?.dailyChallenge
+        if (mission && nextWinner === humanSymbol && missionCompletionRef.current !== mission.id) {
+          const moves = missionTotalTurnsRef.current
+          const initialHumanPowers = missionInitialPowersRef.current?.[humanSymbol] ?? {}
+          const currentHumanPowers = playerPowers[humanSymbol] ?? {}
+          const usedPowerIds = Object.keys(initialHumanPowers).filter(
+            (powerId) => (currentHumanPowers[powerId] ?? 0) < (initialHumanPowers[powerId] ?? 0)
+          )
+          const constraintResult = evaluateMissionConstraints(mission, {
+            moves,
+            roundScore: nextRoundScore,
+            usedPowerIds,
+            winningLine: nextWinningLine,
+            multipliers,
+            boostedSquares: nextBoostedSquares,
+          })
+          const missionFailed = !constraintResult.success
+          missionFailureRef.current = constraintResult.failures[0] || null
+
+          if (gameConfig.campaignLevel) {
+            const stars = evaluateMissionStars(mission, {
+              moves,
+              roundScore: nextRoundScore,
+              usedPowerIds,
+            })
+            setMissionResult({
+              id: mission.id,
+              completed: !missionFailed,
+              stars: !missionFailed ? stars : 0,
+              failure: missionFailureRef.current,
+            })
+            if (!missionFailed) {
+              const saved = sanitizeCampaignProgress(safeGetItem(STORAGE_KEYS.CAMPAIGN, { completedLevels: {} }))
+              const previous = saved.completedLevels?.[mission.id]?.stars ?? 0
+              saved.completedLevels = {
+                ...(saved.completedLevels ?? {}),
+                [mission.id]: { stars: Math.max(previous, stars), completedAt: Date.now() },
+              }
+              safeSetItem(STORAGE_KEYS.CAMPAIGN, saved)
+
+              // Sync progression.js
+              try {
+                const prog = loadProgress()
+                prog.campaignStars = { ...(prog.campaignStars || {}), [mission.id]: Math.max(previous, stars) }
+                saveProgress(prog)
+              } catch (e) {
+                console.error('Failed to sync progression campaign stars', e)
+              }
+
+              // Unlock skin reward if applicable
+              if (mission.reward?.type === 'skin') {
+                unlockSkinReward(mission.reward.value)
+              }
+
+              // Check and unlock campaign achievements
+              const completedCount = Object.keys(saved.completedLevels).length
+              const threeStarCount = Object.values(saved.completedLevels).filter((lvl) => lvl.stars === 3).length
+              if (completedCount >= 5) unlockAchievement('campaign_5')
+              if (completedCount >= 15) unlockAchievement('campaign_15')
+              if (completedCount >= 30) unlockAchievement('campaign_30')
+              if (threeStarCount >= 10) unlockAchievement('all_stars')
+
+              addXP(25 + (stars === 3 ? 15 : 0), 'campaign')
+              triggerHappytime()
+              missionCompletionRef.current = mission.id
+            }
+          } else {
+            setMissionResult({
+              id: mission.id,
+              completed: !missionFailed,
+              stars: !missionFailed ? 1 : 0,
+              failure: missionFailureRef.current,
+            })
+            const today = mission.date
+            try {
+              const daily = sanitizeDailyChallenge(safeGetItem(STORAGE_KEYS.DAILY, { streak: 0, history: {} }))
+              const alreadyCompleted = Boolean(daily.history?.[today]?.completed)
+              if (!alreadyCompleted && !missionFailed) {
+                const yesterday = new Date(`${today}T00:00:00`)
+                yesterday.setDate(yesterday.getDate() - 1)
+                const yesterdayKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`
+                daily.streak = daily.history?.[yesterdayKey]?.completed ? (daily.streak ?? 0) + 1 : 1
+                daily.lastCompleted = today
+                daily.history = {
+                  ...(daily.history ?? {}),
+                  [today]: { completed: true, completedAt: Date.now() },
+                }
+                safeSetItem(STORAGE_KEYS.DAILY, daily)
+                addXP(mission.reward?.value ?? 500, 'daily_challenge')
+                triggerHappytime()
+                missionCompletionRef.current = mission.id
+              }
+              if (alreadyCompleted) {
+                missionCompletionRef.current = mission.id
+              }
+            } catch (storageErr) {
+              console.error('Failed to update daily challenge storage', storageErr)
+              missionCompletionRef.current = mission.id
+            }
+          }
+          if (missionFailed) {
+            const failMsg = missionFailureRef.current
+              ? (isTr ? missionFailureRef.current.messageTr : missionFailureRef.current.messageEn)
+              : (isTr ? 'Görev koşulu tamamlanmadı. Bu galibiyet görevi bitirmedi.' : 'Mission condition failed. This win does not complete the challenge.')
+            setActionError(failMsg)
+          }
+        }
+        let isStreakVictory = false
         if (opponentType === 'ai' && (gameMode === 'classic' || gameMode === 'arena')) {
           setHumanWinStreak((currentStreak) => {
             if (nextWinner === humanSymbol) {
@@ -381,7 +606,13 @@ export default function App() {
               // Kademeli olarak nötr seviyeye (0) getirerek maç dengesini ve akıcılığını koru.
               if (currentStreak < -1) return -1
               if (currentStreak === -1) return 0
-              return Math.min(currentStreak + 1, 3)
+              const newStreak = Math.min(currentStreak + 1, 3)
+              // Trigger CrazyGames confetti on 3+ win streaks
+              if (newStreak >= 3) {
+                triggerHappytime()
+                isStreakVictory = true
+              }
+              return newStreak
             }
 
             if (nextWinner === aiSymbol) {
@@ -402,7 +633,8 @@ export default function App() {
         }
         setResultMessage(getRandomMessage(winnerMessages, language))
         setLoserMessage(getRandomMessage(loserMessages, language))
-        playSound('win')
+        playSound(isStreakVictory ? 'streak' : 'win')
+        gameplayStop()
         return
       }
 
@@ -414,9 +646,10 @@ export default function App() {
         setResultMessage(getRandomMessage(drawMessages, language))
         setLoserMessage(null)
         playSound('draw')
+        gameplayStop()
       }
     },
-    [boardSize, winLength, multipliers, multipliersEnabled, boostedSquares, opponentType, gameMode, isP1X, humanSymbol, aiSymbol, language, triggerBotEmote]
+    [boardSize, winLength, multipliers, multipliersEnabled, boostedSquares, opponentType, gameMode, isP1X, humanSymbol, aiSymbol, language, triggerBotEmote, gameConfig, playerPowers, isTr]
   )
 
   const handleTimeOut = useCallback(
@@ -424,6 +657,7 @@ export default function App() {
       if (winner || matchWinner || isDraw || timeoutWinner || resultMessage) return
 
       setConsecutiveDraws(0)
+      setMissionResult(null)
       setShowSetupReturnConfirm(false)
       setShowScoreResetConfirm(false)
       turnDeadlineRef.current = null
@@ -461,6 +695,7 @@ export default function App() {
       setResultMessage(['⏰', timeoutTitle, timeoutSub, { type: 'timeout', timedOutPlayerName, winnerName }])
       setLoserMessage(null)
       playSound('win')
+      gameplayStop()
     },
     [winner, matchWinner, isDraw, timeoutWinner, resultMessage, gameMode, isP1X, xPlayerName, oPlayerName, opponentType, aiSymbol, humanSymbol, triggerBotEmote, t, isTr]
   )
@@ -618,6 +853,10 @@ export default function App() {
     setBombEvent(null)
     setVampireTransferEvent(null)
     setPlayerPowers((currentPowers) => {
+      const mission = gameConfig?.campaignLevel ?? gameConfig?.dailyChallenge
+      if (mission) {
+        return createMissionPowers(gameConfig, nextGameMode, opponentType)
+      }
       const nextPowers = createInitialPlayerPowers({ gameMode: nextGameMode, opponentType })
       rewardedPowerIds.forEach((powerId) => {
         const retainedRewardCount = currentPowers[humanSymbol]?.[powerId] ?? currentPowers.X?.[powerId] ?? 0
@@ -641,20 +880,36 @@ export default function App() {
 
     setIsRewarding(true)
     setIsRewardedPowerPickerOpen(false)
-    setRewardedPowerMessage('Reklam izleniyor...')
-    safeSetTimeout(() => {
-      setPlayerPowers((currentPowers) => ({
-        ...currentPowers,
-        [humanSymbol]: {
-          ...currentPowers[humanSymbol],
-          [powerId]: (currentPowers[humanSymbol]?.[powerId] ?? 0) + 1,
-        },
-      }))
-      setRewardedPowerClaimed(true)
-      setIsRewarding(false)
-      setRewardedPowerMessage(`${powerId === 'freeze' ? 'Freeze' : 'Vampir'} gücü eklendi.`)
-      playSound('power')
-    }, 2000)
+    setRewardedPowerMessage(isTr ? 'Reklam izleniyor...' : 'Loading reward video...')
+
+    requestRewardedAd({
+      onAdStarted: () => {
+        setAdMuted(true)
+      },
+      onAdFinished: () => {
+        setAdMuted(false)
+        setPlayerPowers((currentPowers) => ({
+          ...currentPowers,
+          [humanSymbol]: {
+            ...currentPowers[humanSymbol],
+            [powerId]: (currentPowers[humanSymbol]?.[powerId] ?? 0) + 1,
+          },
+        }))
+        setRewardedPowerClaimed(true)
+        setIsRewarding(false)
+        setRewardedPowerMessage(
+          isTr
+            ? `${powerId === 'freeze' ? 'Freeze' : 'Vampir'} gücü eklendi.`
+            : `${powerId === 'freeze' ? 'Freeze' : 'Vampire'} power added.`
+        )
+        playSound('power')
+      },
+      onAdError: () => {
+        setAdMuted(false)
+        setIsRewarding(false)
+        setRewardedPowerMessage('')
+      },
+    })
   }
 
   function handleSelectHumanPower(powerId) {
@@ -788,7 +1043,7 @@ export default function App() {
     ])
 
     spendPlayerPower(currentPlayer, 'shield')
-    playSound('power')
+    playSound('shield')
     setLockedSquares([])
     setActivePower(null)
     setHasUsedPowerThisTurn(true)
@@ -837,7 +1092,7 @@ export default function App() {
     setFrozenSquares([index])
     setFrozenBy(currentPlayer)
     spendPlayerPower(currentPlayer, 'freeze')
-    playSound('power')
+    playSound('freezeActivate')
     setActivePower(null)
     setHasUsedPowerThisTurn(true)
   }
@@ -862,7 +1117,7 @@ export default function App() {
 
     const transferredMultiplier = multipliers[sourceIndex]
     spendPlayerPower(currentPlayer, 'vampire')
-    playSound('power')
+    playSound('vampireDrain')
     setActivePower(null)
     setHasUsedPowerThisTurn(true)
     setRewardedPowerMessage(
@@ -984,7 +1239,7 @@ export default function App() {
 
     setActionError('')
 
-    if (squares[index] || lockedSquares.includes(index) || frozenSquares.includes(index)) {
+    if (squares[index] || effectiveLockedSquares.includes(index) || frozenSquares.includes(index)) {
       return
     }
 
@@ -1018,6 +1273,9 @@ export default function App() {
 
     const nextSquares = squares.slice()
     nextSquares[index] = currentPlayer
+
+    missionTotalTurnsRef.current += 1
+    setCurrentMoves(missionTotalTurnsRef.current)
 
     setSquares(nextSquares)
     revealBoostedSquare(index)
@@ -1238,7 +1496,7 @@ export default function App() {
 
     const placeAiStone = (index, nextBoostedSquares = boostedSquares) => {
       if (hasAiMoved) return
-      if (squares[index] || lockedSquares.includes(index) || frozenSquares.includes(index)) {
+      if (squares[index] || effectiveLockedSquares.includes(index) || frozenSquares.includes(index)) {
         return
       }
       hasAiMoved = true
@@ -1276,6 +1534,9 @@ export default function App() {
 
       const nextSquares = squares.slice()
       nextSquares[index] = aiSymbol
+
+      missionTotalTurnsRef.current += 1
+      setCurrentMoves(missionTotalTurnsRef.current)
 
       setSquares(nextSquares)
       if (
@@ -1355,7 +1616,7 @@ export default function App() {
           ]
           setShieldedSquares(nextShieldedSquares)
           spendAiPower('shield')
-          playSound('power')
+          playSound('shield')
           setLockedSquares([])
           setActivePower(null)
 
@@ -1374,12 +1635,14 @@ export default function App() {
                 humanWinStreak,
                 roundNumber,
                 consecutiveDraws,
-                blockedIndexes: [...lockedSquares, ...frozenSquares],
+                blockedIndexes: [...effectiveLockedSquares, ...frozenSquares],
                 multipliers:
                   gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
                 aiPlayer: aiSymbol,
                 humanPlayer: humanSymbol,
                 gameMode,
+                difficultyOverride,
+                aiPersonality,
               })
               if (aiMove !== null && aiMove !== undefined) {
                 placeAiStone(aiMove)
@@ -1391,7 +1654,7 @@ export default function App() {
             }).catch(() => {
               if (hasAiMoved) return
               const emptySquares = squares
-                .map((sq, idx) => (sq === null && !lockedSquares.includes(idx) && !frozenSquares.includes(idx) ? idx : null))
+                .map((sq, idx) => (sq === null && !effectiveLockedSquares.includes(idx) && !frozenSquares.includes(idx) ? idx : null))
                 .filter((idx) => idx !== null)
               if (emptySquares.length > 0) {
                 placeAiStone(emptySquares[Math.floor(Math.random() * emptySquares.length)])
@@ -1447,7 +1710,7 @@ export default function App() {
           setFrozenSquares([aiPowerAction.index])
           setFrozenBy(aiSymbol)
           spendAiPower('freeze')
-          playSound('power')
+          playSound('freezeActivate')
           setLockedSquares([])
           setActivePower(null)
           placeAiStone(aiPowerAction.moveIndex)
@@ -1460,7 +1723,7 @@ export default function App() {
           if (transferredMultiplier) {
             const targetIndex = aiPowerAction.moveIndex
             spendAiPower('vampire')
-            playSound('power')
+            playSound('vampireDrain')
             setActivePower(null)
 
             setVampireTransferEvent({
@@ -1501,12 +1764,14 @@ export default function App() {
             humanWinStreak,
             roundNumber,
             consecutiveDraws,
-            blockedIndexes: [...lockedSquares, ...frozenSquares],
+            blockedIndexes: [...effectiveLockedSquares, ...frozenSquares],
             multipliers:
               gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
             aiPlayer: aiSymbol,
             humanPlayer: humanSymbol,
             gameMode,
+            difficultyOverride,
+            aiPersonality,
           },
         })
         return
@@ -1529,12 +1794,14 @@ export default function App() {
               squares, boardSize, winLength, humanWinStreak, roundNumber, consecutiveDraws,
               playerPowers: playerPowers[aiSymbol], humanPowers: playerPowers[humanSymbol],
               shieldedSquares, boostedSquares,
-              blockedIndexes: [...lockedSquares, ...frozenSquares],
+              blockedIndexes: [...effectiveLockedSquares, ...frozenSquares],
               aiTrapIndexes: traps.filter((trap) => trap.owner === aiSymbol).map((trap) => trap.index),
               multipliers,
               aiPlayer: aiSymbol,
               humanPlayer: humanSymbol,
               gameMode,
+              difficultyOverride,
+              aiPersonality,
             })
             if (aiPowerAction?.type === 'move') {
               placeAiStone(aiPowerAction.index)
@@ -1554,11 +1821,13 @@ export default function App() {
               playSound('power')
               const aiMove = aiPowerAction.followUpMove ?? getAdaptiveAiMove({
                 squares, boardSize, winLength, humanWinStreak, roundNumber, consecutiveDraws,
-                blockedIndexes: [...lockedSquares, ...frozenSquares],
+                blockedIndexes: [...effectiveLockedSquares, ...frozenSquares],
                 multipliers: gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
                 aiPlayer: aiSymbol,
                 humanPlayer: humanSymbol,
                 gameMode,
+                difficultyOverride,
+                aiPersonality,
               })
               if (aiMove !== null && aiMove !== undefined) placeAiStone(aiMove)
               return
@@ -1608,17 +1877,19 @@ export default function App() {
           }
           const fallbackMove = getAdaptiveAiMove({
             squares, boardSize, winLength, humanWinStreak, roundNumber, consecutiveDraws,
-            blockedIndexes: [...lockedSquares, ...frozenSquares],
+            blockedIndexes: [...effectiveLockedSquares, ...frozenSquares],
             multipliers: gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
             aiPlayer: aiSymbol,
             humanPlayer: humanSymbol,
             gameMode,
+            difficultyOverride,
+            aiPersonality,
           })
           if (fallbackMove !== null) placeAiStone(fallbackMove)
         } catch {
           if (hasAiMoved) return
           const emptySquares = squares
-            .map((sq, idx) => (sq === null && !lockedSquares.includes(idx) && !frozenSquares.includes(idx) ? idx : null))
+            .map((sq, idx) => (sq === null && !effectiveLockedSquares.includes(idx) && !frozenSquares.includes(idx) ? idx : null))
             .filter((idx) => idx !== null)
           if (emptySquares.length > 0) {
             placeAiStone(emptySquares[Math.floor(Math.random() * emptySquares.length)])
@@ -1627,7 +1898,7 @@ export default function App() {
       }).catch(() => {
         if (hasAiMoved) return
         const emptySquares = squares
-          .map((sq, idx) => (sq === null && !lockedSquares.includes(idx) && !frozenSquares.includes(idx) ? idx : null))
+          .map((sq, idx) => (sq === null && !effectiveLockedSquares.includes(idx) && !frozenSquares.includes(idx) ? idx : null))
           .filter((idx) => idx !== null)
         if (emptySquares.length > 0) {
           placeAiStone(emptySquares[Math.floor(Math.random() * emptySquares.length)])
@@ -1650,7 +1921,7 @@ export default function App() {
             humanPowers: playerPowers[humanSymbol],
             shieldedSquares,
             boostedSquares,
-            blockedIndexes: [...lockedSquares, ...frozenSquares],
+            blockedIndexes: [...effectiveLockedSquares, ...frozenSquares],
             aiTrapIndexes: traps
               .filter((trap) => trap.owner === aiSymbol)
               .map((trap) => trap.index),
@@ -1658,6 +1929,8 @@ export default function App() {
             aiPlayer: aiSymbol,
             humanPlayer: humanSymbol,
             gameMode,
+            difficultyOverride,
+            aiPersonality,
           },
         })
       } else {
@@ -1670,12 +1943,14 @@ export default function App() {
             humanWinStreak,
             roundNumber,
             consecutiveDraws,
-            blockedIndexes: [...lockedSquares, ...frozenSquares],
+            blockedIndexes: [...effectiveLockedSquares, ...frozenSquares],
             multipliers:
               gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
             aiPlayer: aiSymbol,
             humanPlayer: humanSymbol,
             gameMode,
+            difficultyOverride,
+            aiPersonality,
           },
         })
       }
@@ -1691,7 +1966,7 @@ export default function App() {
         if (hasAiMoved) return
 
         const availableIndexes = squares
-          .map((sq, idx) => (sq || lockedSquares.includes(idx) || frozenSquares.includes(idx) ? null : idx))
+          .map((sq, idx) => (sq || effectiveLockedSquares.includes(idx) || frozenSquares.includes(idx) ? null : idx))
           .filter((idx) => idx !== null)
 
         if (availableIndexes.length > 0) {
@@ -1706,7 +1981,7 @@ export default function App() {
                 humanWinStreak,
                 roundNumber,
                 consecutiveDraws,
-                blockedIndexes: [...lockedSquares, ...frozenSquares],
+                blockedIndexes: [...effectiveLockedSquares, ...frozenSquares],
                 multipliers: gameMode === 'arena' && multipliersEnabled ? multipliers : undefined,
                 aiPlayer: aiSymbol,
                 humanPlayer: humanSymbol,
@@ -1763,6 +2038,7 @@ export default function App() {
     }
   }, [
     gameConfig,
+    difficultyOverride,
     gameMode,
     opponentType,
     xIsNext,
@@ -1774,7 +2050,7 @@ export default function App() {
     winLength,
     humanWinStreak,
     consecutiveDraws,
-    lockedSquares,
+    effectiveLockedSquares,
     frozenSquares,
     frozenBy,
     powersEnabled,
@@ -1794,6 +2070,7 @@ export default function App() {
     clearSafeTimeout,
     triggerBotEmote,
     turnTimeLimit,
+    aiPersonality,
   ])
 
   useEffect(() => {
@@ -1894,6 +2171,7 @@ export default function App() {
   }
 
   function proceedToNextRound() {
+    gameplayStart()
     const nextRound = roundNumber + 1
     // Oyuna HER TURDA DAİMA X başlar; Yan Yana modda oyuncular sırayla X ve O olurlar
     resetGame(arenaSettings, gameMode)
@@ -1929,16 +2207,28 @@ export default function App() {
   }
 
   function proceedToNewMatch() {
+    gameplayStart()
     setTimeoutWinner(null)
     turnDeadlineRef.current = null
     lastTurnKeyRef.current = ''
     setTurnTimeLeft(turnTimeLimit)
-    setSquares(createEmptyBoard(boardSize))
+    const mission = gameConfig?.campaignLevel ?? gameConfig?.dailyChallenge
+    const setup = extractMissionBoardSetup(mission?.initialBoard, boardSize)
+    setSquares(setup.squares)
+    setBlockedSquares(setup.blockedSquares)
+    setShieldedSquares(setup.shieldedSquares)
+    missionTotalTurnsRef.current = 0
+    missionFailureRef.current = null
+    setCurrentMoves(0)
     setXIsNext(true)
     setRoundNumber(1)
     setScores(initialScores)
     setMultipliers(multipliersEnabled ? createBoardMultipliers(boardSize) : {})
-    setPlayerPowers(createInitialPlayerPowers({ gameMode, opponentType }))
+    setPlayerPowers(
+      mission
+        ? createMissionPowers(gameConfig, gameMode, opponentType)
+        : createInitialPlayerPowers({ gameMode, opponentType })
+    )
     setTraps([])
     setStolenSquares([])
     setActionError('')
@@ -1946,7 +2236,6 @@ export default function App() {
     setBombEvent(null)
     setVampireTransferEvent(null)
     setActivePower(null)
-    setShieldedSquares([])
     setLockedSquares([])
     setFrozenSquares([])
     setFrozenBy(null)
@@ -1957,6 +2246,7 @@ export default function App() {
     setIsRoundResultDismissed(false)
     setHumanWinStreak(0)
     setConsecutiveDraws(0)
+    setMissionResult(null)
     setRewardedPowerClaimed(false)
     setIsRewarding(false)
     setRewardedPowerMessage('')
@@ -1966,6 +2256,10 @@ export default function App() {
   function handleNewMatch() {
     registerUserGesture()
     playSound('click')
+    if (gameConfig?.dailyChallenge && isDailyChallengeCompletedForDate(gameConfig.dailyChallenge.date)) {
+      handleResultMenu()
+      return
+    }
     // Maç bittiğinde en az 3 tur oynandıysa reklam göster; yeni maç reklam bitince başlar
     if (roundNumber >= 3) {
       requestMidgameAd({
@@ -1996,6 +2290,10 @@ export default function App() {
     setShowSetupReturnConfirm(false)
     setShowScoreResetConfirm(false)
     setGameConfig(null)
+    setBlockedSquares([])
+    missionTotalTurnsRef.current = 0
+    missionFailureRef.current = null
+    setCurrentMoves(0)
     setTraps([])
     setStolenSquares([])
     setActionError('')
@@ -2024,6 +2322,9 @@ export default function App() {
   }
 
   function handleStartGame(config) {
+    if (config.dailyChallenge && isDailyChallengeCompletedForDate(config.dailyChallenge.date)) {
+      return
+    }
     gameplayStart()
     setOnlineGame(null)
     setSetupRestoreMessage('')
@@ -2031,7 +2332,14 @@ export default function App() {
     setTimeoutWinner(null)
     setTurnTimeLeft(config.turnTimeLimit ?? 0)
     setGameMode(config.gameMode)
-    setSquares(createEmptyBoard(config.boardSize))
+    const mission = config.campaignLevel ?? config.dailyChallenge
+    const setup = extractMissionBoardSetup(mission?.initialBoard, config.boardSize)
+    setSquares(setup.squares)
+    setBlockedSquares(setup.blockedSquares)
+    setShieldedSquares(setup.shieldedSquares)
+    missionTotalTurnsRef.current = 0
+    missionFailureRef.current = null
+    setCurrentMoves(0)
     setMultipliers(
       config.gameMode === 'arena' && arenaSettings.multipliersEnabled
         ? createBoardMultipliers(config.boardSize)
@@ -2040,15 +2348,12 @@ export default function App() {
     setScores(initialScores)
     setXIsNext(true)
     setRoundNumber(1)
-    setPlayerPowers(
-  createInitialPlayerPowers({
-    gameMode: config.gameMode,
-    opponentType: config.opponentType ?? 'human',
-    playContext: 'local',
-  })
-)
+    const initialMissionPowers = createMissionPowers(config, config.gameMode, config.opponentType ?? 'human')
+    setPlayerPowers(initialMissionPowers)
+    missionInitialPowersRef.current = initialMissionPowers
+    missionInitialFilledCountRef.current = setup.squares.filter(Boolean).length
+    missionCompletionRef.current = null
     setActivePower(null)
-    setShieldedSquares([])
     setLockedSquares([])
     setFrozenSquares([])
     setFrozenBy(null)
@@ -2067,13 +2372,36 @@ export default function App() {
     setShowScoreResetConfirm(false)
     setHumanWinStreak(0)
     setConsecutiveDraws(0)
+    setMissionResult(null)
     setRewardedPowerClaimed(false)
     setIsRewarding(false)
     setRewardedPowerMessage('')
     setIsRewardedPowerPickerOpen(false)
   }
 
+  function handleNextCampaignLevel() {
+    if (!gameConfig?.campaignLevel) return
+    const nextLevelId = gameConfig.campaignLevel.id + 1
+    const nextLevel = getLevelById(nextLevelId)
+    if (!nextLevel) return
+    handleStartGame({
+      boardSize: nextLevel.boardSize,
+      winLength: nextLevel.winLength,
+      opponentType: 'ai',
+      gameMode: 'arena',
+      targetValue: 1,
+      isInfinite: false,
+      turnTimeLimit: nextLevel.timeLimit || 15,
+      firstMove: 'human',
+      player1Name: isTr ? 'Oyuncu' : 'Player',
+      player2Name: 'Bot',
+      campaignLevel: nextLevel,
+      difficultyOverride: nextLevel.difficulty || 'medium',
+    })
+  }
+
   function handleStartOnlineGame(nextOnlineGame) {
+    gameplayStart()
     setGameConfig(null)
     setOnlineGame(nextOnlineGame)
     handleSaveOnlineSession({
@@ -2089,6 +2417,7 @@ export default function App() {
   }
 
   function handleOnlineMenu() {
+    gameplayStop()
     setOnlineGame(null)
     setGameConfig(null)
     clearOnlineSession()
@@ -2114,7 +2443,66 @@ export default function App() {
     )
   }
 
+  // ── Quick Play: Start Arena 3x3 AI game with 1 click ──────────────────────
+  function handleQuickPlay() {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('xo-intro-seen', 'true')
+    }
+    setShowIntro(false)
+
+    // Start tutorial for first-time players
+    const tutorialDone = typeof window !== 'undefined' && window.localStorage.getItem('xo-tutorial-complete')
+    if (!tutorialDone) {
+      setIsTutorialActive(true)
+      setTutorialStep(1)
+    }
+
+    handleStartGame({
+      boardSize: 3,
+      winLength: 3,
+      opponentType: 'ai',
+      gameMode: 'arena',
+      targetValue: 15,
+      isInfinite: false,
+      turnTimeLimit: 15,
+      firstMove: 'alternating',
+      player1Name: isTr ? 'Oyuncu' : 'Player',
+      player2Name: 'Bot',
+      difficultyOverride: 'medium',
+    })
+  }
+
+  function handleIntroCustomize() {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('xo-intro-seen', 'true')
+    }
+    setShowIntro(false)
+  }
+
+  function handleTutorialNext() {
+    setTutorialStep((prev) => Math.min(prev + 1, 6))
+  }
+
+  function handleTutorialSkip() {
+    setIsTutorialActive(false)
+    setTutorialStep(0)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('xo-tutorial-complete', 'true')
+    }
+  }
+
   if (!gameConfig) {
+    // Show intro animation for first-time visitors
+    if (showIntro) {
+      return (
+        <IntroAnimation
+          onQuickPlay={handleQuickPlay}
+          onCustomize={handleIntroCustomize}
+          language={language}
+        />
+      )
+    }
+
     return (
       <GameSetup
         onStartGame={handleStartGame}
@@ -2137,6 +2525,55 @@ export default function App() {
             <span className="match-chip">{boardSize}x{boardSize}</span>
             <span className="match-chip">{lineChip}</span>
           </div>
+          {(gameConfig.campaignLevel || gameConfig.dailyChallenge) && (
+            <div
+              className={`mission-hud ${gameConfig.campaignLevel ? 'mission-hud--campaign' : 'mission-hud--daily'}`}
+              role="status"
+            >
+              <span className="mission-hud__icon" aria-hidden="true">
+                {gameConfig.campaignLevel ? '🧩' : '☀️'}
+              </span>
+              <span className="mission-hud__content">
+                <strong>
+                  {gameConfig.campaignLevel
+                    ? `${isTr ? 'Bölüm' : 'Level'} ${gameConfig.campaignLevel.id} · ${gameConfig.campaignLevel.title?.[language] ?? ''}`
+                    : (isTr ? 'Günün Görevi' : 'Daily Challenge')}
+                </strong>
+                <small>
+                  {gameConfig.campaignLevel
+                    ? (isTr ? 'Yıldız hedeflerini tamamla' : 'Complete the star objectives')
+                    : (isTr ? 'Görevi tamamla ve seriyi koru' : 'Complete the mission and keep your streak')}
+                </small>
+                <small>
+                  {activeMission?.constraints?.requirePower
+                    ? `${isTr ? 'Gerekli güç' : 'Required power'}: ${ARENA_POWER_NAMES[activeMission.constraints.requirePower] ?? activeMission.constraints.requirePower}`
+                    : activeMission?.constraints?.noPowers
+                      ? (isTr ? 'Güç kullanma' : 'No powers')
+                      : activeMission?.constraints?.maxMoves
+                        ? `${isTr ? 'Maksimum' : 'Max'} ${activeMission.constraints.maxMoves} ${isTr ? 'hamle' : 'moves'}`
+                        : activeMission?.constraints?.exactMoves
+                          ? `${isTr ? 'Tam' : 'Exactly'} ${activeMission.constraints.exactMoves} ${isTr ? 'hamle' : 'moves'}`
+                          : (isTr ? 'Kazan ve ödülü al' : 'Win to claim the reward')}
+                </small>
+              </span>
+              <span className="mission-hud__badges">
+                {activeMission?.constraints?.maxMoves ? (
+                  <span className="mission-hud__badge" style={{ color: currentMoves > activeMission.constraints.maxMoves ? '#ef4444' : '#38bdf8' }}>
+                    {isTr ? 'Hamle' : 'Move'}: {currentMoves}/{activeMission.constraints.maxMoves}
+                  </span>
+                ) : (
+                  <span className="mission-hud__badge">
+                    {isTr ? 'Hamle' : 'Move'}: {currentMoves}
+                  </span>
+                )}
+                {gameConfig.campaignLevel?.stars && (
+                  <span className="mission-hud__stars" title={isTr ? 'Yıldız Durumu' : 'Star Status'}>
+                    {currentMoves <= (gameConfig.campaignLevel.stars?.three?.value ?? Infinity) ? '★★★' : currentMoves <= (gameConfig.campaignLevel.stars?.two?.value ?? Infinity) ? '★★☆' : '★☆☆'}
+                  </span>
+                )}
+              </span>
+            </div>
+          )}
         </header>
 
         <div className="game-actions">
@@ -2261,11 +2698,15 @@ export default function App() {
             playerName={player1Name}
             score={p1Score}
             scoreLabel={scoreLabel}
+            showScore={!isMissionMode}
             powerOptions={powerOptions}
             extraPowerIds={
-              isRewardedPowerAvailable
-                ? rewardedPowerIds.filter((powerId) => (playerPowers[p1Symbol]?.[powerId] ?? 0) > 0)
-                : []
+              [...new Set([
+                ...missionExtraPowerIds,
+                ...(isRewardedPowerAvailable
+                  ? rewardedPowerIds.filter((powerId) => (playerPowers[p1Symbol]?.[powerId] ?? 0) > 0)
+                  : []),
+              ])]
             }
             rewardedPack={
               isRewardedPowerAvailable
@@ -2301,7 +2742,7 @@ export default function App() {
             multipliers={multipliers}
             winningLine={winningLine}
             shieldedSquares={shieldedSquares}
-            lockedSquares={lockedSquares}
+            lockedSquares={effectiveLockedSquares}
             frozenSquares={frozenSquares}
             visibleBoostedSquares={visibleBoostedSquares}
             powerTargetIndexes={activePowerTargets}
@@ -2325,7 +2766,9 @@ export default function App() {
             playerName={player2Name}
             score={p2Score}
             scoreLabel={scoreLabel}
+            showScore={!isMissionMode}
             powerOptions={powerOptions}
+            extraPowerIds={missionExtraPowerIds}
             isActivePlayer={currentPlayer === p2Symbol && !effectiveWinner && !matchWinner && !isDraw}
             canInteract={opponentType !== 'ai' && !isAiTurn && currentPlayer === p2Symbol && !effectiveWinner && !matchWinner && !isDraw}
             isPowersEnabled={powersEnabled && !matchWinner}
@@ -2340,10 +2783,32 @@ export default function App() {
             isWarning={turnTimeLeft <= 5}
           />
 
-          {(effectiveWinner || isDraw) && !matchWinner && isRoundResultDismissed && (
+          {(effectiveWinner || isDraw) && isRoundResultDismissed && (
             <RoundResultPreviewBar
-              onNextRound={handleNextRound}
+              onReopenResult={() => setIsRoundResultDismissed(false)}
+              onNextRound={!matchWinner ? handleNextRound : undefined}
               nextRoundLabel={t('game.nextRound')}
+              onNewMatch={matchWinner ? handleNewMatch : undefined}
+              newMatchLabel={t('common.newMatchViral')}
+              onMenu={handleResultMenu}
+              menuLabel={t('common.mainMenu')}
+              onNextLevel={
+                gameConfig?.campaignLevel &&
+                missionResult?.completed &&
+                Boolean(getLevelById(gameConfig.campaignLevel.id + 1))
+                  ? handleNextCampaignLevel
+                  : undefined
+              }
+              nextLevelLabel={isTr ? 'Sonraki Seviye ➔' : 'Next Level ➔'}
+              statusMessage={
+                matchWinner
+                  ? (matchWinner === player1Name || effectiveWinner === humanSymbol
+                      ? (isTr ? '🏆 Galibiyet!' : '🏆 Victory!')
+                      : (isTr ? `🤖 ${matchWinner} Kazandı` : `🤖 ${matchWinner} Won`))
+                  : isDraw
+                    ? (isTr ? '🤝 Tur Berabere' : '🤝 Round Draw')
+                    : (isTr ? `${roundNumber}. Tur Tamamlandı` : `Round ${roundNumber} Complete`)
+              }
             />
           )}
 
@@ -2360,11 +2825,12 @@ export default function App() {
 
       {(effectiveWinner || isDraw) &&
         !showSetupReturnConfirm &&
-        (!isRoundResultDismissed || Boolean(matchWinner)) && (
+        !isRoundResultDismissed && (
         <RoundResultModal
           roundNumber={roundNumber}
           winner={winnerPlayerName}
           winningSymbol={effectiveWinner}
+          mySymbol={humanSymbol}
           isDraw={isDraw}
           matchWinner={matchWinner}
           scores={{ p1: p1Score, p2: p2Score }}
@@ -2376,11 +2842,32 @@ export default function App() {
           onNextRound={handleNextRound}
           onNewMatch={handleNewMatch}
           onMenu={handleResultMenu}
-          onClose={matchWinner ? undefined : () => setIsRoundResultDismissed(true)}
+          onClose={() => setIsRoundResultDismissed(true)}
           gameMode={gameMode}
           boardSize={boardSize}
           winStreak={humanWinStreak}
           opponentType={opponentType}
+          campaignLevel={gameConfig.campaignLevel}
+          dailyChallenge={gameConfig.dailyChallenge}
+          dailyReward={gameConfig.dailyChallenge?.reward?.value ?? 500}
+          missionStars={missionResult?.stars ?? 0}
+          missionCompleted={missionResult?.id === (gameConfig.campaignLevel?.id ?? gameConfig.dailyChallenge?.id)
+            ? missionResult.completed
+            : false}
+          missionAttempted={missionResult?.id === (gameConfig.campaignLevel?.id ?? gameConfig.dailyChallenge?.id)}
+          onNextLevel={handleNextCampaignLevel}
+          hasNextLevel={Boolean(gameConfig.campaignLevel && getLevelById(gameConfig.campaignLevel.id + 1))}
+          missionFailure={missionResult?.failure}
+          moves={currentMoves}
+        />
+      )}
+
+      {isTutorialActive && tutorialStep > 0 && tutorialStep <= 6 && (
+        <TutorialOverlay
+          step={tutorialStep}
+          onNextStep={handleTutorialNext}
+          onSkip={handleTutorialSkip}
+          language={language}
         />
       )}
 
