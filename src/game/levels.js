@@ -899,3 +899,21 @@ export function unlockSkinReward(skinId) {
     console.error('Failed to unlock skin reward', e);
   }
 }
+
+/**
+ * Checks if a campaign level is unlocked given the current campaign progress.
+ */
+export function isCampaignLevelUnlocked(levelId, campaignProgress) {
+  const numericId = parseInt(levelId, 10);
+  if (!Number.isInteger(numericId) || numericId < 1 || numericId > 30) return false;
+  if (numericId === 1) return true;
+  const level = getLevelById(numericId);
+  if (!level || !level.unlockCondition) return true;
+  if (level.unlockCondition.type === 'level_complete') {
+    const reqId = level.unlockCondition.value;
+    const completed = campaignProgress?.completedLevels;
+    return Boolean(completed && completed[reqId]);
+  }
+  return true;
+}
+

@@ -92,7 +92,10 @@ export const ACHIEVEMENTS = [
   { id: 'all_stars', icon: '✨', title: { en: 'Perfectionist', tr: 'Mükemmeliyetçi' }, desc: { en: 'Get 3 stars on 10 levels', tr: '10 seviyede 3 yıldız al' }, xpReward: 100 },
 ];
 
-const STORAGE_KEY = 'xo-tactix-progress';
+import { safeGetItem, safeSetItem, STORAGE_KEYS, computeChecksum } from '../services/storageService';
+
+const PROGRESSION_SALT = 'xo-tactix-prog-v2';
+const LEGACY_STORAGE_KEY = 'xo-tactix-progress';
 
 // Default progress object
 const DEFAULT_PROGRESS = {
@@ -113,7 +116,16 @@ const DEFAULT_PROGRESS = {
   }
 };
 
-import { safeGetItem, safeSetItem } from '../services/storageService';
+/**
+ * Validates integrity of progression data via checksum signature.
+ */
+export function verifyProgressionIntegrity(raw) {
+  if (!raw || typeof raw !== 'object') return false;
+  if (!raw._sig) return true; // Legacy save before tamper signing
+  const testObj = { ...raw };
+  delete testObj._sig;
+  return computeChecksum(testObj, PROGRESSION_SALT) === raw._sig;
+}
 
 /**
  * Sanitizes progression data, enforcing valid level formulas and valid achievement IDs.
@@ -123,15 +135,31 @@ export function sanitizeProgression(raw) {
     return { ...DEFAULT_PROGRESS, stats: { ...DEFAULT_PROGRESS.stats } };
   }
 
+  const isTampered = Boolean(raw._sig && !verifyProgressionIntegrity(raw));
+  if (isTampered) {
+    console.warn('[Security] Progression data tampering detected! Resetting to safe defaults.');
+  }
+
   const validAchievementIds = new Set(ACHIEVEMENTS.map((a) => a.id));
   const rawAchievements = Array.isArray(raw.achievements) ? raw.achievements : [];
-  const cleanAchievements = rawAchievements.filter((id) => validAchievementIds.has(id));
+  const cleanAchievements = isTampered ? [] : rawAchievements.filter((id) => validAchievementIds.has(id));
+
+  const rawStats = raw.stats && typeof raw.stats === 'object' ? raw.stats : {};
+  const gamesPlayed = Math.max(0, parseInt(rawStats.gamesPlayed, 10) || 0);
+  const wins = Math.max(0, Math.min(gamesPlayed, parseInt(rawStats.wins, 10) || 0));
+  const losses = Math.max(0, Math.min(gamesPlayed - wins, parseInt(rawStats.losses, 10) || 0));
+  const draws = Math.max(0, Math.min(gamesPlayed - wins - losses, parseInt(rawStats.draws, 10) || 0));
+  const currentStreak = Math.max(0, Math.min(wins, parseInt(rawStats.currentStreak, 10) || 0));
+  const bestStreak = Math.max(currentStreak, Math.min(wins, parseInt(rawStats.bestStreak, 10) || 0));
 
   const totalXP = Math.max(0, parseInt(raw.totalXP, 10) || 0);
-  const calculatedLevel = getLevelForXP(totalXP);
+  // Cap max possible XP based on match history to thwart manual DevTools inflation
+  const maxPlausibleXP = Math.max(10000, gamesPlayed * 250 + 15000);
+  const safeTotalXP = isTampered ? 0 : Math.min(maxPlausibleXP, totalXP);
+  const calculatedLevel = getLevelForXP(safeTotalXP);
 
   const cleanCampaignStars = {};
-  if (raw.campaignStars && typeof raw.campaignStars === 'object' && !Array.isArray(raw.campaignStars)) {
+  if (!isTampered && raw.campaignStars && typeof raw.campaignStars === 'object' && !Array.isArray(raw.campaignStars)) {
     for (const [lvlIdStr, stars] of Object.entries(raw.campaignStars)) {
       const lvlId = parseInt(lvlIdStr, 10);
       if (Number.isInteger(lvlId) && lvlId >= 1 && lvlId <= 30) {
@@ -142,27 +170,46 @@ export function sanitizeProgression(raw) {
 
   return {
     ...DEFAULT_PROGRESS,
-    totalXP,
-    level: Math.max(calculatedLevel, parseInt(raw.level, 10) || 1),
+    totalXP: safeTotalXP,
+    level: calculatedLevel, // Enforce strictly calculated level from XP formula
     achievements: cleanAchievements,
     campaignStars: cleanCampaignStars,
     stats: {
       ...DEFAULT_PROGRESS.stats,
-      ...(raw.stats && typeof raw.stats === 'object' ? raw.stats : {}),
+      gamesPlayed,
+      wins,
+      losses,
+      draws,
+      currentStreak,
+      bestStreak,
+      powersUsed: Math.max(0, parseInt(rawStats.powersUsed, 10) || 0),
+      bombsUsed: Math.max(0, parseInt(rawStats.bombsUsed, 10) || 0),
+      shieldsBlocked: Math.max(0, parseInt(rawStats.shieldsBlocked, 10) || 0),
     },
   };
 }
 
-// Load progress safely with sanitization
+// Load progress safely with sanitization and legacy migration
 export function loadProgress() {
-  const saved = safeGetItem(STORAGE_KEY, null);
+  let saved = safeGetItem(STORAGE_KEYS.PROGRESSION, null);
+  if (!saved) {
+    const legacy = safeGetItem(LEGACY_STORAGE_KEY, null);
+    if (legacy) {
+      saved = legacy;
+      const migrated = sanitizeProgression(legacy);
+      saveProgress(migrated);
+    }
+  }
   return sanitizeProgression(saved);
 }
 
-// Save progress safely with sanitization and cloud sync
+// Save progress safely with sanitization, tamper signature, and cloud sync
 export function saveProgress(progress) {
   const clean = sanitizeProgression(progress);
-  safeSetItem(STORAGE_KEY, clean);
+  delete clean._sig;
+  clean._sig = computeChecksum(clean, PROGRESSION_SALT);
+  safeSetItem(STORAGE_KEYS.PROGRESSION, clean);
+  safeSetItem(LEGACY_STORAGE_KEY, clean, { syncCloud: false });
 }
 
 // Add XP and check for level ups

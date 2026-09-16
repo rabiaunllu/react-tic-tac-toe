@@ -156,6 +156,13 @@ export function requestRewardedAd({ onAdStarted, onAdFinished, onAdError } = {})
     onAdFinished?.()
   }
 
+  const fail = (error) => {
+    if (settled) return
+    settled = true
+    setAdMuted(false)
+    if (onAdError) onAdError(error)
+  }
+
   try {
     window.CrazyGames.SDK.ad.requestAd('rewarded', {
       adStarted: () => {
@@ -164,17 +171,13 @@ export function requestRewardedAd({ onAdStarted, onAdFinished, onAdError } = {})
       },
       adFinished: finish,
       adError: (error) => {
-        setAdMuted(false)
         console.warn('[CrazyGames] Rewarded ad notice:', error)
-        if (onAdError) onAdError(error)
-        finish()
+        fail(error)
       },
     })
   } catch (error) {
-    setAdMuted(false)
     console.warn('[CrazyGames] Rewarded ad request error:', error)
-    if (onAdError) onAdError(error)
-    finish()
+    fail(error)
   }
 }
 

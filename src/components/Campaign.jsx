@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { chapters, getLevelById } from '../game/levels';
+import { chapters, getLevelById, isCampaignLevelUnlocked } from '../game/levels';
 import { loadProgress, getLevelForXP } from '../game/progression';
 import { playSound } from '../game/soundManager';
 import { safeGetItem, STORAGE_KEYS, sanitizeCampaignProgress } from '../services/storageService';
@@ -62,15 +62,7 @@ export default function Campaign({ onPlayLevel, onBack, language }) {
   );
 
   const isLevelUnlocked = (levelId) => {
-    if (levelId === 1) return true;
-    const level = getLevelById(levelId);
-    if (!level || !level.unlockCondition) return true;
-
-    if (level.unlockCondition.type === 'level_complete') {
-      const reqId = level.unlockCondition.value;
-      return campaignProgress.completedLevels?.[reqId] !== undefined;
-    }
-    return true;
+    return isCampaignLevelUnlocked(levelId, campaignProgress);
   };
 
   const handleLevelClick = (levelId) => {
@@ -84,7 +76,7 @@ export default function Campaign({ onPlayLevel, onBack, language }) {
   };
 
   const handlePlay = () => {
-    if (selectedLevel) {
+    if (selectedLevel && isLevelUnlocked(selectedLevel.id)) {
       if (typeof playSound === 'function') playSound('click');
       onPlayLevel(selectedLevel);
     }

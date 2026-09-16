@@ -75,6 +75,7 @@ import {
   evaluateMissionStars,
   unlockSkinReward,
   getLevelById,
+  isCampaignLevelUnlocked,
 } from './game/levels'
 import {
   safeGetItem,
@@ -251,6 +252,7 @@ export default function App() {
   const lastTurnKeyRef = useRef('')
   const lastTickSecondRef = useRef(15)
   const isSessionRestoredRef = useRef(false)
+  const isMoveProcessingRef = useRef(false)
 
   // Intro animation state — show only on first visit (no stored session, no gameConfig)
   const [showIntro, setShowIntro] = useState(() => {
@@ -686,7 +688,13 @@ export default function App() {
               if (completedCount >= 30) unlockAchievement('campaign_30')
               if (threeStarCount >= 10) unlockAchievement('all_stars')
 
-              addXP(25 + (stars === 3 ? 15 : 0), 'campaign')
+              // Anti-exploit: Award full mission XP on first win or star upgrade only
+              const awardedXP = previous === 0
+                ? 25 + (stars === 3 ? 15 : 0)
+                : (previous < 3 && stars === 3 ? 15 : 2) // Standard minimal match reward on replay (prevents infinite farm exploit)
+              if (awardedXP > 0) {
+                addXP(awardedXP, 'campaign')
+              }
               triggerHappytime()
               missionCompletionRef.current = mission.id
             }
@@ -954,13 +962,17 @@ export default function App() {
   ])
 
   function spendPlayerPower(player, powerId) {
-    setPlayerPowers((currentPowers) => ({
-      ...currentPowers,
-      [player]: {
-        ...currentPowers[player],
-        [powerId]: currentPowers[player][powerId] - 1,
-      },
-    }))
+    setPlayerPowers((currentPowers) => {
+      const currentVal = currentPowers[player]?.[powerId] ?? 0
+      if (currentVal <= 0) return currentPowers
+      return {
+        ...currentPowers,
+        [player]: {
+          ...currentPowers[player],
+          [powerId]: Math.max(0, currentVal - 1),
+        },
+      }
+    })
   }
 
   function resetGame(nextSettings = arenaSettings, nextGameMode = gameMode) {
@@ -1233,7 +1245,8 @@ export default function App() {
   }
 
   function handleVampirePower() {
-    if (hasUsedPowerThisTurn) {
+    if (hasUsedPowerThisTurn || (playerPowers[currentPlayer]?.vampire ?? 0) <= 0) {
+      setActivePower(null)
       return
     }
 
@@ -1286,7 +1299,7 @@ export default function App() {
   }
 
   function handleBoostPower(index, isVisible = true) {
-    if (squares[index] || boostedSquares.includes(index) || lockedSquares.includes(index)) {
+    if ((playerPowers[currentPlayer]?.boost ?? 0) <= 0 || squares[index] || boostedSquares.includes(index) || lockedSquares.includes(index)) {
       return
     }
 
@@ -1307,7 +1320,7 @@ export default function App() {
   }
 
   function handleRandomBoostPower() {
-    if (winner || matchWinner || isDraw || !hasBoostTarget) {
+    if (winner || matchWinner || isDraw || !hasBoostTarget || (playerPowers[currentPlayer]?.boost ?? 0) <= 0) {
       return
     }
 
@@ -1317,7 +1330,7 @@ export default function App() {
 
   const handleSquareClick = useCallback((index) => {
     registerUserGesture()
-    if (winner || matchWinner || isDraw || isAiTurn) {
+    if (winner || matchWinner || isDraw || isAiTurn || isMoveProcessingRef.current) {
       return
     }
 
@@ -1377,6 +1390,12 @@ export default function App() {
     if (squares[index] || effectiveLockedSquares.includes(index) || frozenSquares.includes(index)) {
       return
     }
+
+    // Synchronous atomic lock: prevent rapid double-clicks and macro auto-clicker exploits
+    isMoveProcessingRef.current = true
+    safeSetTimeout(() => {
+      isMoveProcessingRef.current = false
+    }, 100)
 
     const triggeredTrap = traps.find(
       (trap) => trap.index === index && trap.owner !== currentPlayer
@@ -2480,6 +2499,13 @@ export default function App() {
   }
 
   function handleStartGame(config) {
+    if (config.campaignLevel) {
+      const savedCampaign = sanitizeCampaignProgress(safeGetItem(STORAGE_KEYS.CAMPAIGN, { completedLevels: {} }))
+      if (!isCampaignLevelUnlocked(config.campaignLevel.id, savedCampaign)) {
+        console.warn(`[Security] Attempted to start locked campaign level ${config.campaignLevel.id}`)
+        return
+      }
+    }
     if (config.dailyChallenge && isDailyChallengeCompletedForDate(config.dailyChallenge.date)) {
       config.dailyChallenge.isPractice = true
     }

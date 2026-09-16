@@ -15,6 +15,7 @@ import { playSound, registerUserGesture } from '../game/soundManager'
 import SetupHeroBanner from './SetupHeroBanner'
 import PowerSimulation from './PowerSimulation'
 import { initCrazyGamesSdk, requestRewardedAd, getInviteLink, getInviteParam, updateRoom, leftRoom } from '../services/crazyGamesService'
+import { isCampaignLevelUnlocked } from '../game/levels'
 import {
   safeGetItem,
   safeSetItem,
@@ -1757,6 +1758,12 @@ export default function GameSetup({
         >
           <Campaign
             onPlayLevel={(levelConfig) => {
+              if (!levelConfig || !levelConfig.id) return
+              const savedCampaign = sanitizeCampaignProgress(safeGetItem(STORAGE_KEYS.CAMPAIGN, { completedLevels: {} }))
+              if (!isCampaignLevelUnlocked(levelConfig.id, savedCampaign)) {
+                console.warn(`[Security] Level ${levelConfig.id} is locked. Play request rejected.`)
+                return
+              }
               setActiveModal(null)
               onStartGame({
                 boardSize: levelConfig.boardSize,
