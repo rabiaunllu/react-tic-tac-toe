@@ -80,6 +80,11 @@ export function isValidLocalSession(session) {
     return false
   }
 
+  // Security & Fair-play: Bulmaca veya günlük görevler (Campaign/Daily Challenge) asla oturumdan geri yüklenemez; her zaman temiz başlamalıdır.
+  if (session.gameConfig?.campaignLevel || session.gameConfig?.dailyChallenge) {
+    return false
+  }
+
   return Boolean(
     session.gameConfig &&
       typeof session.gameMode === 'string' &&
@@ -114,6 +119,10 @@ export function readLocalSession() {
 }
 
 export function writeLocalSession(session) {
+  // Bulmaca ve günlük görevler hamle bazında kaydedilmez, süre suistimalini önlemek için daima temiz kalır
+  if (session?.gameConfig?.campaignLevel || session?.gameConfig?.dailyChallenge) {
+    return
+  }
   writeSession(LOCAL_SESSION_KEY, { ...session, savedAt: Date.now() })
 }
 

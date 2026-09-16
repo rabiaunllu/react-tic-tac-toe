@@ -2251,6 +2251,14 @@ export default function App() {
       return
     }
 
+    const isMission = Boolean(gameConfig?.campaignLevel || gameConfig?.dailyChallenge)
+    if (isMission) {
+      // Bulmaca veya günlük görev durumları asla localStorage'a kaydedilmez;
+      // bulmacalar her zaman baştan temiz tahta ve taze süreyle başlamalıdır.
+      clearLocalSession()
+      return
+    }
+
     // Tur bittiğinde veya maç kazanıldığında (konfeti / sonuç ekranı açıkken)
     // kazanılmış tahtayı localStorage'a kaydetme; oturumu temizle.
     if (matchWinner || effectiveWinner || isDraw || Boolean(winner)) {
@@ -2368,6 +2376,7 @@ export default function App() {
   }
 
   function proceedToNewMatch() {
+    clearLocalSession()
     gameplayStart()
     setTimeoutWinner(null)
     turnDeadlineRef.current = null
@@ -2494,11 +2503,18 @@ export default function App() {
   }
 
   function handleConfirmScoreReset() {
-    handleResetScores()
+    registerUserGesture()
+    playSound('click')
+    if (gameConfig?.campaignLevel || gameConfig?.dailyChallenge) {
+      proceedToNewMatch()
+    } else {
+      handleResetScores()
+    }
     setShowScoreResetConfirm(false)
   }
 
   function handleStartGame(config) {
+    clearLocalSession()
     if (config.campaignLevel) {
       const savedCampaign = sanitizeCampaignProgress(safeGetItem(STORAGE_KEYS.CAMPAIGN, { completedLevels: {} }))
       if (!isCampaignLevelUnlocked(config.campaignLevel.id, savedCampaign)) {
