@@ -278,12 +278,12 @@ export default function RoundResultModal({
             {dailyChallenge && (
               <div className="mission-stat-item">
                 <span>{isTr ? 'ÖDÜL' : 'REWARD'}</span>
-                <strong style={{ color: isMyVictory && missionCompleted ? '#4ade80' : '#94a3b8' }}>
+                <strong style={{ color: isMyVictory && missionCompleted ? '#4ade80' : '#fbbf24' }}>
                   {isMyVictory && missionCompleted
                     ? (dailyChallenge.isPractice
                         ? (isTr ? '🎯 Pratik' : '🎯 Practice')
                         : `+${dailyReward} TP`)
-                    : (isTr ? 'Ödül Yok' : 'No Reward')}
+                    : (isTr ? '0 Puan' : '0 Pts')}
                 </strong>
               </div>
             )}
