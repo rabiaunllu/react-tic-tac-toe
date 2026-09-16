@@ -104,22 +104,22 @@ export const campaignLevels = [
   // CHAPTER 2: Arena Tactics
   {
     id: 6,
-    title: { en: 'Checkmate', tr: 'Şah Mat' },
-    description: { en: 'Find the winning move', tr: 'Kazanma hamlesini bul' },
+    title: { en: 'The Fork Tactic', tr: 'Çatal Taktiği' },
+    description: { en: 'Block the threat and create a double attack', tr: 'Tehdidi engelle ve çifte saldırı (çatal) kur' },
     type: 'puzzle',
     boardSize: 3,
     winLength: 3,
     difficulty: 'medium',
     stars: {
       one: { condition: 'win' },
-      two: { condition: 'win' },
-      three: { condition: 'win_in_moves', value: 1 },
+      two: { condition: 'win_in_moves', value: 3 },
+      three: { condition: 'win_in_moves', value: 2 },
     },
-    constraints: { exactMoves: 1 },
+    constraints: { maxMoves: 3 },
     initialBoard: [
       { player: 1 }, null, { player: 2 },
-      { player: 1 }, { player: 2 }, null,
-      null, null, null
+      null, { player: 2 }, null,
+      null, { player: 1 }, null
     ],
     initialPowers: { bomb: 0, shield: 0, freeze: 0, swap: 0, vampire: 0, trap: 0 },
     aiPersonality: 'defensive',
@@ -562,24 +562,24 @@ export const campaignLevels = [
   // CHAPTER 6: Grandmaster
   {
     id: 26,
-    title: { en: 'One Move Win', tr: 'Tek Hamlede Kazan' },
-    description: { en: 'Find the only winning move', tr: 'Kazandıran tek hamleyi bul' },
+    title: { en: 'Master Tactician', tr: 'Büyük Taktisyen' },
+    description: { en: 'Block the diagonal and create a 5x5 fork', tr: 'Çaprazı engelle ve 5x5 tahtada çatal kur' },
     type: 'puzzle',
     boardSize: 5,
     winLength: 5,
     difficulty: 'expert',
     stars: {
       one: { condition: 'win' },
-      two: { condition: 'win' },
-      three: { condition: 'win_in_moves', value: 1 },
+      two: { condition: 'win_in_moves', value: 3 },
+      three: { condition: 'win_in_moves', value: 2 },
     },
-    constraints: { exactMoves: 1 },
+    constraints: { maxMoves: 3 },
     initialBoard: [
-      { player: 1 }, { player: 1 }, { player: 1 }, { player: 1 }, null,
-      { player: 2 }, { player: 2 }, { player: 2 }, { player: 2 }, null,
-      null, null, null, null, null,
-      null, null, null, null, null,
-      null, null, null, null, null
+      { player: 2 }, null, null, null, { player: 1 },
+      null, { player: 2 }, null, null, { player: 1 },
+      null, null, { player: 2 }, null, { player: 1 },
+      null, null, null, { player: 2 }, null,
+      { player: 1 }, { player: 1 }, { player: 1 }, null, null
     ],
     initialPowers: { bomb: 0, shield: 0, freeze: 0, swap: 0, vampire: 0, trap: 0 },
     aiPersonality: 'balanced',
