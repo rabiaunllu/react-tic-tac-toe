@@ -125,7 +125,7 @@ export function getTodaysChallenge() {
     config.boardSize = 3;
     config.winLength = 3;
     config.difficulty = 'medium';
-    config.constraints = { maxMoves: 7 + Math.floor(prng() * 4) };
+    config.constraints = { maxMoves: 4 + Math.floor(prng() * 2) };
     config.aiPersonality = personalities[Math.floor(prng() * personalities.length)];
   } else if (dayOfWeek === 2) {
     config.type = 'win';

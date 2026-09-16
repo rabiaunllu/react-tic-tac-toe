@@ -980,6 +980,8 @@ export default function App() {
     setTimeoutWinner(null)
     turnDeadlineRef.current = null
     lastTurnKeyRef.current = ''
+    missionTotalTurnsRef.current = 0
+    setCurrentMoves(0)
     setTurnTimeLeft(turnTimeLimit)
     const shouldUseMultipliers =
       nextGameMode === 'arena' && nextSettings.multipliersEnabled
@@ -1691,9 +1693,6 @@ export default function App() {
       const nextSquares = squares.slice()
       nextSquares[index] = aiSymbol
 
-      missionTotalTurnsRef.current += 1
-      setCurrentMoves(missionTotalTurnsRef.current)
-
       setSquares(nextSquares)
       if (
         nextBoostedSquares.includes(index) &&
@@ -2342,6 +2341,8 @@ export default function App() {
   function proceedToNextRound() {
     gameplayStart()
     const nextRound = roundNumber + 1
+    missionTotalTurnsRef.current = 0
+    setCurrentMoves(0)
     // Oyuna HER TURDA DAİMA X başlar; Yan Yana modda oyuncular sırayla X ve O olurlar
     resetGame(arenaSettings, gameMode)
     setActionError('')
