@@ -137,6 +137,53 @@ function isDailyChallengeCompletedForDate(date) {
     return false
   }
 }
+function formatStarGoal(starDef, isTr) {
+  if (!starDef) return isTr ? 'Zafer' : 'Win'
+  if (starDef.condition === 'win') {
+    return isTr ? 'Zafer' : 'Win'
+  }
+  if (starDef.condition === 'win_in_moves') {
+    return isTr ? `≤ ${starDef.value} Hamle` : `≤ ${starDef.value} Moves`
+  }
+  if (starDef.condition === 'score_above') {
+    return isTr ? `${starDef.value}+ Puan` : `${starDef.value}+ Pts`
+  }
+  if (starDef.condition === 'power_used') {
+    const powerName = ARENA_POWER_NAMES[starDef.value] ?? starDef.value
+    return isTr ? `${powerName} Gücü` : `${powerName} Power`
+  }
+  if (starDef.condition === 'no_powers') {
+    return isTr ? 'Güçsüz' : 'No Powers'
+  }
+  if (starDef.condition === 'exact_moves') {
+    return isTr ? `${starDef.value} Hamle` : `${starDef.value} Moves`
+  }
+  return isTr ? 'Özel Hedef' : 'Objective'
+}
+
+function getMissionObjective(mission, isTr) {
+  if (!mission) return ''
+  const langKey = isTr ? 'tr' : 'en'
+  const desc = mission.description?.[langKey]
+  if (desc) return desc
+  if (mission.constraints?.requirePower) {
+    const powerName = ARENA_POWER_NAMES[mission.constraints.requirePower] ?? mission.constraints.requirePower
+    return isTr ? `${powerName} gücünü mutlaka kullanarak kazan!` : `Win using the ${powerName} power!`
+  }
+  if (mission.constraints?.requireMultiplier) {
+    return isTr ? 'Çarpanlı (2x/3x) karelerden birini kullanarak kazan!' : 'Win using multiplier cells on your line!'
+  }
+  if (mission.constraints?.exactMoves) {
+    return isTr ? `Tam olarak ${mission.constraints.exactMoves} hamlede kazan!` : `Win in exactly ${mission.constraints.exactMoves} move!`
+  }
+  if (mission.constraints?.maxMoves) {
+    return isTr ? `En fazla ${mission.constraints.maxMoves} hamle içinde kazan!` : `Win in ${mission.constraints.maxMoves} moves or fewer!`
+  }
+  if (mission.constraints?.noPowers) {
+    return isTr ? 'Hiçbir güç kullanmadan saf zekayla kazan!' : 'Win without using any powers!'
+  }
+  return isTr ? 'Stratejini kur ve yapay zekayı alt et!' : 'Outsmart the AI to claim victory!'
+}
 
 export default function App() {
   const { t, language } = useTranslation()
@@ -424,6 +471,66 @@ export default function App() {
     : (t('common.newMatch') || (isTr ? 'YENİ MAÇ' : 'NEW MATCH'))
   const lineChip = `${winLength} ${isTr ? 'TAŞ' : 'IN-A-ROW'}`
 
+  const isGameOver = Boolean(effectiveWinner || matchWinner || isDraw)
+
+  const p1GameOverStatus = useMemo(() => {
+    if (!isGameOver) return undefined
+    if (isMissionMode) {
+      if (effectiveWinner === humanSymbol || matchWinner === player1Name) {
+        return isTr ? '🏆 Görev Başarılı' : '🏆 Mission Passed'
+      }
+      if (effectiveWinner === aiSymbol || matchWinner === player2Name) {
+        return isTr ? '✕ Başarısız' : '✕ Failed'
+      }
+      if (isDraw) {
+        return isTr ? '🤝 Berabere' : '🤝 Draw'
+      }
+    }
+    if (matchWinner) {
+      return matchWinner === player1Name
+        ? (isTr ? '🏆 Maçı Kazandı' : '🏆 Match Winner')
+        : (isTr ? 'Maç Bitti' : 'Match Ended')
+    }
+    if (effectiveWinner) {
+      return effectiveWinner === p1Symbol
+        ? (isTr ? '🎉 Turu Kazandı' : '🎉 Round Winner')
+        : (isTr ? 'Tur Bitti' : 'Round Ended')
+    }
+    if (isDraw) {
+      return isTr ? '🤝 Berabere' : '🤝 Draw'
+    }
+    return undefined
+  }, [isGameOver, isMissionMode, effectiveWinner, humanSymbol, matchWinner, player1Name, aiSymbol, player2Name, isDraw, isTr, p1Symbol])
+
+  const p2GameOverStatus = useMemo(() => {
+    if (!isGameOver) return undefined
+    if (isMissionMode) {
+      if (effectiveWinner === aiSymbol || matchWinner === player2Name) {
+        return isTr ? '🤖 Bot Kazandı' : '🤖 Bot Won'
+      }
+      if (effectiveWinner === humanSymbol || matchWinner === player1Name) {
+        return isTr ? 'Maç Bitti' : 'Match Ended'
+      }
+      if (isDraw) {
+        return isTr ? '🤝 Berabere' : '🤝 Draw'
+      }
+    }
+    if (matchWinner) {
+      return matchWinner === player2Name
+        ? (isTr ? '🏆 Maçı Kazandı' : '🏆 Match Winner')
+        : (isTr ? 'Maç Bitti' : 'Match Ended')
+    }
+    if (effectiveWinner) {
+      return effectiveWinner === p2Symbol
+        ? (isTr ? '🎉 Turu Kazandı' : '🎉 Round Winner')
+        : (isTr ? 'Tur Bitti' : 'Round Ended')
+    }
+    if (isDraw) {
+      return isTr ? '🤝 Berabere' : '🤝 Draw'
+    }
+    return undefined
+  }, [isGameOver, isMissionMode, effectiveWinner, aiSymbol, matchWinner, player2Name, humanSymbol, player1Name, isDraw, isTr, p2Symbol])
+
   // ── Quick Emote Callbacks ──────────────────────────────────────────────────
   const handleSendEmote = useCallback((emoteId) => {
     const newEmote = {
@@ -498,9 +605,25 @@ export default function App() {
           const usedPowerIds = Object.keys(initialHumanPowers).filter(
             (powerId) => (currentHumanPowers[powerId] ?? 0) < (initialHumanPowers[powerId] ?? 0)
           )
+          let missionRoundScore = nextRoundScore
+          if (mission.stars?.two?.condition === 'score_above' || mission.stars?.three?.condition === 'score_above') {
+            const has3x = nextWinningLine.some((idx) => (multipliers?.[idx] ?? 1) >= 3 || nextBoostedSquares.includes(idx))
+            const has2x = nextWinningLine.some((idx) => (multipliers?.[idx] ?? 1) >= 2)
+            const target3 = mission.stars?.three?.value ?? 200
+            const target2 = mission.stars?.two?.value ?? 100
+
+            if (has3x) {
+              missionRoundScore = target3
+            } else if (has2x) {
+              missionRoundScore = target2
+            } else {
+              missionRoundScore = Math.floor(target2 / 2)
+            }
+          }
+
           const constraintResult = evaluateMissionConstraints(mission, {
             moves,
-            roundScore: nextRoundScore,
+            roundScore: missionRoundScore,
             usedPowerIds,
             winningLine: nextWinningLine,
             multipliers,
@@ -512,7 +635,7 @@ export default function App() {
           if (gameConfig.campaignLevel) {
             const stars = evaluateMissionStars(mission, {
               moves,
-              roundScore: nextRoundScore,
+              roundScore: missionRoundScore,
               usedPowerIds,
             })
             setMissionResult({
@@ -566,8 +689,9 @@ export default function App() {
             const today = mission.date
             try {
               const daily = sanitizeDailyChallenge(safeGetItem(STORAGE_KEYS.DAILY, { streak: 0, history: {} }))
-              const alreadyCompleted = Boolean(daily.history?.[today]?.completed)
-              if (!alreadyCompleted && !missionFailed) {
+              const alreadyCompleted = Boolean(daily.history?.[today]?.completed || daily.lastCompleted === today)
+              const isPractice = Boolean(mission.isPractice || alreadyCompleted)
+              if (!isPractice && !missionFailed) {
                 const yesterday = new Date(`${today}T00:00:00`)
                 yesterday.setDate(yesterday.getDate() - 1)
                 const yesterdayKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`
@@ -582,7 +706,7 @@ export default function App() {
                 triggerHappytime()
                 missionCompletionRef.current = mission.id
               }
-              if (alreadyCompleted) {
+              if (alreadyCompleted || isPractice) {
                 missionCompletionRef.current = mission.id
               }
             } catch (storageErr) {
@@ -2256,7 +2380,7 @@ export default function App() {
   function handleNewMatch() {
     registerUserGesture()
     playSound('click')
-    if (gameConfig?.dailyChallenge && isDailyChallengeCompletedForDate(gameConfig.dailyChallenge.date)) {
+    if (gameConfig?.dailyChallenge && !gameConfig.dailyChallenge.isPractice && isDailyChallengeCompletedForDate(gameConfig.dailyChallenge.date)) {
       handleResultMenu()
       return
     }
@@ -2323,7 +2447,7 @@ export default function App() {
 
   function handleStartGame(config) {
     if (config.dailyChallenge && isDailyChallengeCompletedForDate(config.dailyChallenge.date)) {
-      return
+      config.dailyChallenge.isPractice = true
     }
     gameplayStart()
     setOnlineGame(null)
@@ -2518,10 +2642,12 @@ export default function App() {
       <section className="game-card">
         <header className="game-header brand-header">
           <h1>XO TACTIX</h1>
-          <p>{t('setup.slogan') || (isTr ? 'Taşını koy. Gücünü kullan. Rövanşı al.' : 'Place your mark. Unleash powers. Claim revenge.')}</p>
+          {!isMissionMode && (
+            <p>{t('setup.slogan') || (isTr ? 'Taşını koy. Gücünü kullan. Rövanşı al.' : 'Place your mark. Unleash powers. Claim revenge.')}</p>
+          )}
           <div className="match-chip-row" aria-label={t('common.matchInfo') || (isTr ? 'Maç bilgileri' : 'Match details')}>
-            <span className={`match-chip ${gameMode}`}>{modeChip}</span>
-            <span className="match-chip">{targetChip}</span>
+            {!isMissionMode && <span className={`match-chip ${gameMode}`}>{modeChip}</span>}
+            {!isMissionMode && <span className="match-chip">{targetChip}</span>}
             <span className="match-chip">{boardSize}x{boardSize}</span>
             <span className="match-chip">{lineChip}</span>
           </div>
@@ -2530,48 +2656,70 @@ export default function App() {
               className={`mission-hud ${gameConfig.campaignLevel ? 'mission-hud--campaign' : 'mission-hud--daily'}`}
               role="status"
             >
-              <span className="mission-hud__icon" aria-hidden="true">
-                {gameConfig.campaignLevel ? '🧩' : '☀️'}
-              </span>
-              <span className="mission-hud__content">
-                <strong>
-                  {gameConfig.campaignLevel
-                    ? `${isTr ? 'Bölüm' : 'Level'} ${gameConfig.campaignLevel.id} · ${gameConfig.campaignLevel.title?.[language] ?? ''}`
-                    : (isTr ? 'Günün Görevi' : 'Daily Challenge')}
-                </strong>
-                <small>
-                  {gameConfig.campaignLevel
-                    ? (isTr ? 'Yıldız hedeflerini tamamla' : 'Complete the star objectives')
-                    : (isTr ? 'Görevi tamamla ve seriyi koru' : 'Complete the mission and keep your streak')}
-                </small>
-                <small>
-                  {activeMission?.constraints?.requirePower
-                    ? `${isTr ? 'Gerekli güç' : 'Required power'}: ${ARENA_POWER_NAMES[activeMission.constraints.requirePower] ?? activeMission.constraints.requirePower}`
-                    : activeMission?.constraints?.noPowers
-                      ? (isTr ? 'Güç kullanma' : 'No powers')
-                      : activeMission?.constraints?.maxMoves
-                        ? `${isTr ? 'Maksimum' : 'Max'} ${activeMission.constraints.maxMoves} ${isTr ? 'hamle' : 'moves'}`
-                        : activeMission?.constraints?.exactMoves
-                          ? `${isTr ? 'Tam' : 'Exactly'} ${activeMission.constraints.exactMoves} ${isTr ? 'hamle' : 'moves'}`
-                          : (isTr ? 'Kazan ve ödülü al' : 'Win to claim the reward')}
-                </small>
-              </span>
-              <span className="mission-hud__badges">
-                {activeMission?.constraints?.maxMoves ? (
-                  <span className="mission-hud__badge" style={{ color: currentMoves > activeMission.constraints.maxMoves ? '#ef4444' : '#38bdf8' }}>
-                    {isTr ? 'Hamle' : 'Move'}: {currentMoves}/{activeMission.constraints.maxMoves}
+              <div className="mission-hud__top">
+                <div className="mission-hud__identity">
+                  <span className="mission-hud__badge-pill">
+                    {gameConfig.campaignLevel
+                      ? `🧩 ${isTr ? 'BÖLÜM' : 'LEVEL'} ${gameConfig.campaignLevel.id}`
+                      : `⚡ ${isTr ? 'GÜNÜN GÖREVİ' : 'DAILY MISSION'}`}
                   </span>
-                ) : (
-                  <span className="mission-hud__badge">
-                    {isTr ? 'Hamle' : 'Move'}: {currentMoves}
+                  <span className="mission-hud__title">
+                    {gameConfig.campaignLevel
+                      ? (gameConfig.campaignLevel.title?.[language] || activeMission?.title?.tr || '')
+                      : (activeMission?.title?.[language] || activeMission?.title?.tr || (isTr ? 'Günün Görevi' : 'Daily Mission'))}
                   </span>
-                )}
-                {gameConfig.campaignLevel?.stars && (
-                  <span className="mission-hud__stars" title={isTr ? 'Yıldız Durumu' : 'Star Status'}>
-                    {currentMoves <= (gameConfig.campaignLevel.stars?.three?.value ?? Infinity) ? '★★★' : currentMoves <= (gameConfig.campaignLevel.stars?.two?.value ?? Infinity) ? '★★☆' : '★☆☆'}
+                </div>
+
+                <div className="mission-hud__stats">
+                  <span className="mission-hud__moves-pill" style={{ color: activeMission?.constraints?.maxMoves && currentMoves > activeMission.constraints.maxMoves ? '#ef4444' : undefined }}>
+                    ⏱️ {isTr ? 'Hamle' : 'Move'}: <strong>{currentMoves}{activeMission?.constraints?.maxMoves ? `/${activeMission.constraints.maxMoves}` : ''}</strong>
                   </span>
-                )}
-              </span>
+                  {gameConfig.campaignLevel?.stars && (
+                    <span className="mission-hud__stars" title={isTr ? 'Canlı Yıldız Durumu' : 'Live Star Status'}>
+                      {currentMoves <= (gameConfig.campaignLevel.stars?.three?.value ?? Infinity) ? '★★★' : currentMoves <= (gameConfig.campaignLevel.stars?.two?.value ?? Infinity) ? '★★☆' : '★☆☆'}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="mission-hud__target-box">
+                <span className="mission-hud__target-icon">🎯</span>
+                <span className="mission-hud__target-label">{isTr ? 'HEDEF' : 'GOAL'}:</span>
+                <span className="mission-hud__target-text">{getMissionObjective(activeMission, isTr)}</span>
+              </div>
+
+              {gameConfig.campaignLevel?.stars ? (
+                <div className="mission-hud__stars-row">
+                  <span className="mission-hud__stars-label">⭐ {isTr ? 'Yıldızlar' : 'Stars'}:</span>
+                  <div className="mission-hud__star-pills">
+                    <span className="mission-hud__star-pill">
+                      ★1 {formatStarGoal(gameConfig.campaignLevel.stars.one, isTr)}
+                    </span>
+                    {gameConfig.campaignLevel.stars.two && (
+                      <span className="mission-hud__star-pill">
+                        ★2 {formatStarGoal(gameConfig.campaignLevel.stars.two, isTr)}
+                      </span>
+                    )}
+                    {gameConfig.campaignLevel.stars.three && (
+                      <span className="mission-hud__star-pill">
+                        ★3 {formatStarGoal(gameConfig.campaignLevel.stars.three, isTr)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="mission-hud__stars-row">
+                  <span className="mission-hud__stars-label">⭐ {isTr ? 'Ödül' : 'Reward'}:</span>
+                  <div className="mission-hud__star-pills">
+                    <span className="mission-hud__star-pill mission-hud__star-pill--gold">
+                      🏆 +{gameConfig.dailyChallenge?.reward?.value ?? 500} TP
+                    </span>
+                    <span className="mission-hud__star-pill mission-hud__star-pill--streak">
+                      🔥 {isTr ? 'Seri Koruması' : 'Streak Shield'}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </header>
@@ -2724,7 +2872,9 @@ export default function App() {
             }
             isActivePlayer={currentPlayer === p1Symbol && !effectiveWinner && !matchWinner && !isDraw}
             canInteract={(!isAiTurn || opponentType === 'human') && currentPlayer === p1Symbol && !effectiveWinner && !matchWinner && !isDraw}
-            isPowersEnabled={powersEnabled && !matchWinner}
+            isPowersEnabled={powersEnabled}
+            modeLabel={isMissionMode ? null : undefined}
+            statusText={p1GameOverStatus}
             powerCounts={playerPowers[p1Symbol]}
             activePower={activePower}
             boostMode={arenaSettings.boostMode}
@@ -2771,7 +2921,9 @@ export default function App() {
             extraPowerIds={missionExtraPowerIds}
             isActivePlayer={currentPlayer === p2Symbol && !effectiveWinner && !matchWinner && !isDraw}
             canInteract={opponentType !== 'ai' && !isAiTurn && currentPlayer === p2Symbol && !effectiveWinner && !matchWinner && !isDraw}
-            isPowersEnabled={powersEnabled && !matchWinner}
+            isPowersEnabled={powersEnabled}
+            modeLabel={isMissionMode ? null : undefined}
+            statusText={p2GameOverStatus}
             powerCounts={playerPowers[p2Symbol]}
             activePower={activePower}
             boostMode={arenaSettings.boostMode}

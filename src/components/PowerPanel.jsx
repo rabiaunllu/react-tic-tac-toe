@@ -13,6 +13,7 @@ export default function PowerPanel({
   isActivePlayer = true,
   canInteract = isActivePlayer,
   isPowersEnabled = true,
+  modeLabel,
   powerCounts,
   activePower,
   boostMode,
@@ -114,7 +115,7 @@ export default function PowerPanel({
       )}
 
       <div className="power-panel-header">
-        {!isPowersEnabled && <span>{t('game.classicMode')}</span>}
+        {!isPowersEnabled && modeLabel !== null && <span>{modeLabel ?? t('game.classicMode')}</span>}
         <small>
           {statusText ?? (isPowersEnabled
             ? isActivePlayer

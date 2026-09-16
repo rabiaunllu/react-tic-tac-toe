@@ -121,3 +121,4 @@ Bu dosya, **XO Arena** projesinde tamamlanan tüm özellikleri, mimari sistemler
 ## 💡 Gelecek / İsteğe Bağlı Özellikler (Post-Release)
 - [ ] Rastgele online odaya girme (Quick Matchmaking)
 - [x] AI modunda oyuncunun O olup botun X başlayabilmesi seçeneği (Tamamlandı: Alternating, Human [X], Bot [X] seçenekleri ile dinamik rotasyon)
+- [ ] [🚀 GPT Astra 6 Giriş Hub'ı & UX Yenileme Yol Haritası](file:///d:/PROJECTS/react-tic-tac-toe/docs/ASTRA6_UX_REVAMP_TODO.md) (Hick Yasası optimizasyonu, 4 katmanlı hub mimarisi, Akordeon modal, Player Identity Bar)

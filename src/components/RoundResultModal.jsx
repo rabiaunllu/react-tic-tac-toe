@@ -263,7 +263,7 @@ export default function RoundResultModal({
           <div className="round-result-mission-stats">
             <div className="mission-stat-item">
               <span>{isTr ? 'HAMLE' : 'MOVES'}</span>
-              <strong>{moves ?? 1}</strong>
+              <strong className="mission-stat-moves">{moves ?? 1}</strong>
             </div>
             {campaignLevel && (
               <div className="mission-stat-item">
@@ -279,7 +279,11 @@ export default function RoundResultModal({
               <div className="mission-stat-item">
                 <span>{isTr ? 'ÖDÜL' : 'REWARD'}</span>
                 <strong style={{ color: isMyVictory && missionCompleted ? '#4ade80' : '#94a3b8' }}>
-                  {isMyVictory && missionCompleted ? `+${dailyReward} TP` : (isTr ? 'Ödül Yok' : 'No Reward')}
+                  {isMyVictory && missionCompleted
+                    ? (dailyChallenge.isPractice
+                        ? (isTr ? '🎯 Pratik' : '🎯 Practice')
+                        : `+${dailyReward} TP`)
+                    : (isTr ? 'Ödül Yok' : 'No Reward')}
                 </strong>
               </div>
             )}
@@ -339,8 +343,12 @@ export default function RoundResultModal({
 
         {dailyChallenge && !isDraw && isMyVictory && missionCompleted && (
           <div className="mission-result-reward mission-result-reward--daily">
-            <strong>{isTr ? 'Günün görevi tamamlandı' : 'Daily challenge complete'}</strong>
-            <span>{isTr ? `+${dailyReward} TP · Seri korundu` : `+${dailyReward} XP · Streak secured`}</span>
+            <strong>{dailyChallenge.isPractice ? (isTr ? 'Alıştırma tamamlandı' : 'Practice complete') : (isTr ? 'Günün görevi tamamlandı' : 'Daily challenge complete')}</strong>
+            <span>
+              {dailyChallenge.isPractice
+                ? (isTr ? 'Harika pratik! Günlük serin ve ödülün korundu.' : 'Great practice! Daily streak & reward secured.')
+                : (isTr ? `+${dailyReward} TP · Seri korundu` : `+${dailyReward} XP · Streak secured`)}
+            </span>
           </div>
         )}
 
@@ -436,6 +444,7 @@ export default function RoundResultModal({
             ) : (
               <button
                 type="button"
+                className="round-result-btn--viral"
                 onClick={() => {
                   registerUserGesture()
                   playSound('click')

@@ -111,6 +111,14 @@ export function getTodaysChallenge() {
 
   const cType = getTypeStr(dayOfWeek);
   config.dayType = cType;
+  config.title = {
+    en: translations.en[`${cType}_title`] || 'Daily Challenge',
+    tr: translations.tr[`${cType}_title`] || 'Günün Görevi',
+  };
+  config.description = {
+    en: translations.en[`${cType}_desc`] || 'Complete today\'s challenge to earn rewards',
+    tr: translations.tr[`${cType}_desc`] || 'Ödülü kazanmak için günün görevini tamamla',
+  };
 
   if (dayOfWeek === 1) {
     config.type = 'challenge';
@@ -254,11 +262,8 @@ export default function DailyChallenge({ onPlayChallenge, onBack, language = 'en
   const completedToday = data.lastCompleted === challenge.date || Boolean(data.history?.[challenge.date]?.completed);
 
   const handlePlay = (forcePractice = false) => {
-    if (!forcePractice && isDailyChallengeCompleted(challenge.date)) {
-      return
-    }
     if (typeof playSound === 'function') playSound('click');
-    onPlayChallenge(forcePractice ? { ...challenge, isPractice: true } : challenge);
+    onPlayChallenge(forcePractice || completedToday ? { ...challenge, isPractice: true } : challenge);
   };
 
   const handleBack = () => {
