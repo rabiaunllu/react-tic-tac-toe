@@ -276,18 +276,26 @@ export default function Campaign({ onPlayLevel, onBack, language }) {
               <div className="conditions-title">{t('Star Objectives', 'Yıldız Hedefleri')}</div>
               <div className="condition-row">
                 <span className="cond-star">★☆☆</span>
-                <span className="cond-desc">{t('Victory: Complete the match', 'Zafer: Maçı tamamlayıp kazan')}</span>
+                <span className="cond-desc">
+                  {selectedLevel.type === 'puzzle'
+                    ? t('Puzzle: Solve the board', 'Bulmaca: Tahtayı çöz')
+                    : t('Victory: Complete the match', 'Zafer: Maçı tamamlayıp kazan')}
+                </span>
               </div>
               {selectedLevel.stars?.two && (
                 <div className="condition-row">
                   <span className="cond-star">★★☆</span>
                   <span className="cond-desc">
                     {selectedLevel.stars.two.condition === 'win_in_moves'
-                      ? t(`Win in ${selectedLevel.stars.two.value} moves or less`, `En fazla ${selectedLevel.stars.two.value} hamlede kazan`)
+                      ? (selectedLevel.stars.two.value === 1
+                          ? t('Sharp mind: Win in 1 move', 'Keskin zeka: Tek hamlede kazan')
+                          : t(`Win in ${selectedLevel.stars.two.value} moves or less`, `En fazla ${selectedLevel.stars.two.value} hamlede kazan`))
                       : selectedLevel.stars.two.condition === 'power_used'
                       ? t(`Win using ${selectedLevel.stars.two.value} power`, `${selectedLevel.stars.two.value} gücünü kullanarak kazan`)
                       : selectedLevel.stars.two.condition === 'score_above'
                       ? t('Win with 2x multiplier', '2x Çarpanla kazan')
+                      : selectedLevel.type === 'puzzle'
+                      ? t('Tactical eye: Find the winning line', 'Taktiksel göz: Kazandıran hamleyi bul')
                       : t('Tactical mastery objective', 'Taktiksel ustalık hedefi')}
                   </span>
                 </div>
@@ -297,7 +305,9 @@ export default function Campaign({ onPlayLevel, onBack, language }) {
                   <span className="cond-star">★★★</span>
                   <span className="cond-desc">
                     {selectedLevel.stars.three.condition === 'win_in_moves'
-                      ? t(`Speed master: Win in ${selectedLevel.stars.three.value} moves or less`, `Hız ustası: En fazla ${selectedLevel.stars.three.value} hamlede kazan`)
+                      ? (selectedLevel.stars.three.value === 1
+                          ? t('Checkmate: Win in 1 move', 'Şah Mat: Tek hamlede bitir')
+                          : t(`Speed master: Win in ${selectedLevel.stars.three.value} moves or less`, `Hız ustası: En fazla ${selectedLevel.stars.three.value} hamlede kazan`))
                       : selectedLevel.stars.three.condition === 'score_above'
                       ? t('Win with 3x multiplier', '3x Çarpanla kazan')
                       : t('Grandmaster objective', 'Büyük usta hedefi')}

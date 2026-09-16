@@ -137,12 +137,19 @@ function isDailyChallengeCompletedForDate(date) {
     return false
   }
 }
-function formatStarGoal(starDef, isTr, starIndex = 2) {
+function formatStarGoal(starDef, isTr, starIndex = 2, isPuzzle = false) {
   if (!starDef) return isTr ? 'Zafer' : 'Win'
   if (starDef.condition === 'win') {
+    if (isPuzzle) {
+      if (starIndex === 2) return isTr ? 'Taktik' : 'Tactics'
+      return isTr ? 'Bulmaca' : 'Puzzle'
+    }
     return isTr ? 'Zafer' : 'Win'
   }
-  if (starDef.condition === 'win_in_moves') {
+  if (starDef.condition === 'win_in_moves' || starDef.condition === 'exact_moves') {
+    if (starDef.value === 1) {
+      return isTr ? 'Tek Hamle' : '1 Move'
+    }
     return isTr ? `En Çok ${starDef.value} Hamle` : `Max ${starDef.value} Moves`
   }
   if (starDef.condition === 'score_above') {
@@ -157,9 +164,6 @@ function formatStarGoal(starDef, isTr, starIndex = 2) {
   }
   if (starDef.condition === 'no_powers') {
     return isTr ? 'Güçsüz' : 'No Powers'
-  }
-  if (starDef.condition === 'exact_moves') {
-    return isTr ? `${starDef.value} Hamle` : `${starDef.value} Moves`
   }
   return isTr ? 'Özel Hedef' : 'Objective'
 }
@@ -2711,16 +2715,16 @@ export default function App() {
                   <span className="mission-hud__stars-label">⭐ {isTr ? 'Yıldızlar' : 'Stars'}:</span>
                   <div className="mission-hud__star-pills">
                     <span className="mission-hud__star-pill">
-                      ★1 {formatStarGoal(gameConfig.campaignLevel.stars.one, isTr, 1)}
+                      ★1 {formatStarGoal(gameConfig.campaignLevel.stars.one, isTr, 1, gameConfig.campaignLevel.type === 'puzzle')}
                     </span>
                     {gameConfig.campaignLevel.stars.two && (
                       <span className="mission-hud__star-pill">
-                        ★2 {formatStarGoal(gameConfig.campaignLevel.stars.two, isTr, 2)}
+                        ★2 {formatStarGoal(gameConfig.campaignLevel.stars.two, isTr, 2, gameConfig.campaignLevel.type === 'puzzle')}
                       </span>
                     )}
                     {gameConfig.campaignLevel.stars.three && (
                       <span className="mission-hud__star-pill">
-                        ★3 {formatStarGoal(gameConfig.campaignLevel.stars.three, isTr, 3)}
+                        ★3 {formatStarGoal(gameConfig.campaignLevel.stars.three, isTr, 3, gameConfig.campaignLevel.type === 'puzzle')}
                       </span>
                     )}
                   </div>
