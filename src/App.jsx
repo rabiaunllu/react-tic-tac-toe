@@ -1546,7 +1546,9 @@ export default function App() {
               (Boolean(getWinningLine(localSession.squares, localSession.gameConfig?.boardSize || 3, localSession.gameConfig?.winLength || 3)) ||
                isBoardFull(localSession.squares)))
 
-          if (isRoundCompleted) {
+          const isMission = Boolean(localSession.gameConfig?.campaignLevel || localSession.gameConfig?.dailyChallenge)
+
+          if (isRoundCompleted || isMission) {
             clearLocalSession()
             setSetupRestoreMessage('')
           } else {
@@ -2417,7 +2419,13 @@ export default function App() {
     setShowSetupReturnConfirm(false)
     setShowScoreResetConfirm(false)
     setGameConfig(null)
+    setSquares(createEmptyBoard(3))
+    setScores(initialScores)
     setBlockedSquares([])
+    setShieldedSquares([])
+    setLockedSquares([])
+    setFrozenSquares([])
+    setFrozenBy(null)
     missionTotalTurnsRef.current = 0
     missionFailureRef.current = null
     setCurrentMoves(0)
@@ -2427,6 +2435,13 @@ export default function App() {
     setBlackHoleEvent(null)
     setBombEvent(null)
     setVampireTransferEvent(null)
+    setActivePower(null)
+    setBoostedSquares([])
+    setVisibleBoostedSquares([])
+    setResultMessage(null)
+    setLoserMessage(null)
+    setIsRoundResultDismissed(false)
+    setMissionResult(null)
     clearLocalSession()
   }
 
@@ -2777,10 +2792,7 @@ export default function App() {
                 onClick={() => {
                   registerUserGesture()
                   playSound('click')
-                  gameplayStop()
-                  setShowSetupReturnConfirm(false)
-                  setGameConfig(null)
-                  clearLocalSession()
+                  handleResultMenu()
                 }}
               >
                 {t('modals.confirmMenuAction')}
