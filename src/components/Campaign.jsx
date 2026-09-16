@@ -116,9 +116,9 @@ export default function Campaign({ onPlayLevel, onBack, language }) {
           </div>
 
           <div className="campaign-stats-group">
-            <div className="campaign-stat-pill xp-pill" title={t('Player XP Level', 'Oyuncu TP Seviyesi')}>
+            <div className="campaign-stat-pill xp-pill" title={t('Account Rank (Earned with XP)', 'Hesap Rütbesi (Kazanılan TP ile artar)')}>
               <span className="pill-icon">⚡</span>
-              <span className="pill-val">LVL {xpLevel}</span>
+              <span className="pill-val">{isTr ? `RÜTBE ${xpLevel}` : `RANK ${xpLevel}`}</span>
             </div>
             <div className="campaign-stat-pill star-pill" title={t('Total Stars Collected', 'Kazanılan Yıldızlar')}>
               <span className="pill-icon">⭐</span>
