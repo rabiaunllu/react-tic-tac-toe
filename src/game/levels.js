@@ -719,6 +719,7 @@ export function extractMissionBoardSetup(initialBoardOrMission, boardSize) {
       blockedSquares: [],
       shieldedSquares: [],
       multipliers: {},
+      traps: [],
     };
   }
 
@@ -726,6 +727,7 @@ export function extractMissionBoardSetup(initialBoardOrMission, boardSize) {
   const blockedSquares = [];
   const shieldedSquares = [];
   const multipliers = {};
+  const traps = [];
 
   board.forEach((cell, index) => {
     if (!cell) {
@@ -744,11 +746,21 @@ export function extractMissionBoardSetup(initialBoardOrMission, boardSize) {
       return;
     }
 
-    const symbol = cell.player === 1 || cell.player === 'X' ? 'X' : 'O';
-    squares.push(symbol);
+    if (cell.trap) {
+      squares.push(null);
+      traps.push({ index, owner: cell.owner || (cell.player === 1 || cell.player === 'X' ? 'X' : 'O') });
+      return;
+    }
 
-    if (cell.power === 'shield') {
-      shieldedSquares.push(index);
+    if (cell.player !== undefined && cell.player !== null) {
+      const symbol = cell.player === 1 || cell.player === 'X' ? 'X' : 'O';
+      squares.push(symbol);
+
+      if (cell.power === 'shield') {
+        shieldedSquares.push(index);
+      }
+    } else {
+      squares.push(null);
     }
 
     if (cell.multiplier) {
@@ -756,7 +768,7 @@ export function extractMissionBoardSetup(initialBoardOrMission, boardSize) {
     }
   });
 
-  return { squares, blockedSquares, shieldedSquares, multipliers };
+  return { squares, blockedSquares, shieldedSquares, multipliers, traps };
 }
 
 /**

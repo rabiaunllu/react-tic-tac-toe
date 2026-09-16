@@ -93,7 +93,7 @@ export function getTodaysChallenge() {
     reward: { type: 'xp', value: 500 },
   };
 
-  const powers = ['bomb', 'shield', 'freeze', 'vampire', 'trap'];
+  const powers = ['bomb', 'shield', 'freeze', 'trap'];
   const personalities = ['balanced', 'aggressive', 'defensive', 'chaotic'];
 
   const getTypeStr = (day) => {
