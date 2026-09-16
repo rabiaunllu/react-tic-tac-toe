@@ -3733,64 +3733,8 @@ button,
   border-color: rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.05);
   color: #7f899f;
-  cursor: default;
 }
 
-.round-result-inspect-btn {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 40px;
-  padding: 8px 16px;
-  margin-top: -2px;
-  margin-bottom: 4px;
-  border: 1px dashed rgba(var(--result-accent-rgb), 0.45);
-  border-radius: 12px;
-  background: rgba(var(--result-accent-rgb), 0.08);
-  color: #eaf0ff;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.round-result-inspect-btn:hover {
-  background: rgba(var(--result-accent-rgb), 0.18);
-  border-color: rgba(var(--result-accent-rgb), 0.8);
-  transform: translateY(-1px);
-}
-
-.round-result-preview-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.round-result-preview-btn--reopen {
-  border-color: rgba(251, 191, 36, 0.5) !important;
-  background: rgba(251, 191, 36, 0.16) !important;
-  color: #fef3c7 !important;
-}
-
-.round-result-preview-btn--reopen:hover {
-  background: rgba(251, 191, 36, 0.28) !important;
-  border-color: rgba(251, 191, 36, 0.8) !important;
-}
-
-.round-result-preview-btn--secondary {
-  border-color: rgba(255, 255, 255, 0.18) !important;
-  background: rgba(255, 255, 255, 0.08) !important;
-  color: #cfd7e8 !important;
-}
-
-.round-result-preview-btn--secondary:hover {
-  background: rgba(255, 255, 255, 0.16) !important;
-}
 
 @keyframes round-result-pop {
   from {

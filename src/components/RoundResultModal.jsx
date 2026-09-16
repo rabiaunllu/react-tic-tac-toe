@@ -470,20 +470,6 @@ export default function RoundResultModal({
             )}
           </div>
         )}
-
-        {onClose && !isMenuConfirmOpen && (
-          <button
-            type="button"
-            className="round-result-inspect-btn"
-            onClick={() => {
-              registerUserGesture()
-              playSound('click')
-              onClose()
-            }}
-          >
-            👀 {isTr ? 'Tahtayı İncele (Kazanan Hamleyi Gör)' : 'Inspect Board (See Winning Move)'}
-          </button>
-        )}
       </section>
       </div>
     </div>

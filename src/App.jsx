@@ -2785,21 +2785,24 @@ export default function App() {
 
           {(effectiveWinner || isDraw) && isRoundResultDismissed && (
             <RoundResultPreviewBar
-              onReopenResult={() => setIsRoundResultDismissed(false)}
-              onNextRound={!matchWinner ? handleNextRound : undefined}
-              nextRoundLabel={t('game.nextRound')}
-              onNewMatch={matchWinner ? handleNewMatch : undefined}
-              newMatchLabel={t('common.newMatchViral')}
-              onMenu={handleResultMenu}
-              menuLabel={t('common.mainMenu')}
-              onNextLevel={
+              onNextRound={
                 gameConfig?.campaignLevel &&
                 missionResult?.completed &&
                 Boolean(getLevelById(gameConfig.campaignLevel.id + 1))
                   ? handleNextCampaignLevel
-                  : undefined
+                  : matchWinner
+                    ? handleNewMatch
+                    : handleNextRound
               }
-              nextLevelLabel={isTr ? 'Sonraki Seviye ➔' : 'Next Level ➔'}
+              nextRoundLabel={
+                gameConfig?.campaignLevel &&
+                missionResult?.completed &&
+                Boolean(getLevelById(gameConfig.campaignLevel.id + 1))
+                  ? (isTr ? 'Sonraki Seviye ➔' : 'Next Level ➔')
+                  : matchWinner
+                    ? (t('common.newMatchViral') || (isTr ? 'Yeni Maç' : 'New Match'))
+                    : t('game.nextRound')
+              }
               statusMessage={
                 matchWinner
                   ? (matchWinner === player1Name || effectiveWinner === humanSymbol
@@ -2847,16 +2850,23 @@ export default function App() {
           boardSize={boardSize}
           winStreak={humanWinStreak}
           opponentType={opponentType}
-          campaignLevel={gameConfig.campaignLevel}
-          dailyChallenge={gameConfig.dailyChallenge}
-          dailyReward={gameConfig.dailyChallenge?.reward?.value ?? 500}
+          campaignLevel={gameConfig?.campaignLevel}
+          dailyChallenge={gameConfig?.dailyChallenge}
+          dailyReward={gameConfig?.dailyChallenge?.reward?.value ?? 500}
           missionStars={missionResult?.stars ?? 0}
-          missionCompleted={missionResult?.id === (gameConfig.campaignLevel?.id ?? gameConfig.dailyChallenge?.id)
-            ? missionResult.completed
-            : false}
-          missionAttempted={missionResult?.id === (gameConfig.campaignLevel?.id ?? gameConfig.dailyChallenge?.id)}
+          missionCompleted={Boolean(
+            (gameConfig?.campaignLevel || gameConfig?.dailyChallenge) &&
+            missionResult &&
+            missionResult.id === (gameConfig?.campaignLevel?.id ?? gameConfig?.dailyChallenge?.id) &&
+            missionResult.completed
+          )}
+          missionAttempted={Boolean(
+            (gameConfig?.campaignLevel || gameConfig?.dailyChallenge) &&
+            missionResult &&
+            missionResult.id === (gameConfig?.campaignLevel?.id ?? gameConfig?.dailyChallenge?.id)
+          )}
           onNextLevel={handleNextCampaignLevel}
-          hasNextLevel={Boolean(gameConfig.campaignLevel && getLevelById(gameConfig.campaignLevel.id + 1))}
+          hasNextLevel={Boolean(gameConfig?.campaignLevel && getLevelById(gameConfig.campaignLevel.id + 1))}
           missionFailure={missionResult?.failure}
           moves={currentMoves}
         />
