@@ -21,8 +21,8 @@ const translations = {
     tuesday_desc: "Win the game using your specialized powers.",
     wednesday_title: "Expanded Battlefield",
     wednesday_desc: "Dominate the 4x4 / 5x5 grid against elite AI.",
-    thursday_title: "Checkmate Puzzle",
-    thursday_desc: "Analyze the board state and land the winning sequence.",
+    thursday_title: "Tactical Multiplier",
+    thursday_desc: "Utilize multiplier cells to outscore and defeat your opponent.",
     friday_title: "Survival Protocol",
     friday_desc: "Survive against relentless AI pressure.",
     saturday_title: "Pure Tactical Skill",
@@ -47,8 +47,8 @@ const translations = {
     tuesday_desc: "Özel güçleri kullanarak rakibi mağlup et.",
     wednesday_title: "Büyük Savaş Alanı",
     wednesday_desc: "Genişletilmiş 4x4 / 5x5 tahtada yapay zekayı alt et.",
-    thursday_title: "Şah Mat Bulmacası",
-    thursday_desc: "Tahtayı analiz et ve kesin kazandıran hamleyi bul.",
+    thursday_title: "Taktiksel Çarpan",
+    thursday_desc: "Çarpanlı hücreleri kullanarak rakibi mağlup et ve zafere ulaş.",
     friday_title: "Hayatta Kalma Protokolü",
     friday_desc: "Agresif yapay zekaya karşı diren ve kazan.",
     saturday_title: "Saf Taktiksel Yetenek",
@@ -134,7 +134,7 @@ export function getTodaysChallenge() {
     config.difficulty = 'medium';
     const power = powers[Math.floor(prng() * powers.length)];
     config.constraints = { requirePower: power };
-    config.initialPowers = { bomb: 0, shield: 0, freeze: 0, swap: 0, vampire: 0, trap: 0 };
+    config.initialPowers = { bomb: 0, shield: 0, freeze: 0, vampire: 0, trap: 0 };
     config.initialPowers[power] = 2 + Math.floor(prng() * 2);
     config.aiPersonality = 'balanced';
   } else if (dayOfWeek === 3) {
@@ -145,24 +145,13 @@ export function getTodaysChallenge() {
     config.constraints = {};
     config.aiPersonality = 'aggressive';
   } else if (dayOfWeek === 4) {
-    config.type = 'puzzle';
+    config.type = 'win';
     config.boardSize = 3;
     config.winLength = 3;
     config.difficulty = 'hard';
-    config.constraints = { exactMoves: 1 };
-    
-    const b = [null, null, null, null, null, null, null, null, null];
-    let p1Pos = [0, 4, 8];
-    p1Pos.splice(Math.floor(prng() * 3), 1);
-    b[p1Pos[0]] = { player: 1 };
-    b[p1Pos[1]] = { player: 1 };
-    
-    let p2Pos = [2, 6];
-    b[p2Pos[0]] = { player: 2 };
-    b[p2Pos[1]] = { player: 2 };
-
-    config.initialBoard = b;
-    config.initialPowers = { bomb: 0, shield: 0, freeze: 0, swap: 0, vampire: 0, trap: 0 };
+    config.constraints = { requireMultiplier: true };
+    config.initialBoard = null;
+    config.initialPowers = null;
     config.aiPersonality = 'defensive';
   } else if (dayOfWeek === 5) {
     config.type = 'survival';
@@ -177,7 +166,7 @@ export function getTodaysChallenge() {
     config.winLength = 3;
     config.difficulty = 'expert';
     config.constraints = { noPowers: true };
-    config.initialPowers = { bomb: 0, shield: 0, freeze: 0, swap: 0, vampire: 0, trap: 0 };
+    config.initialPowers = { bomb: 0, shield: 0, freeze: 0, vampire: 0, trap: 0 };
     config.aiPersonality = 'balanced';
   } else {
     config.type = ['win', 'challenge', 'survival'][Math.floor(prng() * 3)];

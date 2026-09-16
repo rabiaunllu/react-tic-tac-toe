@@ -330,12 +330,16 @@ export default function App() {
     : []
   const winner = calculateWinner(squares, boardSize, winLength)
   const winningLine = getWinningLine(squares, boardSize, winLength)
-  const multipliersEnabled = gameMode === 'arena' && arenaSettings.multipliersEnabled
+  const multipliersEnabled = gameMode === 'arena' && (
+    arenaSettings.multipliersEnabled ||
+    Boolean(activeMission?.constraints?.requireMultiplier) ||
+    Boolean((activeMission?.initialPowers?.vampire ?? 0) > 0)
+  )
   const powersEnabled = gameMode === 'arena' &&
     arenaSettings.powersEnabled &&
     !gameConfig?.campaignLevel?.constraints?.noPowers &&
     !gameConfig?.dailyChallenge?.constraints?.noPowers
-  const isDraw = !winner && isBoardFull(squares)
+  const isDraw = !winner && isBoardFull(squares, blockedSquares)
   const currentPlayer = xIsNext ? 'X' : 'O'
 
   // Oyuncu İsimleri ve Sırayla X/O Olma (Rotasyon) Mekaniği
@@ -769,7 +773,7 @@ export default function App() {
         return
       }
 
-      if (isBoardFull(nextSquares)) {
+      if (isBoardFull(nextSquares, blockedSquares)) {
         if (opponentType === 'ai' && (gameMode === 'classic' || gameMode === 'arena')) {
           setConsecutiveDraws((prev) => prev + 1)
           triggerBotEmote('draw')
@@ -780,7 +784,7 @@ export default function App() {
         gameplayStop()
       }
     },
-    [boardSize, winLength, multipliers, multipliersEnabled, boostedSquares, opponentType, gameMode, isP1X, humanSymbol, aiSymbol, language, triggerBotEmote, gameConfig, playerPowers, isTr]
+    [boardSize, winLength, multipliers, multipliersEnabled, boostedSquares, blockedSquares, opponentType, gameMode, isP1X, humanSymbol, aiSymbol, language, triggerBotEmote, gameConfig, playerPowers, isTr]
   )
 
   const handleTimeOut = useCallback(
@@ -1548,7 +1552,7 @@ export default function App() {
             Boolean(localSession.resultMessage) ||
             (Array.isArray(localSession.squares) &&
               (Boolean(getWinningLine(localSession.squares, localSession.gameConfig?.boardSize || 3, localSession.gameConfig?.winLength || 3)) ||
-               isBoardFull(localSession.squares)))
+                isBoardFull(localSession.squares, localSession.blockedSquares || [])))
 
           const isMission = Boolean(localSession.gameConfig?.campaignLevel || localSession.gameConfig?.dailyChallenge)
 
@@ -1683,7 +1687,7 @@ export default function App() {
       }
       playSound('move')
       finishRound(nextSquares, nextBoostedSquares)
-      if (!getWinningLine(nextSquares, boardSize, winLength) && !isBoardFull(nextSquares)) {
+      if (!getWinningLine(nextSquares, boardSize, winLength) && !isBoardFull(nextSquares, blockedSquares)) {
         triggerBotEmote('random_move')
       }
       setLockedSquares([])
@@ -1914,6 +1918,10 @@ export default function App() {
         const aiMove = data.move
         if (aiMove !== null && aiMove !== undefined) {
           placeAiStone(aiMove)
+        } else {
+          if (!getWinningLine(squares, boardSize, winLength)) {
+            finishRound(squares)
+          }
         }
         return
       }
@@ -2184,6 +2192,7 @@ export default function App() {
     humanWinStreak,
     consecutiveDraws,
     effectiveLockedSquares,
+    blockedSquares,
     frozenSquares,
     frozenBy,
     powersEnabled,
@@ -2356,7 +2365,10 @@ export default function App() {
     setXIsNext(true)
     setRoundNumber(1)
     setScores(initialScores)
-    setMultipliers(multipliersEnabled ? createBoardMultipliers(boardSize) : {})
+    setMultipliers({
+      ...(multipliersEnabled ? createBoardMultipliers(boardSize) : {}),
+      ...(setup.multipliers || {}),
+    })
     setPlayerPowers(
       mission
         ? createMissionPowers(gameConfig, gameMode, opponentType)
@@ -2486,11 +2498,16 @@ export default function App() {
     missionTotalTurnsRef.current = 0
     missionFailureRef.current = null
     setCurrentMoves(0)
-    setMultipliers(
-      config.gameMode === 'arena' && arenaSettings.multipliersEnabled
-        ? createBoardMultipliers(config.boardSize)
-        : {}
-    )
+    const shouldUseMultipliers =
+      config.gameMode === 'arena' && (
+        arenaSettings.multipliersEnabled ||
+        Boolean(mission?.constraints?.requireMultiplier) ||
+        Boolean((mission?.initialPowers?.vampire ?? 0) > 0)
+      )
+    setMultipliers({
+      ...(shouldUseMultipliers ? createBoardMultipliers(config.boardSize) : {}),
+      ...(setup.multipliers || {}),
+    })
     setScores(initialScores)
     setXIsNext(true)
     setRoundNumber(1)

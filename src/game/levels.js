@@ -112,16 +112,16 @@ export const campaignLevels = [
     difficulty: 'medium',
     stars: {
       one: { condition: 'win' },
-      two: { condition: 'win_in_moves', value: 3 },
-      three: { condition: 'win_in_moves', value: 2 },
+      two: { condition: 'win_in_moves', value: 4 },
+      three: { condition: 'win_in_moves', value: 3 },
     },
-    constraints: { maxMoves: 3 },
+    constraints: { maxMoves: 4 },
     initialBoard: [
       { player: 1 }, null, { player: 2 },
       null, { player: 2 }, null,
       null, { player: 1 }, null
     ],
-    initialPowers: { bomb: 0, shield: 0, freeze: 0, swap: 0, vampire: 0, trap: 0 },
+    initialPowers: { bomb: 0, shield: 0, freeze: 0, vampire: 0, trap: 0 },
     aiPersonality: 'defensive',
     unlockCondition: { type: 'level_complete', value: 5 },
     reward: { type: 'xp', value: 200 },
@@ -141,32 +141,32 @@ export const campaignLevels = [
     },
     constraints: { noPowers: true },
     initialBoard: null,
-    initialPowers: { bomb: 0, shield: 0, freeze: 0, swap: 0, vampire: 0, trap: 0 },
+    initialPowers: { bomb: 0, shield: 0, freeze: 0, vampire: 0, trap: 0 },
     aiPersonality: 'balanced',
     unlockCondition: { type: 'level_complete', value: 6 },
     reward: { type: 'xp', value: 200 },
   },
   {
     id: 8,
-    title: { en: 'Cornered', tr: 'Köşeye Sıkışmış' },
-    description: { en: 'Corners are blocked, win in the center', tr: 'Köşeler engellendi, merkezde kazan' },
+    title: { en: 'Cornered', tr: 'Kuşatma' },
+    description: { en: 'Corners are blocked with lava. Use your powers to break the siege.', tr: 'Köşeler lav ile engellendi. Güçlerini kullanarak kuşatmayı yar ve kazan.' },
     type: 'win',
     boardSize: 3,
     winLength: 3,
-    difficulty: 'hard',
+    difficulty: 'medium',
     stars: {
       one: { condition: 'win' },
-      two: { condition: 'win_in_moves', value: 9 },
-      three: { condition: 'win_in_moves', value: 7 },
+      two: { condition: 'win_in_moves', value: 7 },
+      three: { condition: 'win_in_moves', value: 5 },
     },
     constraints: {},
     initialBoard: [
-      { blocked: true }, null, { blocked: true },
+      { blocked: true }, null, null,
       null, null, null,
-      { blocked: true }, null, { blocked: true }
+      null, null, { blocked: true }
     ],
-    initialPowers: null,
-    aiPersonality: 'defensive',
+    initialPowers: { bomb: 1, shield: 1, freeze: 0, vampire: 0, trap: 0 },
+    aiPersonality: 'balanced',
     unlockCondition: { type: 'level_complete', value: 7 },
     reward: { type: 'xp', value: 250 },
   },
@@ -180,12 +180,12 @@ export const campaignLevels = [
     difficulty: 'medium',
     stars: {
       one: { condition: 'win' },
-      two: { condition: 'win_in_moves', value: 3 },
-      three: { condition: 'win_in_moves', value: 1 },
+      two: { condition: 'win_in_moves', value: 5 },
+      three: { condition: 'win_in_moves', value: 3 },
     },
     constraints: { requirePower: 'vampire' },
     initialBoard: [
-      { player: 2 }, { player: 2 }, null,
+      { player: 2, multiplier: 3 }, { player: 2 }, null,
       { player: 1 }, null, null,
       { player: 1 }, null, null
     ],
@@ -279,24 +279,24 @@ export const campaignLevels = [
   {
     id: 14,
     title: { en: 'Blockade', tr: 'Abluka' },
-    description: { en: 'Navigate through a blocked board', tr: 'Engellerle dolu tahtada yolunu bul' },
+    description: { en: 'Navigate through a blocked board using powers', tr: 'Engelli tahtada güçlerini kullanarak zaferi kazan' },
     type: 'win',
     boardSize: 4,
     winLength: 4,
     difficulty: 'expert',
     stars: {
       one: { condition: 'win' },
-      two: { condition: 'win_in_moves', value: 15 },
-      three: { condition: 'win_in_moves', value: 11 },
+      two: { condition: 'win_in_moves', value: 12 },
+      three: { condition: 'win_in_moves', value: 8 },
     },
     constraints: {},
     initialBoard: [
-      null, null, { blocked: true }, null,
       { blocked: true }, null, null, null,
-      null, null, null, { blocked: true },
-      null, { blocked: true }, null, null
+      null, null, null, null,
+      null, null, null, null,
+      null, null, null, { blocked: true }
     ],
-    initialPowers: null,
+    initialPowers: { bomb: 1, shield: 0, freeze: 1, vampire: 0, trap: 0 },
     aiPersonality: 'defensive',
     unlockCondition: { type: 'level_complete', value: 13 },
     reward: { type: 'power', value: 'freeze' },
@@ -304,24 +304,24 @@ export const campaignLevels = [
   {
     id: 15,
     title: { en: 'Freeze Frame', tr: 'Dondurulmuş Kare' },
-    description: { en: 'Use Freeze to stop the AI from winning', tr: 'Yapay zekanın kazanmasını engellemek için Dondurmayı kullan' },
+    description: { en: 'Freeze the critical square and set up a double threat', tr: 'Kritik kareyi dondur ve çifte tehdit kurarak kazan' },
     type: 'puzzle',
     boardSize: 4,
     winLength: 4,
     difficulty: 'hard',
     stars: {
       one: { condition: 'win' },
-      two: { condition: 'win_in_moves', value: 7 },
+      two: { condition: 'win_in_moves', value: 5 },
       three: { condition: 'win_in_moves', value: 3 },
     },
     constraints: {},
     initialBoard: [
       { player: 2 }, { player: 2 }, { player: 2 }, null,
-      null, { player: 1 }, null, null,
-      null, { player: 1 }, null, null,
-      null, { player: 1 }, null, null
+      null, null, null, { player: 1 },
+      null, null, null, { player: 1 },
+      null, { player: 1 }, { player: 1 }, null
     ],
-    initialPowers: { bomb: 0, shield: 0, freeze: 1, swap: 0, vampire: 0, trap: 0 },
+    initialPowers: { bomb: 0, shield: 0, freeze: 1, vampire: 0, trap: 0 },
     aiPersonality: 'aggressive',
     unlockCondition: { type: 'level_complete', value: 14 },
     reward: { type: 'skin', value: 'ice' },
@@ -388,7 +388,7 @@ export const campaignLevels = [
       null, null, null, null,
       null, null, null, null
     ],
-    initialPowers: { bomb: 2, shield: 0, freeze: 0, swap: 1, vampire: 0, trap: 0 },
+    initialPowers: { bomb: 2, shield: 1, freeze: 1, vampire: 0, trap: 0 },
     aiPersonality: 'defensive',
     unlockCondition: { type: 'level_complete', value: 17 },
     reward: { type: 'xp', value: 500 },
@@ -396,7 +396,7 @@ export const campaignLevels = [
   {
     id: 19,
     title: { en: 'Double Threat', tr: 'Çifte Tehdit' },
-    description: { en: 'Set up a double win condition', tr: 'Çifte kazanma koşulu ayarla' },
+    description: { en: 'Find the hub square to create a double attack', tr: 'Merkez kareyi bularak çifte saldırı tehdidi kur' },
     type: 'puzzle',
     boardSize: 4,
     winLength: 4,
@@ -406,14 +406,14 @@ export const campaignLevels = [
       two: { condition: 'win_in_moves', value: 5 },
       three: { condition: 'win_in_moves', value: 3 },
     },
-    constraints: {},
+    constraints: { maxMoves: 4 },
     initialBoard: [
-      { player: 1 }, { player: 1 }, { player: 1 }, null,
-      { player: 1 }, { player: 2 }, null, null,
-      { player: 1 }, null, { player: 2 }, null,
-      null, null, null, { player: 2 }
+      null, null, { player: 1 }, { player: 1 },
+      { player: 2 }, null, { player: 2 }, null,
+      null, { player: 1 }, { player: 2 }, null,
+      null, { player: 1 }, null, { player: 2 }
     ],
-    initialPowers: { bomb: 0, shield: 0, freeze: 0, swap: 0, vampire: 0, trap: 0 },
+    initialPowers: { bomb: 0, shield: 0, freeze: 0, vampire: 0, trap: 0 },
     aiPersonality: 'balanced',
     unlockCondition: { type: 'level_complete', value: 18 },
     reward: { type: 'xp', value: 550 },
@@ -433,7 +433,7 @@ export const campaignLevels = [
     },
     constraints: {},
     initialBoard: null,
-    initialPowers: { bomb: 5, shield: 0, freeze: 0, swap: 0, vampire: 0, trap: 0 },
+    initialPowers: { bomb: 5, shield: 0, freeze: 0, vampire: 0, trap: 0 },
     aiPersonality: 'aggressive',
     unlockCondition: { type: 'level_complete', value: 19 },
     reward: { type: 'skin', value: 'toxic_green' },
@@ -553,7 +553,7 @@ export const campaignLevels = [
       { blocked: true }, null, null, null, { blocked: true },
       null, { blocked: true }, null, { blocked: true }, null
     ],
-    initialPowers: { bomb: 1, shield: 1, freeze: 1, swap: 1, vampire: 1, trap: 1 },
+    initialPowers: { bomb: 1, shield: 1, freeze: 1, vampire: 1, trap: 1 },
     aiPersonality: 'balanced',
     unlockCondition: { type: 'level_complete', value: 24 },
     reward: { type: 'skin', value: 'golden_crown' },
@@ -570,10 +570,10 @@ export const campaignLevels = [
     difficulty: 'expert',
     stars: {
       one: { condition: 'win' },
-      two: { condition: 'win_in_moves', value: 3 },
-      three: { condition: 'win_in_moves', value: 2 },
+      two: { condition: 'win_in_moves', value: 4 },
+      three: { condition: 'win_in_moves', value: 3 },
     },
-    constraints: { maxMoves: 3 },
+    constraints: { maxMoves: 4 },
     initialBoard: [
       { player: 2 }, null, null, null, { player: 1 },
       null, { player: 2 }, null, null, { player: 1 },
@@ -581,7 +581,7 @@ export const campaignLevels = [
       null, null, null, { player: 2 }, null,
       { player: 1 }, { player: 1 }, { player: 1 }, null, null
     ],
-    initialPowers: { bomb: 0, shield: 0, freeze: 0, swap: 0, vampire: 0, trap: 0 },
+    initialPowers: { bomb: 0, shield: 0, freeze: 0, vampire: 0, trap: 0 },
     aiPersonality: 'balanced',
     unlockCondition: { type: 'level_complete', value: 25 },
     reward: { type: 'xp', value: 1000 },
@@ -589,25 +589,25 @@ export const campaignLevels = [
   {
     id: 27,
     title: { en: 'Block the Win', tr: 'Galibiyeti Engelle' },
-    description: { en: 'Prevent the AI from winning next turn', tr: 'Yapay zekanın sonraki turda kazanmasını engelle' },
+    description: { en: 'Block the lethal diagonal and strike back with a double threat', tr: 'Ölümcül çaprazı engelle ve çifte saldırıyla zaferi al' },
     type: 'puzzle',
     boardSize: 5,
     winLength: 5,
     difficulty: 'expert',
     stars: {
       one: { condition: 'win' },
-      two: { condition: 'win_in_moves', value: 7 },
-      three: { condition: 'win_in_moves', value: 5 },
+      two: { condition: 'win_in_moves', value: 4 },
+      three: { condition: 'win_in_moves', value: 3 },
     },
-    constraints: {},
+    constraints: { maxMoves: 4 },
     initialBoard: [
-      { player: 2 }, null, null, null, null,
+      { player: 1 }, null, null, null, { player: 2 },
+      { player: 1 }, null, null, { player: 2 }, null,
+      { player: 1 }, null, { player: 2 }, null, null,
       null, { player: 2 }, null, null, null,
-      null, null, { player: 2 }, null, null,
-      null, null, null, { player: 2 }, null,
-      null, null, null, null, null
+      null, null, { player: 1 }, { player: 1 }, { player: 1 }
     ],
-    initialPowers: { bomb: 0, shield: 0, freeze: 0, swap: 0, vampire: 0, trap: 0 },
+    initialPowers: { bomb: 0, shield: 0, freeze: 0, vampire: 0, trap: 0 },
     aiPersonality: 'aggressive',
     unlockCondition: { type: 'level_complete', value: 26 },
     reward: { type: 'xp', value: 1000 },
@@ -627,7 +627,7 @@ export const campaignLevels = [
     },
     constraints: {},
     initialBoard: null,
-    initialPowers: { bomb: 1, shield: 1, freeze: 1, swap: 1, vampire: 1, trap: 1 },
+    initialPowers: { bomb: 1, shield: 1, freeze: 1, vampire: 1, trap: 1 },
     aiPersonality: 'chaotic',
     unlockCondition: { type: 'level_complete', value: 27 },
     reward: { type: 'xp', value: 1500 },
@@ -653,7 +653,7 @@ export const campaignLevels = [
       null, null, null, null, null,
       null, null, null, null, null
     ],
-    initialPowers: { bomb: 3, shield: 0, freeze: 0, swap: 0, vampire: 0, trap: 0 },
+    initialPowers: { bomb: 3, shield: 0, freeze: 0, vampire: 0, trap: 0 },
     aiPersonality: 'defensive',
     unlockCondition: { type: 'level_complete', value: 28 },
     reward: { type: 'xp', value: 2000 },
@@ -673,7 +673,7 @@ export const campaignLevels = [
     },
     constraints: { noPowers: true },
     initialBoard: null,
-    initialPowers: { bomb: 0, shield: 0, freeze: 0, swap: 0, vampire: 0, trap: 0 },
+    initialPowers: { bomb: 0, shield: 0, freeze: 0, vampire: 0, trap: 0 },
     aiPersonality: 'balanced', // Near perfect AI expected by game engine on expert + balanced
     unlockCondition: { type: 'level_complete', value: 29 },
     reward: { type: 'skin', value: 'cosmic' },
@@ -718,12 +718,14 @@ export function extractMissionBoardSetup(initialBoardOrMission, boardSize) {
       squares: Array(expectedLength).fill(null),
       blockedSquares: [],
       shieldedSquares: [],
+      multipliers: {},
     };
   }
 
   const squares = [];
   const blockedSquares = [];
   const shieldedSquares = [];
+  const multipliers = {};
 
   board.forEach((cell, index) => {
     if (!cell) {
@@ -748,9 +750,13 @@ export function extractMissionBoardSetup(initialBoardOrMission, boardSize) {
     if (cell.power === 'shield') {
       shieldedSquares.push(index);
     }
+
+    if (cell.multiplier) {
+      multipliers[index] = cell.multiplier;
+    }
   });
 
-  return { squares, blockedSquares, shieldedSquares };
+  return { squares, blockedSquares, shieldedSquares, multipliers };
 }
 
 /**
