@@ -335,7 +335,7 @@ export default function DailyChallenge({ onPlayChallenge, onBack, language = 'en
                 <span className="mission-chip board-chip">{challenge.boardSize}x{challenge.boardSize}</span>
                 <span className="mission-chip diff-chip">{challenge.difficulty?.toUpperCase()}</span>
                 {challenge.constraints?.maxMoves && (
-                  <span className="mission-chip constraint-chip">≤ {challenge.constraints.maxMoves} {isTr ? 'HAMLE' : 'MOVES'}</span>
+                  <span className="mission-chip constraint-chip">MAX {challenge.constraints.maxMoves} {isTr ? 'HAMLE' : 'MOVES'}</span>
                 )}
               </div>
 

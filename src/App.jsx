@@ -137,16 +137,19 @@ function isDailyChallengeCompletedForDate(date) {
     return false
   }
 }
-function formatStarGoal(starDef, isTr) {
+function formatStarGoal(starDef, isTr, starIndex = 2) {
   if (!starDef) return isTr ? 'Zafer' : 'Win'
   if (starDef.condition === 'win') {
     return isTr ? 'Zafer' : 'Win'
   }
   if (starDef.condition === 'win_in_moves') {
-    return isTr ? `≤ ${starDef.value} Hamle` : `≤ ${starDef.value} Moves`
+    return isTr ? `En Çok ${starDef.value} Hamle` : `Max ${starDef.value} Moves`
   }
   if (starDef.condition === 'score_above') {
-    return isTr ? `${starDef.value}+ Puan` : `${starDef.value}+ Pts`
+    if (starIndex === 3 || (starDef.value ?? 0) >= 200) {
+      return isTr ? '3x Çarpan' : '3x Multiplier'
+    }
+    return isTr ? '2x Çarpan' : '2x Multiplier'
   }
   if (starDef.condition === 'power_used') {
     const powerName = ARENA_POWER_NAMES[starDef.value] ?? starDef.value
@@ -2693,16 +2696,16 @@ export default function App() {
                   <span className="mission-hud__stars-label">⭐ {isTr ? 'Yıldızlar' : 'Stars'}:</span>
                   <div className="mission-hud__star-pills">
                     <span className="mission-hud__star-pill">
-                      ★1 {formatStarGoal(gameConfig.campaignLevel.stars.one, isTr)}
+                      ★1 {formatStarGoal(gameConfig.campaignLevel.stars.one, isTr, 1)}
                     </span>
                     {gameConfig.campaignLevel.stars.two && (
                       <span className="mission-hud__star-pill">
-                        ★2 {formatStarGoal(gameConfig.campaignLevel.stars.two, isTr)}
+                        ★2 {formatStarGoal(gameConfig.campaignLevel.stars.two, isTr, 2)}
                       </span>
                     )}
                     {gameConfig.campaignLevel.stars.three && (
                       <span className="mission-hud__star-pill">
-                        ★3 {formatStarGoal(gameConfig.campaignLevel.stars.three, isTr)}
+                        ★3 {formatStarGoal(gameConfig.campaignLevel.stars.three, isTr, 3)}
                       </span>
                     )}
                   </div>

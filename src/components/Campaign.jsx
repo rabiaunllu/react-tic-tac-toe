@@ -283,11 +283,11 @@ export default function Campaign({ onPlayLevel, onBack, language }) {
                   <span className="cond-star">★★☆</span>
                   <span className="cond-desc">
                     {selectedLevel.stars.two.condition === 'win_in_moves'
-                      ? t(`Win in ≤ ${selectedLevel.stars.two.value} moves`, `En fazla ${selectedLevel.stars.two.value} hamlede kazan`)
+                      ? t(`Win in ${selectedLevel.stars.two.value} moves or less`, `En fazla ${selectedLevel.stars.two.value} hamlede kazan`)
                       : selectedLevel.stars.two.condition === 'power_used'
                       ? t(`Win using ${selectedLevel.stars.two.value} power`, `${selectedLevel.stars.two.value} gücünü kullanarak kazan`)
                       : selectedLevel.stars.two.condition === 'score_above'
-                      ? t(`Score ≥ ${selectedLevel.stars.two.value} points`, `En az ${selectedLevel.stars.two.value} puan kazan`)
+                      ? t('Win with 2x multiplier', '2x Çarpanla kazan')
                       : t('Tactical mastery objective', 'Taktiksel ustalık hedefi')}
                   </span>
                 </div>
@@ -297,9 +297,9 @@ export default function Campaign({ onPlayLevel, onBack, language }) {
                   <span className="cond-star">★★★</span>
                   <span className="cond-desc">
                     {selectedLevel.stars.three.condition === 'win_in_moves'
-                      ? t(`Speed master: Win in ≤ ${selectedLevel.stars.three.value} moves`, `Hız ustası: En fazla ${selectedLevel.stars.three.value} hamlede kazan`)
+                      ? t(`Speed master: Win in ${selectedLevel.stars.three.value} moves or less`, `Hız ustası: En fazla ${selectedLevel.stars.three.value} hamlede kazan`)
                       : selectedLevel.stars.three.condition === 'score_above'
-                      ? t(`High scorer: Score ≥ ${selectedLevel.stars.three.value} points`, `Yüksek skor: En az ${selectedLevel.stars.three.value} puan kazan`)
+                      ? t('Win with 3x multiplier', '3x Çarpanla kazan')
                       : t('Grandmaster objective', 'Büyük usta hedefi')}
                   </span>
                 </div>
