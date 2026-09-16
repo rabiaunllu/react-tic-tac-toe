@@ -263,8 +263,12 @@ export function getAdaptiveDdaConfig({
 
   if (fixedConfig) {
     if (aiPersonality === 'aggressive') {
-      fixedConfig.forkHesitationChance = Math.max(0, fixedConfig.forkHesitationChance - 0.25);
-      fixedConfig.suboptimalMoveChance = Math.max(0, fixedConfig.suboptimalMoveChance - 0.12);
+      // Aggressive personality: focuses relentlessly on offensive attacks, traps, and power usage,
+      // but suffers from tunnel vision (overlooks player's counter-forks and sneaky setups).
+      fixedConfig.skipAntiExploit = true;
+      fixedConfig.forkHesitationChance = Math.max(fixedConfig.forkHesitationChance, 0.38);
+      fixedConfig.suboptimalMoveChance = Math.max(fixedConfig.suboptimalMoveChance, 0.18);
+      fixedConfig.pityBlockMissChance = Math.max(fixedConfig.pityBlockMissChance, 0.10);
       fixedConfig.trapBaitChance = Math.min(0.65, fixedConfig.trapBaitChance + 0.25);
       fixedConfig.powerPacingChance = Math.max(0.05, fixedConfig.powerPacingChance - 0.15);
     } else if (aiPersonality === 'defensive') {
@@ -276,6 +280,30 @@ export function getAdaptiveDdaConfig({
       fixedConfig.suboptimalMoveChance = Math.min(0.35, fixedConfig.suboptimalMoveChance + 0.15);
       fixedConfig.trapBaitChance = 0.35;
     }
+
+    // ── Dynamic Draw Breakout for fixed difficulties (Campaign & Quick Play) ──
+    // In Tic-Tac-Toe, fixed high difficulties on symmetrical boards can force 100% draws.
+    // Progressively loosen defensive rigor when consecutive draws occur so players never get stuck!
+    if (consecutiveDraws >= 3) {
+      fixedConfig.skipAntiExploit = true;
+      fixedConfig.forkHesitationChance = Math.min(0.85, fixedConfig.forkHesitationChance + 0.50);
+      fixedConfig.suboptimalMoveChance = Math.min(0.60, fixedConfig.suboptimalMoveChance + 0.35);
+      fixedConfig.pityBlockMissChance = Math.min(0.40, fixedConfig.pityBlockMissChance + 0.30);
+      fixedConfig.scoreTolerance = (fixedConfig.scoreTolerance || 100) + 300;
+    } else if (consecutiveDraws === 2) {
+      fixedConfig.skipAntiExploit = true;
+      fixedConfig.forkHesitationChance = Math.min(0.70, fixedConfig.forkHesitationChance + 0.35);
+      fixedConfig.suboptimalMoveChance = Math.min(0.45, fixedConfig.suboptimalMoveChance + 0.22);
+      fixedConfig.pityBlockMissChance = Math.min(0.28, fixedConfig.pityBlockMissChance + 0.18);
+      fixedConfig.scoreTolerance = (fixedConfig.scoreTolerance || 100) + 200;
+    } else if (consecutiveDraws === 1) {
+      fixedConfig.skipAntiExploit = true;
+      fixedConfig.forkHesitationChance = Math.min(0.55, fixedConfig.forkHesitationChance + 0.20);
+      fixedConfig.suboptimalMoveChance = Math.min(0.32, fixedConfig.suboptimalMoveChance + 0.12);
+      fixedConfig.pityBlockMissChance = Math.min(0.18, fixedConfig.pityBlockMissChance + 0.10);
+      fixedConfig.scoreTolerance = (fixedConfig.scoreTolerance || 100) + 100;
+    }
+
     return fixedConfig;
   }
 

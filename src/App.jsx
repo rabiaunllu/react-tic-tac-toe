@@ -2419,7 +2419,9 @@ export default function App() {
     setLoserMessage(null)
     setIsRoundResultDismissed(false)
     setHumanWinStreak(0)
-    setConsecutiveDraws(0)
+    if (!isDraw) {
+      setConsecutiveDraws(0)
+    }
     setMissionResult(null)
     setRewardedPowerClaimed(false)
     setIsRewarding(false)
@@ -2486,6 +2488,8 @@ export default function App() {
     setResultMessage(null)
     setLoserMessage(null)
     setIsRoundResultDismissed(false)
+    setHumanWinStreak(0)
+    setConsecutiveDraws(0)
     setMissionResult(null)
     clearLocalSession()
   }

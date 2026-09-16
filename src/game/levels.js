@@ -10,8 +10,8 @@ export const campaignLevels = [
     difficulty: 'easy',
     stars: {
       one: { condition: 'win' },
-      two: { condition: 'win_in_moves', value: 4 },
-      three: { condition: 'win_in_moves', value: 3 },
+      two: { condition: 'win_in_moves', value: 5 },
+      three: { condition: 'win_in_moves', value: 4 },
     },
     constraints: {},
     initialBoard: null,
@@ -90,8 +90,8 @@ export const campaignLevels = [
     difficulty: 'medium',
     stars: {
       one: { condition: 'win' },
-      two: { condition: 'win_in_moves', value: 4 },
-      three: { condition: 'win_in_moves', value: 3 },
+      two: { condition: 'win_in_moves', value: 5 },
+      three: { condition: 'win_in_moves', value: 4 },
     },
     constraints: { maxMoves: 5 },
     initialBoard: null,
@@ -136,8 +136,8 @@ export const campaignLevels = [
     difficulty: 'medium',
     stars: {
       one: { condition: 'win' },
-      two: { condition: 'win_in_moves', value: 4 },
-      three: { condition: 'win_in_moves', value: 3 },
+      two: { condition: 'win_in_moves', value: 5 },
+      three: { condition: 'win_in_moves', value: 4 },
     },
     constraints: { noPowers: true },
     initialBoard: null,
@@ -204,8 +204,8 @@ export const campaignLevels = [
     difficulty: 'hard',
     stars: {
       one: { condition: 'win' },
-      two: { condition: 'win_in_moves', value: 4 },
-      three: { condition: 'win_in_moves', value: 3 },
+      two: { condition: 'win_in_moves', value: 5 },
+      three: { condition: 'win_in_moves', value: 4 },
     },
     constraints: {},
     initialBoard: null,
