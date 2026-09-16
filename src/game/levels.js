@@ -173,21 +173,21 @@ export const campaignLevels = [
   {
     id: 9,
     title: { en: 'Vampire Strike', tr: 'Vampir Darbesi' },
-    description: { en: 'Use the Vampire power to steal a win', tr: 'Kazanmak için Vampir gücünü kullan' },
+    description: { en: 'Steal the multiplier and set a winning counter-attack', tr: 'Çarpanı çek ve karşı saldırı kurarak kazan' },
     type: 'puzzle',
     boardSize: 3,
     winLength: 3,
     difficulty: 'medium',
     stars: {
       one: { condition: 'win' },
-      two: { condition: 'win_in_moves', value: 5 },
+      two: { condition: 'win_in_moves', value: 4 },
       three: { condition: 'win_in_moves', value: 3 },
     },
     constraints: { requirePower: 'vampire' },
     initialBoard: [
-      { player: 2, multiplier: 3 }, { player: 2 }, null,
       { player: 1 }, null, null,
-      { player: 1 }, null, null
+      null, { player: 2, multiplier: 3 }, null,
+      { player: 2 }, null, { player: 1 }
     ],
     initialPowers: { bomb: 0, shield: 0, freeze: 0, vampire: 1, trap: 0 },
     aiPersonality: 'defensive',
