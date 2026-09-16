@@ -278,7 +278,10 @@ export default function RoundResultModal({
             {dailyChallenge && (
               <div className="mission-stat-item">
                 <span>{isTr ? 'ÖDÜL' : 'REWARD'}</span>
-                <strong style={{ color: isMyVictory && missionCompleted ? '#4ade80' : '#fbbf24' }}>
+                <strong
+                  className="mission-stat-reward"
+                  style={{ color: isMyVictory && missionCompleted ? '#4ade80' : '#f59e0b' }}
+                >
                   {isMyVictory && missionCompleted
                     ? (dailyChallenge.isPractice
                         ? (isTr ? '🎯 Pratik' : '🎯 Practice')
@@ -289,9 +292,9 @@ export default function RoundResultModal({
             )}
             <div className="mission-stat-item">
               <span>{isTr ? 'DURUM' : 'STATUS'}</span>
-              <strong style={{ color: isMyVictory && missionCompleted ? '#38bdf8' : '#f43f5e', fontSize: '15px' }}>
-                {isMyVictory && missionCompleted ? (isTr ? 'BAŞARILI' : 'PASSED') : (isTr ? 'BAŞARISIZ' : 'FAILED')}
-              </strong>
+              <span className={`mission-stat-status ${isMyVictory && missionCompleted ? 'passed' : 'failed'}`}>
+                {isMyVictory && missionCompleted ? (isTr ? 'Başarılı' : 'Passed') : (isTr ? 'Başarısız' : 'Failed')}
+              </span>
             </div>
           </div>
         ) : (
