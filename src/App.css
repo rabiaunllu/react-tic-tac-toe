@@ -1322,6 +1322,37 @@ p {
   font-size: 12px;
 }
 
+/* Advanced Settings Toggle */
+.advanced-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 16px;
+  margin: 4px 0 2px;
+  background: rgba(142, 216, 255, 0.06);
+  border: 1px dashed rgba(140, 242, 255, 0.25);
+  border-radius: 12px;
+  color: rgba(200, 220, 255, 0.7);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.advanced-toggle-btn:hover {
+  background: rgba(142, 216, 255, 0.12);
+  border-color: rgba(140, 242, 255, 0.4);
+  color: #f5f7fb;
+}
+
+.advanced-toggle-arrow {
+  font-size: 10px;
+  transition: transform 0.2s ease;
+}
+
 .setup-summary {
   width: 100%;
   padding: 13px 14px;
@@ -4829,6 +4860,35 @@ button,
 }
 
 /* Power Simulation Component Styles */
+/* ── Powers Showcase Section (Ana Ekran) ── */
+.powers-showcase-section {
+  width: 100%;
+  margin-top: 10px;
+  margin-bottom: 6px;
+  padding: 0 2px;
+  box-sizing: border-box;
+}
+
+.powers-showcase-header {
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.powers-showcase-header h2 {
+  font-size: clamp(15px, 4vw, 18px);
+  font-weight: 800;
+  color: #e2e8f0;
+  margin: 0 0 4px;
+  letter-spacing: 0.5px;
+}
+
+.powers-showcase-header p {
+  font-size: clamp(11px, 3vw, 13px);
+  color: #94a3b8;
+  margin: 0;
+  line-height: 1.35;
+}
+
 .psim-container {
   display: flex;
   flex-direction: column;

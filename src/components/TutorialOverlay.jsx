@@ -3,24 +3,20 @@ import { createPortal } from 'react-dom';
 
 const TRANSLATIONS = {
   en: {
-    step1: "Place your mark on the board",
-    step2: "Score multipliers! Land on 2x or 3x cells for bonus points",
-    step3: "Use powers to gain tactical advantage!",
-    step4: "💣 Bomb destroys enemy pieces, 🛡️ Shield protects yours",
-    step5: "Complete the line to score points. First to target wins!",
+    step1: "Tap an empty cell to place your mark",
+    step2: "Use powers for tactical advantage! 💣 Bomb · 🛡️ Shield · 🧛 Steal",
+    step3: "Complete a line to win. First to target score wins the match!",
     skip: "Skip Tutorial",
     next: "Next ▸",
-    complete: "Tutorial complete! You are ready to battle! ✅"
+    complete: "Ready to battle! ✅"
   },
   tr: {
-    step1: "İşaretini tahtadaki boş bir kareye koy",
-    step2: "Skor çarpanları! Bonus puanlar için 2x veya 3x hücrelerine yerleş",
-    step3: "Taktiksel üstünlük kurmak için güçlerini kullan!",
-    step4: "💣 Bomba rakip taşı yok eder, 🛡️ Kalkan seninkileri korur",
-    step5: "Puan kazanmak için sırayı tamamla. Hedefe ilk ulaşan kazanır!",
+    step1: "Boş bir kareye dokunarak işaretini koy",
+    step2: "Taktiksel üstünlük için güçleri kullan! 💣 Bomba · 🛡️ Kalkan · 🧛 Çal",
+    step3: "Sırayı tamamla ve kazan. Hedefe ilk ulaşan şampiyon!",
     skip: "Eğitimi Geç",
     next: "İleri ▸",
-    complete: "Eğitim tamamlandı! Savaşa hazırsın! ✅"
+    complete: "Savaşa hazırsın! ✅"
   }
 };
 
@@ -34,7 +30,7 @@ export default function TutorialOverlay({ step, onNextStep, onSkip, language }) 
   const t = TRANSLATIONS[language] || TRANSLATIONS.en;
 
   useEffect(() => {
-    if (step === 6) {
+    if (step === 4) {
       localStorage.setItem('xo-tutorial-complete', 'true');
       const timer = setTimeout(() => {
         if (onSkip) onSkip();
@@ -45,10 +41,8 @@ export default function TutorialOverlay({ step, onNextStep, onSkip, language }) 
     // Attempt to find target element to highlight
     const selectors = {
       1: ['.game-board', '.board', '.grid'],
-      2: ['.multiplier', '.multiplier-badge', '.bonus', '.board-cell[data-multiplier]'],
-      3: ['.power-panel', '.powers', '.power-container', '.game-powers'],
-      4: ['.bomb-icon', '.shield-icon', '.power-btn', '.power-item'],
-      5: ['.score-display', '.score', '.scores', '.player-score']
+      2: ['.power-panel', '.powers', '.power-container', '.game-powers'],
+      3: ['.score-display', '.score', '.scores', '.player-score']
     };
 
     const findAndSetTarget = () => {
@@ -75,16 +69,14 @@ export default function TutorialOverlay({ step, onNextStep, onSkip, language }) 
     };
   }, [step, onSkip]);
 
-  if (hasCompleted && step !== 6) return null;
+  if (hasCompleted && step !== 4) return null;
 
   const getStepText = () => {
     switch (step) {
       case 1: return t.step1;
       case 2: return t.step2;
       case 3: return t.step3;
-      case 4: return t.step4;
-      case 5: return t.step5;
-      case 6: return t.complete;
+      case 4: return t.complete;
       default: return '';
     }
   };
@@ -128,7 +120,7 @@ export default function TutorialOverlay({ step, onNextStep, onSkip, language }) 
       <div className="tutorial-tooltip" style={{ top: tooltipTop }}>
         <p className="tutorial-text">{getStepText()}</p>
         
-        {step < 6 && (
+        {step < 4 && (
           <div className="tutorial-actions">
             <button
               type="button"

@@ -253,6 +253,7 @@ export default function App() {
   const lastTickSecondRef = useRef(15)
   const isSessionRestoredRef = useRef(false)
   const isMoveProcessingRef = useRef(false)
+  const pausedRemainingMsRef = useRef(null)
 
   // Intro animation state — show only on first visit (no stored session, no gameConfig)
   const [showIntro, setShowIntro] = useState(() => {
@@ -263,7 +264,7 @@ export default function App() {
   })
 
   // In-game tutorial state
-  const [tutorialStep, setTutorialStep] = useState(0)  // 0 = not active, 1-6 = active steps
+  const [tutorialStep, setTutorialStep] = useState(0)  // 0 = not active, 1-4 = active steps
   const [isTutorialActive, setIsTutorialActive] = useState(false)
 
   const activeTimeoutsRef = useRef(new Set())
@@ -459,10 +460,16 @@ export default function App() {
     vampire: vampireSources.length > 0 && vampireTargets.length > 0 ? vampireSources : [],
   }
   const activePowerTargets = powersEnabled && activePower ? arenaPowerTargets[activePower] ?? [] : null
-  // Reklam altyapısı ileride aktif edilecek — şimdilik UI'dan gizli
-  const isRewardedPowerAvailable = false
   const isArena = gameMode === 'arena'
   const isMissionMode = Boolean(gameConfig?.campaignLevel || gameConfig?.dailyChallenge)
+  // Hediye kutusu reklam izleme sadece VS Bot modunda (Arena + güçler aktifken) geçerlidir
+  const isRewardedPowerAvailable = Boolean(
+    gameConfig &&
+    opponentType === 'ai' &&
+    gameMode === 'arena' &&
+    powersEnabled &&
+    !isMissionMode
+  )
   const scoreLabel = isArena
     ? (t('common.point') || (isTr ? 'Puan' : 'Points'))
     : (t('common.score') || (isTr ? 'Skor' : 'Score'))
@@ -750,9 +757,9 @@ export default function App() {
               if (currentStreak < -1) return -1
               if (currentStreak === -1) return 0
               const newStreak = Math.min(currentStreak + 1, 3)
-              // Trigger CrazyGames confetti on 3+ win streaks
+              // Trigger CrazyGames confetti on any human win
+              triggerHappytime()
               if (newStreak >= 3) {
-                triggerHappytime()
                 isStreakVictory = true
               }
               return newStreak
@@ -797,13 +804,24 @@ export default function App() {
 
   const handleTimeOut = useCallback(
     (timedOutPlayer) => {
-      if (winner || matchWinner || isDraw || timeoutWinner || resultMessage) return
+      if (
+        winner ||
+        matchWinner ||
+        isDraw ||
+        timeoutWinner ||
+        resultMessage ||
+        isRewarding ||
+        isRewardedPowerPickerOpen
+      ) {
+        return
+      }
 
       setConsecutiveDraws(0)
       setMissionResult(null)
       setShowSetupReturnConfirm(false)
       setShowScoreResetConfirm(false)
       turnDeadlineRef.current = null
+      pausedRemainingMsRef.current = null
 
       const winningSymbol = timedOutPlayer === 'X' ? 'O' : 'X'
       const timeoutScore = gameMode === 'arena' ? 5 : 1
@@ -840,7 +858,25 @@ export default function App() {
       playSound('win')
       gameplayStop()
     },
-    [winner, matchWinner, isDraw, timeoutWinner, resultMessage, gameMode, isP1X, xPlayerName, oPlayerName, opponentType, aiSymbol, humanSymbol, triggerBotEmote, t, isTr]
+    [
+      winner,
+      matchWinner,
+      isDraw,
+      timeoutWinner,
+      resultMessage,
+      gameMode,
+      isP1X,
+      xPlayerName,
+      oPlayerName,
+      opponentType,
+      aiSymbol,
+      humanSymbol,
+      triggerBotEmote,
+      t,
+      isTr,
+      isRewarding,
+      isRewardedPowerPickerOpen,
+    ]
   )
 
   // Turn timer countdown effect (Mutlak zaman damgası ile sayfa yenileme hilesi engellendi)
@@ -853,6 +889,17 @@ export default function App() {
       resultMessage
     ) {
       turnDeadlineRef.current = null
+      pausedRemainingMsRef.current = null
+      return
+    }
+
+    const isTimerPaused = Boolean(isRewarding || isRewardedPowerPickerOpen)
+
+    if (isTimerPaused) {
+      // Reklam izlenirken veya hediye kutusu seçimi açıkken süre durdurulur ve kalan süre korunur
+      if (pausedRemainingMsRef.current === null && turnDeadlineRef.current) {
+        pausedRemainingMsRef.current = Math.max(0, turnDeadlineRef.current - Date.now())
+      }
       return
     }
 
@@ -862,6 +909,7 @@ export default function App() {
     if (currentTurnKey !== lastTurnKeyRef.current) {
       lastTurnKeyRef.current = currentTurnKey
       botHurrySentRef.current = false
+      pausedRemainingMsRef.current = null
 
       if (isSessionRestoredRef.current) {
         // Yalnızca localStorage'dan oturum ilk yüklendiğinde mevcut kalan süreyi koru
@@ -877,6 +925,16 @@ export default function App() {
         // Her oyuncunun her hamlede kendi bağımsız süresi sıfırlanır
         turnDeadlineRef.current = Date.now() + turnTimeLimit * 1000
       }
+    }
+
+    // Reklam veya hediye kutusu kapandığında (unpaused), durdurulmuş kalan süreyi ileriye taşıyarak devam ettir
+    if (pausedRemainingMsRef.current !== null) {
+      const restoredRemaining = Math.max(
+        pausedRemainingMsRef.current,
+        Math.min(3000, turnTimeLimit * 1000)
+      )
+      turnDeadlineRef.current = Date.now() + restoredRemaining
+      pausedRemainingMsRef.current = null
     }
 
     if (!turnDeadlineRef.current) {
@@ -959,6 +1017,8 @@ export default function App() {
     humanSymbol,
     isP1X,
     handleTimeOut,
+    isRewarding,
+    isRewardedPowerPickerOpen,
   ])
 
   function spendPlayerPower(player, powerId) {
@@ -979,6 +1039,7 @@ export default function App() {
     clearAllTimeouts()
     setTimeoutWinner(null)
     turnDeadlineRef.current = null
+    pausedRemainingMsRef.current = null
     lastTurnKeyRef.current = ''
     missionTotalTurnsRef.current = 0
     setCurrentMoves(0)
@@ -1027,9 +1088,15 @@ export default function App() {
       return
     }
 
+    // Reklam izlenirken oyuncunun süresinden gitmemesi için kalan süreyi dondur
+    if (turnDeadlineRef.current) {
+      pausedRemainingMsRef.current = Math.max(0, turnDeadlineRef.current - Date.now())
+    }
+
     setIsRewarding(true)
     setIsRewardedPowerPickerOpen(false)
     setRewardedPowerMessage(isTr ? 'Reklam izleniyor...' : 'Loading reward video...')
+    gameplayStop()
 
     requestRewardedAd({
       onAdStarted: () => {
@@ -1052,17 +1119,19 @@ export default function App() {
             : `${powerId === 'freeze' ? 'Freeze' : 'Vampire'} power added.`
         )
         playSound('power')
+        gameplayStart()
       },
       onAdError: () => {
         setAdMuted(false)
         setIsRewarding(false)
         setRewardedPowerMessage('')
+        gameplayStart()
       },
     })
   }
 
   function handleSelectHumanPower(powerId) {
-    if (winner || matchWinner || isDraw || hasUsedPowerThisTurn || isAiTurn) {
+    if (winner || matchWinner || isDraw || hasUsedPowerThisTurn || isAiTurn || isRewarding) {
       return
     }
 
@@ -1332,7 +1401,7 @@ export default function App() {
 
   const handleSquareClick = useCallback((index) => {
     registerUserGesture()
-    if (winner || matchWinner || isDraw || isAiTurn || isMoveProcessingRef.current) {
+    if (winner || matchWinner || isDraw || isAiTurn || isMoveProcessingRef.current || isRewarding) {
       return
     }
 
@@ -1467,6 +1536,7 @@ export default function App() {
     xIsNext,
     finishRound,
     revealBoostedSquare,
+    isRewarding,
   ])
 
   const restoreLocalGameSession = useCallback((session) => {
@@ -2292,7 +2362,10 @@ export default function App() {
       isMatchCompleted: Boolean(matchWinner),
       humanWinStreak,
       consecutiveDraws,
-      turnDeadline: turnDeadlineRef.current,
+      turnDeadline:
+        pausedRemainingMsRef.current !== null
+          ? Date.now() + pausedRemainingMsRef.current
+          : turnDeadlineRef.current,
       ...(gameMode === 'arena' && opponentType === 'ai'
         ? { frozenSquares, frozenBy, rewardedPowerClaimed, rewardedPowerMessage }
         : {}),
@@ -2381,6 +2454,7 @@ export default function App() {
     gameplayStart()
     setTimeoutWinner(null)
     turnDeadlineRef.current = null
+    pausedRemainingMsRef.current = null
     lastTurnKeyRef.current = ''
     setTurnTimeLeft(turnTimeLimit)
     const mission = gameConfig?.campaignLevel ?? gameConfig?.dailyChallenge
@@ -2463,6 +2537,8 @@ export default function App() {
   function handleResultMenu() {
     gameplayStop()
     setTimeoutWinner(null)
+    turnDeadlineRef.current = null
+    pausedRemainingMsRef.current = null
     setShowSetupReturnConfirm(false)
     setShowScoreResetConfirm(false)
     setGameConfig(null)
@@ -2491,6 +2567,10 @@ export default function App() {
     setHumanWinStreak(0)
     setConsecutiveDraws(0)
     setMissionResult(null)
+    setRewardedPowerClaimed(false)
+    setIsRewarding(false)
+    setRewardedPowerMessage('')
+    setIsRewardedPowerPickerOpen(false)
     clearLocalSession()
   }
 
@@ -2690,7 +2770,7 @@ export default function App() {
   }
 
   function handleTutorialNext() {
-    setTutorialStep((prev) => Math.min(prev + 1, 6))
+    setTutorialStep((prev) => Math.min(prev + 1, 4))
   }
 
   function handleTutorialSkip() {
@@ -3107,7 +3187,7 @@ export default function App() {
         />
       )}
 
-      {isTutorialActive && tutorialStep > 0 && tutorialStep <= 6 && (
+      {isTutorialActive && tutorialStep > 0 && tutorialStep <= 4 && (
         <TutorialOverlay
           step={tutorialStep}
           onNextStep={handleTutorialNext}

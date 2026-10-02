@@ -13,7 +13,6 @@ import SoundToggle from './SoundToggle'
 import { useTranslation } from '../i18n'
 import { playSound, registerUserGesture } from '../game/soundManager'
 import SetupHeroBanner from './SetupHeroBanner'
-import PowerSimulation from './PowerSimulation'
 import { initCrazyGamesSdk, requestRewardedAd, getInviteLink, getInviteParam, updateRoom, leftRoom } from '../services/crazyGamesService'
 import { isCampaignLevelUnlocked } from '../game/levels'
 import {
@@ -133,13 +132,14 @@ export default function GameSetup({
   // Mode selection modal states
   const [activeModal, setActiveModal] = useState(() => (initialDeepLinkRoom ? 'online_modal' : null))
   const [boardSize, setBoardSize] = useState(3)
-  const [gameMode, setGameMode] = useState('classic')
+  const [gameMode, setGameMode] = useState('arena')
   const [opponentType, setOpponentType] = useState(() => (initialDeepLinkRoom ? 'online' : 'ai'))
-  const [targetValue, setTargetValue] = useState(5)
+  const [targetValue, setTargetValue] = useState(30)
   const [isInfinite, setIsInfinite] = useState(false)
   const [turnTimeLimit, setTurnTimeLimit] = useState(15)
   const [firstMove, setFirstMove] = useState('alternating')
   const [isHowToPlayOpen, setIsHowToPlayOpen] = useState(false)
+  const [showAdvanced, setShowAdvanced] = useState(false)
   
   // Local PvP player names
   const [player1Name, setPlayer1Name] = useState(() => (isTr ? '1. Oyuncu' : 'Player 1'))
@@ -955,50 +955,6 @@ export default function GameSetup({
             <div className="viral-card-arrow">→</div>
           </button>
 
-          <button
-            type="button"
-            className="viral-mode-card viral-mode-card--tournament is-disabled"
-            disabled
-          >
-            <div className="viral-card-badge viral-card-badge--soon">{t('setup.modes.comingSoon')}</div>
-            <div className="viral-card-icon">🏆</div>
-            <div className="viral-card-content">
-              <h3>{t('setup.modes.tournament')}</h3>
-              <p>{t('setup.modes.tournamentDesc')}</p>
-            </div>
-          </button>
-        </div>
-
-        {/* ── Interactive Power Section ── */}
-        <div className="setup-sim-section">
-          <span className="setup-sim-label">
-            <svg
-              className="setup-sim-icon"
-              viewBox="0 0 24 24"
-              width="18"
-              height="18"
-              aria-hidden="true"
-            >
-              <defs>
-                <linearGradient id="arenaPowerBoltGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#ffffff" />
-                  <stop offset="30%" stopColor="#ff8fc5" />
-                  <stop offset="70%" stopColor="#c084fc" />
-                  <stop offset="100%" stopColor="#a855f7" />
-                </linearGradient>
-                <filter id="arenaPowerGlow" x="-30%" y="-30%" width="160%" height="160%">
-                  <feDropShadow dx="0" dy="0" stdDeviation="2.5" floodColor="#c084fc" floodOpacity="0.85" />
-                </filter>
-              </defs>
-              <path
-                d="M13.5 1.5L3.5 13.5h7l-2 9 11-12h-7.5l2-9z"
-                fill="url(#arenaPowerBoltGrad)"
-                filter="url(#arenaPowerGlow)"
-              />
-            </svg>
-            <span>{t('setup.arenaPowers')}</span>
-          </span>
-          <PowerSimulation />
         </div>
 
         {/* ── Prominent Footer Action ── */}
@@ -1057,129 +1013,142 @@ export default function GameSetup({
               </div>
             </div>
 
-            <div className="setup-group">
-              <span className="setup-label">{t('setup.settingsModal.gameMode')}</span>
-              <div className="setup-options">
-                <button
-                  className={gameMode === 'classic' ? 'setup-option active' : 'setup-option'}
-                  type="button"
-                  onClick={() => handleModeChange('classic')}
-                >
-                  {t('setup.settingsModal.classic')}
-                </button>
-                <button
-                  className={gameMode === 'arena' ? 'setup-option active' : 'setup-option'}
-                  type="button"
-                  onClick={() => handleModeChange('arena')}
-                >
-                  {t('setup.settingsModal.arena')}
-                </button>
-              </div>
-            </div>
+            <button
+              type="button"
+              className="advanced-toggle-btn"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+            >
+              <span>{showAdvanced ? (isTr ? 'Gelişmiş Ayarları Gizle' : 'Hide Advanced') : (isTr ? 'Gelişmiş Ayarlar' : 'Advanced Settings')}</span>
+              <span className="advanced-toggle-arrow">{showAdvanced ? '▲' : '▼'}</span>
+            </button>
 
-            <div className="setup-group">
-              <span className="setup-label">{targetLabel}</span>
-              <div className="setup-options target-options">
-                {targetOptions.map((target) => (
-                  <button
-                    key={target}
-                    className={!isInfinite && targetValue === target ? 'setup-option active' : 'setup-option'}
-                    type="button"
-                    onClick={() => {
-                      setTargetValue(target)
-                      setIsInfinite(false)
-                    }}
-                  >
-                    {gameMode === 'classic'
-                      ? t('setup.settingsModal.roundsCount', { count: target })
-                      : t('setup.settingsModal.pointsCount', { count: target })}
-                  </button>
-                ))}
-                <button
-                  className={isInfinite ? 'setup-option active infinite-option' : 'setup-option infinite-option'}
-                  type="button"
-                  onClick={() => setIsInfinite(true)}
-                >
-                  ∞
-                </button>
-              </div>
-            </div>
-
-            {/* ── Hamle Süresi ── */}
-            <div className="setup-group">
-              <span className="setup-label">{t('setup.settingsModal.turnTime')}</span>
-              <div className="setup-options turn-time-options">
-                {turnTimeOptions.map((opt) => {
-                  const sublabel =
-                    opt.value === 5
-                      ? t('setup.settingsModal.timeBullet')
-                      : opt.value === 10
-                        ? t('setup.settingsModal.timeFast')
-                        : opt.value === 15
-                          ? t('setup.settingsModal.timeStandard')
-                          : opt.value === 20
-                            ? t('setup.settingsModal.timeTactical')
-                            : t('setup.settingsModal.timeInfinite')
-
-                  return (
+            {showAdvanced && (
+              <>
+                <div className="setup-group">
+                  <span className="setup-label">{t('setup.settingsModal.gameMode')}</span>
+                  <div className="setup-options">
                     <button
-                      key={opt.value}
-                      className={turnTimeLimit === opt.value ? 'setup-option turn-time-option active' : 'setup-option turn-time-option'}
+                      className={gameMode === 'classic' ? 'setup-option active' : 'setup-option'}
                       type="button"
-                      onClick={() => {
-                        registerUserGesture()
-                        playSound('click')
-                        setTurnTimeLimit(opt.value)
-                      }}
+                      onClick={() => handleModeChange('classic')}
                     >
-                      <span className="turn-time-label">{opt.label}</span>
-                      <span className="turn-time-sublabel">{sublabel}</span>
+                      {t('setup.settingsModal.classic')}
                     </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* ── İlk Hamle Seçimi (Sadece Bot Modunda) ── */}
-            {opponentType === 'ai' && (
-              <div className="setup-group">
-                <span className="setup-label">{t('setup.settingsModal.firstMove')}</span>
-                <div className="setup-options">
-                  <button
-                    className={firstMove === 'alternating' ? 'setup-option active' : 'setup-option'}
-                    type="button"
-                    onClick={() => {
-                      registerUserGesture()
-                      playSound('click')
-                      setFirstMove('alternating')
-                    }}
-                  >
-                    {t('setup.settingsModal.firstMoveAlternating')}
-                  </button>
-                  <button
-                    className={firstMove === 'human' ? 'setup-option active' : 'setup-option'}
-                    type="button"
-                    onClick={() => {
-                      registerUserGesture()
-                      playSound('click')
-                      setFirstMove('human')
-                    }}
-                  >
-                    {t('setup.settingsModal.firstMovePlayer')}
-                  </button>
-                  <button
-                    className={firstMove === 'ai' ? 'setup-option active' : 'setup-option'}
-                    type="button"
-                    onClick={() => {
-                      registerUserGesture()
-                      playSound('click')
-                      setFirstMove('ai')
-                    }}
-                  >
-                    {t('setup.settingsModal.firstMoveBot')}
-                  </button>
+                    <button
+                      className={gameMode === 'arena' ? 'setup-option active' : 'setup-option'}
+                      type="button"
+                      onClick={() => handleModeChange('arena')}
+                    >
+                      {t('setup.settingsModal.arena')}
+                    </button>
+                  </div>
                 </div>
-              </div>
+
+                <div className="setup-group">
+                  <span className="setup-label">{targetLabel}</span>
+                  <div className="setup-options target-options">
+                    {targetOptions.map((target) => (
+                      <button
+                        key={target}
+                        className={!isInfinite && targetValue === target ? 'setup-option active' : 'setup-option'}
+                        type="button"
+                        onClick={() => {
+                          setTargetValue(target)
+                          setIsInfinite(false)
+                        }}
+                      >
+                        {gameMode === 'classic'
+                          ? t('setup.settingsModal.roundsCount', { count: target })
+                          : t('setup.settingsModal.pointsCount', { count: target })}
+                      </button>
+                    ))}
+                    <button
+                      className={isInfinite ? 'setup-option active infinite-option' : 'setup-option infinite-option'}
+                      type="button"
+                      onClick={() => setIsInfinite(true)}
+                    >
+                      ∞
+                    </button>
+                  </div>
+                </div>
+
+                {/* ── Hamle Süresi ── */}
+                <div className="setup-group">
+                  <span className="setup-label">{t('setup.settingsModal.turnTime')}</span>
+                  <div className="setup-options turn-time-options">
+                    {turnTimeOptions.map((opt) => {
+                      const sublabel =
+                        opt.value === 5
+                          ? t('setup.settingsModal.timeBullet')
+                          : opt.value === 10
+                            ? t('setup.settingsModal.timeFast')
+                            : opt.value === 15
+                              ? t('setup.settingsModal.timeStandard')
+                              : opt.value === 20
+                                ? t('setup.settingsModal.timeTactical')
+                                : t('setup.settingsModal.timeInfinite')
+
+                      return (
+                        <button
+                          key={opt.value}
+                          className={turnTimeLimit === opt.value ? 'setup-option turn-time-option active' : 'setup-option turn-time-option'}
+                          type="button"
+                          onClick={() => {
+                            registerUserGesture()
+                            playSound('click')
+                            setTurnTimeLimit(opt.value)
+                          }}
+                        >
+                          <span className="turn-time-label">{opt.label}</span>
+                          <span className="turn-time-sublabel">{sublabel}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* ── İlk Hamle Seçimi (Sadece Bot Modunda) ── */}
+                {opponentType === 'ai' && (
+                  <div className="setup-group">
+                    <span className="setup-label">{t('setup.settingsModal.firstMove')}</span>
+                    <div className="setup-options">
+                      <button
+                        className={firstMove === 'alternating' ? 'setup-option active' : 'setup-option'}
+                        type="button"
+                        onClick={() => {
+                          registerUserGesture()
+                          playSound('click')
+                          setFirstMove('alternating')
+                        }}
+                      >
+                        {t('setup.settingsModal.firstMoveAlternating')}
+                      </button>
+                      <button
+                        className={firstMove === 'human' ? 'setup-option active' : 'setup-option'}
+                        type="button"
+                        onClick={() => {
+                          registerUserGesture()
+                          playSound('click')
+                          setFirstMove('human')
+                        }}
+                      >
+                        {t('setup.settingsModal.firstMovePlayer')}
+                      </button>
+                      <button
+                        className={firstMove === 'ai' ? 'setup-option active' : 'setup-option'}
+                        type="button"
+                        onClick={() => {
+                          registerUserGesture()
+                          playSound('click')
+                          setFirstMove('ai')
+                        }}
+                      >
+                        {t('setup.settingsModal.firstMoveBot')}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             {/* ── Single-Row Non-Wrapping Skin / Theme Selector ── */}

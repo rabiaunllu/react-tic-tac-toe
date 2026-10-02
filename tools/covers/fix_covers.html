@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Cover Fixer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700;800&family=Orbitron:wght@700;800;900&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #000;
+      overflow: hidden;
+    }
+    #canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const mode = params.get('mode') || 'landscape';
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    document.fonts.ready.then(() => {
+      runFix();
+    });
+
+    async function runFix() {
+      if (mode === 'landscape') {
+        await fixLandscape();
+      } else if (mode === 'portrait') {
+        await fixPortrait();
+      } else if (mode === 'square') {
+        await fixSquare();
+      }
+      document.title = 'READY';
+    }
+
+    function loadImage(src) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = src;
+      });
+    }
+
+    // Draw glowing X
+    function drawX(ctx, cx, cy, size, angleRad = 0) {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(angleRad);
+
+      const strokeW = size * 0.25;
+      const arm = size * 0.44;
+
+      // Glow pass 1 (broad soft glow)
+      ctx.shadowColor = 'rgba(0, 240, 255, 0.7)';
+      ctx.shadowBlur = 32;
+      ctx.strokeStyle = '#00f0ff';
+      ctx.lineWidth = strokeW;
+      ctx.lineCap = 'round';
+
+      ctx.beginPath();
+      ctx.moveTo(-arm, -arm);
+      ctx.lineTo(arm, arm);
+      ctx.moveTo(arm, -arm);
+      ctx.lineTo(-arm, arm);
+      ctx.stroke();
+
+      // Glow pass 2 (intense core glow)
+      ctx.shadowColor = 'rgba(0, 240, 255, 0.95)';
+      ctx.shadowBlur = 14;
+      ctx.stroke();
+
+      // Sharp bright core
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = '#e6fcff';
+      ctx.lineWidth = strokeW * 0.42;
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    // Draw glowing O
+    function drawO(ctx, cx, cy, width, height, angleRad = 0) {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(angleRad);
+
+      const strokeW = width * 0.24;
+      const rx = (width - strokeW) / 2;
+      const ry = (height - strokeW) / 2;
+
+      // Glow pass 1 (broad soft glow)
+      ctx.shadowColor = 'rgba(255, 45, 117, 0.7)';
+      ctx.shadowBlur = 32;
+      ctx.strokeStyle = '#ff2d75';
+      ctx.lineWidth = strokeW;
+
+      ctx.beginPath();
+      ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Glow pass 2 (intense glow)
+      ctx.shadowColor = 'rgba(255, 45, 117, 0.95)';
+      ctx.shadowBlur = 14;
+      ctx.stroke();
+
+      // Sharp bright core
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = '#ffeef5';
+      ctx.lineWidth = strokeW * 0.42;
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    async function fixLandscape() {
+      canvas.width = 1920;
+      canvas.height = 1080;
+      const baseImg = await loadImage('../../crazygames-assets/figma_landscape.png');
+      
+      // 1. Draw base image
+      ctx.drawImage(baseImg, 0, 0, 1920, 1080);
+
+      // Clean buffer for sampling
+      const buf = document.createElement('canvas');
+      buf.width = 1920;
+      buf.height = 1080;
+      const bCtx = buf.getContext('2d');
+      bCtx.drawImage(baseImg, 0, 0, 1920, 1080);
+
+      const boardAngle = 0.055; // 3.15 deg
+      const dColX = 217;
+      const dColY = 12;
+
+      // Soft feathered patch to eliminate old marks seamlessly
+      function softPatch(destX, destY, patchW, patchH, srcX, srcY) {
+        const pCanvas = document.createElement('canvas');
+        pCanvas.width = patchW;
+        pCanvas.height = patchH;
+        const pCtx = pCanvas.getContext('2d');
+
+        // Draw source area
+        pCtx.drawImage(buf, srcX, srcY, patchW, patchH, 0, 0, patchW, patchH);
+
+        // Apply a radial feathered alpha mask
+        const grad = pCtx.createRadialGradient(patchW/2, patchH/2, patchW * 0.15, patchW/2, patchH/2, patchW * 0.5);
+        grad.addColorStop(0, 'rgba(0,0,0,1)');
+        grad.addColorStop(0.65, 'rgba(0,0,0,1)');
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+
+        pCtx.globalCompositeOperation = 'destination-in';
+        pCtx.fillStyle = grad;
+        pCtx.fillRect(0, 0, patchW, patchH);
+
+        ctx.drawImage(pCanvas, destX, destY);
+      }
+
+      // 1. Clean Top-Left old mark: (1180, 420) from (1397, 432)
+      softPatch(1100, 350, 160, 130, 1100 + dColX, 350 + dColY);
+
+      // 2. Clean Top-Right old clipped O: (1614, 440) from (1397, 428)
+      softPatch(1530, 375, 170, 130, 1530 - dColX, 375 - dColY);
+
+      // 3. Clean Center old mark: (1386, 635) from (1169, 623)
+      softPatch(1310, 565, 160, 130, 1310 - dColX, 565 - dColY);
+
+      // 4. Clean Bottom-Left old clipped O: (1158, 825) from (1375, 837)
+      softPatch(1080, 755, 170, 140, 1080 + dColX, 755 + dColY);
+
+      // 5. Clean Bottom-Right old mark: (1592, 850) from (1375, 838)
+      softPatch(1520, 770, 160, 140, 1520 - dColX, 770 - dColY);
+
+      // -------------------------------------------------------------
+      // 2. FIX TITLE 'XO TACTIX':
+      // Erase old dropped 'O' using soft patch from clean background above (y-90)
+      // -------------------------------------------------------------
+      softPatch(175, 410, 120, 145, 175, 410 - 90);
+
+      // Draw brand-consistent glowing neon 'O' aligned with 'X' and 'TACTIX'
+      drawO(ctx, 235, 462, 74, 100, 0);
+
+      // -------------------------------------------------------------
+      // 3. DRAW THE 5 GORGEOUS CENTERED SYMBOLS IN THE BOARD CELLS:
+      // -------------------------------------------------------------
+      // (0, 0): X
+      drawX(ctx, 1180, 335, 122, boardAngle);
+
+      // (0, 2): O
+      drawO(ctx, 1614, 359, 114, 138, boardAngle);
+
+      // (2, 0): O
+      drawO(ctx, 1158, 741, 114, 138, boardAngle);
+
+      // (2, 2): X
+      drawX(ctx, 1592, 765, 122, boardAngle);
+
+      // Center (1, 1): X
+      drawX(ctx, 1386, 550, 122, boardAngle);
+
+      // Star flare at intersection
+      drawLaserStar(ctx, 1386, 550);
+    }
+
+    function drawLaserStar(ctx, cx, cy) {
+      ctx.save();
+      ctx.translate(cx, cy);
+
+      ctx.shadowColor = '#ffffff';
+      ctx.shadowBlur = 24;
+      ctx.fillStyle = '#ffffff';
+
+      // 4-point star flare
+      ctx.beginPath();
+      ctx.moveTo(0, -32);
+      ctx.quadraticCurveTo(0, 0, 32, 0);
+      ctx.quadraticCurveTo(0, 0, 0, 32);
+      ctx.quadraticCurveTo(0, 0, -32, 0);
+      ctx.quadraticCurveTo(0, 0, 0, -32);
+      ctx.fill();
+
+      // Small secondary diagonal rays
+      ctx.beginPath();
+      ctx.moveTo(0, -18);
+      ctx.quadraticCurveTo(0, 0, 18, 0);
+      ctx.quadraticCurveTo(0, 0, 0, 18);
+      ctx.quadraticCurveTo(0, 0, -18, 0);
+      ctx.quadraticCurveTo(0, 0, 0, -18);
+      ctx.fill();
+
+      // Center bright core dot
+      ctx.fillStyle = '#fffbeb';
+      ctx.beginPath();
+      ctx.arc(0, 0, 6, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+  </script>
+</body>
+</html>
