@@ -7305,8 +7305,36 @@ button,
 .viral-footer-actions {
   width: 100%;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
   padding-top: 6px;
+}
+
+.setup-legal-links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+.setup-legal-links a {
+  color: #64748b;
+  text-decoration: none;
+  font-family: 'Inter', system-ui, sans-serif;
+  transition: color 150ms ease;
+}
+
+.setup-legal-links a:hover {
+  color: #38bdf8;
+  text-decoration: underline;
+}
+
+.legal-dot {
+  color: #475569;
 }
 
 .viral-footer-btn--prominent {
