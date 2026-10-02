@@ -1,5 +1,6 @@
 import { memo } from 'react'
 import { useTranslation } from '../i18n'
+import { playSound, registerUserGesture } from '../game/soundManager'
 
 const RoundResultPreviewBar = memo(function RoundResultPreviewBar({
   onNextRound,
@@ -10,6 +11,7 @@ const RoundResultPreviewBar = memo(function RoundResultPreviewBar({
 }) {
   const { t } = useTranslation()
   const resolvedLabel = nextRoundLabel ?? t('game.nextRound')
+
   return (
     <section
       className={`round-result-preview${statusMessage ? '' : ' round-result-preview--action-only'}`}
@@ -21,14 +23,20 @@ const RoundResultPreviewBar = memo(function RoundResultPreviewBar({
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={onNextRound}
-        disabled={isNextRoundDisabled}
-        title={nextRoundTitle}
-      >
-        {resolvedLabel}
-      </button>
+      {onNextRound && (
+        <button
+          type="button"
+          onClick={() => {
+            registerUserGesture()
+            playSound('click')
+            onNextRound()
+          }}
+          disabled={isNextRoundDisabled}
+          title={nextRoundTitle}
+        >
+          {resolvedLabel}
+        </button>
+      )}
     </section>
   )
 })

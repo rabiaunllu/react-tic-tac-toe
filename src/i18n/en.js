@@ -225,6 +225,18 @@ export default {
     cosmic: 'Cosmic Purple',
     ice: 'Ice Crystal',
   },
+  skinUnlock: {
+    title: '24-HOUR THEME PASS',
+    subtitle: 'Watch a short video to use this theme for 24 hours',
+    prompt: 'Watch a short video to unlock the {{skinName}} theme for 24 hours?',
+    watchBtn: '🎬 WATCH & UNLOCK 24H',
+    cancelBtn: 'Cancel',
+    watching: 'Loading video...',
+    success: 'Congratulations! Theme unlocked for 24 hours!',
+    locked: 'Locked',
+    exclusiveBadge: '⏱️ 24 HOURS',
+    hoursRemaining: '{{hours}}h left',
+  },
   rules: {
     title: 'HOW TO PLAY',
     subtitle: 'Tactics, powers, and master strategy guide',

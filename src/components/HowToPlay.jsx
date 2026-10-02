@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from '../i18n'
+import PowerSimulation from './PowerSimulation'
 
 const fallbackGameConfig = {
   boardSize: 3,
@@ -107,6 +108,7 @@ export default function HowToPlay({
       title: t('rules.powersTitle'),
       content: (
         <>
+          <PowerSimulation />
           <RuleItem icon="💣" title={t('rules.powers.bombTitle')}>
             {t('rules.powers.bombDesc')}
           </RuleItem>

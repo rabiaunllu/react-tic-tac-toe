@@ -46,6 +46,7 @@ export const powerDefinitions = [
 
 // Rewarded pack: Freeze veya Vampir (Joker kaldırıldı)
 export const rewardedPowerIds = ['freeze', 'vampire']
+export const missionPowerIds = ['bomb', 'shield', 'freeze', 'trap', 'vampire']
 
 export const ARENA_POWER_NAMES = {
   bomb: 'Bomba',

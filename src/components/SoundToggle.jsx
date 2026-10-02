@@ -5,7 +5,7 @@ import { useTranslation } from '../i18n'
 export default function SoundToggle({ children }) {
   const { t, language, setLanguage } = useTranslation()
   const isTr = language === 'tr'
-  const { enabled, toggleSound } = useSoundEnabled()
+  const { enabled, isSdkMuted, toggleSound } = useSoundEnabled()
   const [isOpen, setIsOpen] = useState(false)
 
   function handleSettingsClick() {
@@ -67,9 +67,15 @@ export default function SoundToggle({ children }) {
                 className={`sound-toggle ${enabled ? 'is-on' : 'is-off'}`}
                 onClick={toggleSound}
                 aria-pressed={enabled}
+                disabled={isSdkMuted}
+                title={isSdkMuted ? (isTr ? 'Platform tarafından susturuldu' : 'Muted by platform') : undefined}
               >
                 <span aria-hidden="true">{enabled ? '♪' : '×'}</span>
-                <strong>{enabled ? (isTr ? 'Ses açık' : 'Sound ON') : (isTr ? 'Ses kapalı' : 'Sound OFF')}</strong>
+                <strong>
+                  {isSdkMuted
+                    ? (isTr ? 'Platform Susturdu' : 'Platform Muted')
+                    : (enabled ? (isTr ? 'Ses açık' : 'Sound ON') : (isTr ? 'Ses kapalı' : 'Sound OFF'))}
+                </strong>
               </button>
             </div>
 

@@ -13,9 +13,41 @@ import SoundToggle from './SoundToggle'
 import { useTranslation } from '../i18n'
 import { playSound, registerUserGesture } from '../game/soundManager'
 import SetupHeroBanner from './SetupHeroBanner'
-import PowerSimulation from './PowerSimulation'
+import { initCrazyGamesSdk, requestRewardedAd, getInviteLink, getInviteParam, updateRoom, leftRoom } from '../services/crazyGamesService'
+import { isCampaignLevelUnlocked } from '../game/levels'
+import {
+  safeGetItem,
+  safeSetItem,
+  STORAGE_KEYS,
+  sanitizeCampaignProgress,
+  sanitizeDailyChallenge,
+} from '../services/storageService'
+
+function getDailyStatus() {
+  try {
+    const now = new Date()
+    const today = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0')
+    const data = sanitizeDailyChallenge(safeGetItem(STORAGE_KEYS.DAILY, {}))
+    const isCompleted = data.lastCompleted === today || Boolean(data.history?.[today]?.completed)
+    return { isCompleted, streak: data.streak || 0 }
+  } catch {
+    return { isCompleted: false, streak: 0 }
+  }
+}
+
+function getCampaignStatus() {
+  try {
+    const data = sanitizeCampaignProgress(safeGetItem(STORAGE_KEYS.CAMPAIGN, {}))
+    const count = Object.keys(data.completedLevels || {}).length
+    return { completedCount: count }
+  } catch {
+    return { completedCount: 0 }
+  }
+}
 
 const HowToPlay = lazy(() => import('./HowToPlay'))
+const Campaign = lazy(() => import('./Campaign'))
+const DailyChallenge = lazy(() => import('./DailyChallenge'))
 
 const boardOptions = [
   { size: 3, label: '3x3', description: 'Klasik hızlı oyun', winLength: 3 },
@@ -36,10 +68,10 @@ const turnTimeOptions = [
 
 const SKINS = [
   { id: 'neon', name: 'Siber Neon', icon: '⚡', isFree: true },
-  { id: 'gold', name: 'Altın Efsane', icon: '🌟', isFree: true },
-  { id: 'emerald', name: 'Zümrüt Retro', icon: '🌲', isFree: true },
-  { id: 'cosmic', name: 'Kozmik Mor', icon: '🔮', isFree: true },
-  { id: 'ice', name: 'Buz Kristali', icon: '❄️', isFree: true },
+  { id: 'gold', name: 'Altın Efsane', icon: '🌟', isFree: false },
+  { id: 'emerald', name: 'Zümrüt Retro', icon: '🌲', isFree: false },
+  { id: 'cosmic', name: 'Kozmik Mor', icon: '🔮', isFree: false },
+  { id: 'ice', name: 'Buz Kristali', icon: '❄️', isFree: false },
 ]
 
 // Security: strip HTML/JS injection chars and enforce max length on player names
@@ -75,8 +107,9 @@ function getCurrentOnlinePlayer(room, playerName, preferredSymbol) {
 
 function getInitialDeepLinkRoom() {
   if (typeof window === 'undefined') return null
+  const sdkRoom = getInviteParam('room')
   const params = new URLSearchParams(window.location.search)
-  const roomParam = params.get('room')
+  const roomParam = sdkRoom || params.get('room')
   if (roomParam && IS_ONLINE_ENABLED) {
     const sanitizedRoom = roomParam.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8)
     if (isValidRoomCodeInput(sanitizedRoom)) {
@@ -99,13 +132,14 @@ export default function GameSetup({
   // Mode selection modal states
   const [activeModal, setActiveModal] = useState(() => (initialDeepLinkRoom ? 'online_modal' : null))
   const [boardSize, setBoardSize] = useState(3)
-  const [gameMode, setGameMode] = useState('classic')
+  const [gameMode, setGameMode] = useState('arena')
   const [opponentType, setOpponentType] = useState(() => (initialDeepLinkRoom ? 'online' : 'ai'))
-  const [targetValue, setTargetValue] = useState(5)
+  const [targetValue, setTargetValue] = useState(30)
   const [isInfinite, setIsInfinite] = useState(false)
   const [turnTimeLimit, setTurnTimeLimit] = useState(15)
   const [firstMove, setFirstMove] = useState('alternating')
   const [isHowToPlayOpen, setIsHowToPlayOpen] = useState(false)
+  const [showAdvanced, setShowAdvanced] = useState(false)
   
   // Local PvP player names
   const [player1Name, setPlayer1Name] = useState(() => (isTr ? '1. Oyuncu' : 'Player 1'))
@@ -126,22 +160,205 @@ export default function GameSetup({
   const [onlineBoostMode] = useState('random')
   const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false)
 
+  useEffect(() => {
+    if (!onlineLobby?.room?.roomCode) return
+    updateRoom({
+      roomId: onlineLobby.room.roomCode,
+      isJoinable: onlineLobby.room.status === 'waiting',
+      inviteParams: { room: onlineLobby.room.roomCode },
+    })
+    return () => {
+      leftRoom()
+    }
+  }, [onlineLobby?.room?.roomCode, onlineLobby?.room?.status])
+
+  useEffect(() => {
+    let isSubscribed = true
+    const checkInviteParam = async () => {
+      await initCrazyGamesSdk()
+      if (!isSubscribed) return
+      const room = getInviteParam('room')
+      if (room && isValidRoomCodeInput(room.toUpperCase())) {
+        const sanitized = room.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8)
+        setJoinRoomCode(sanitized)
+        setOnlineFlow('join')
+        setActiveModal('online_modal')
+      }
+    }
+    void checkInviteParam()
+    return () => {
+      isSubscribed = false
+    }
+  }, [])
+
+  const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000
+  const [nowTimestamp, setNowTimestamp] = useState(() => Date.now())
+
+  const [dailyStatus, setDailyStatus] = useState(getDailyStatus)
+  const [campaignStatus, setCampaignStatus] = useState(getCampaignStatus)
+
   // Skin / Cosmetic state
   const [selectedSkin, setSelectedSkin] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return window.localStorage.getItem('xo-arena-skin') || 'neon'
-    }
-    return 'neon'
+    return safeGetItem(STORAGE_KEYS.ACTIVE_SKIN, 'neon')
   })
+
+  const [unlockedSkins, setUnlockedSkins] = useState(() => {
+    const saved = safeGetItem(STORAGE_KEYS.SKINS, null)
+    if (saved && typeof saved === 'object' && !Array.isArray(saved)) {
+      return saved
+    }
+    if (Array.isArray(saved)) {
+      const map = { neon: true }
+      const initialNow = Date.now()
+      saved.forEach((id) => {
+        map[id] = initialNow + TWENTY_FOUR_HOURS_MS
+      })
+      return map
+    }
+    return { neon: true }
+  })
+
+  // Multi-tab real-time synchronization
+  useEffect(() => {
+    const handleStorage = () => {
+      setDailyStatus(getDailyStatus())
+      setCampaignStatus(getCampaignStatus())
+      const savedSkins = safeGetItem(STORAGE_KEYS.SKINS, { neon: true })
+      setUnlockedSkins(savedSkins)
+      const currentSkin = safeGetItem(STORAGE_KEYS.ACTIVE_SKIN, 'neon')
+      setSelectedSkin(currentSkin)
+    }
+    window.addEventListener('storage', handleStorage)
+    return () => window.removeEventListener('storage', handleStorage)
+  }, [])
+
+  const [pendingUnlockSkin, setPendingUnlockSkin] = useState(null)
+  const [isUnlockingSkin, setIsUnlockingSkin] = useState(false)
+  const [skinUnlockNotice, setSkinUnlockNotice] = useState('')
+
+  function isSkinUnlocked(skinId) {
+    const skinObj = SKINS.find((s) => s.id === skinId)
+    if (skinObj?.isFree) return true
+    const expiresAt = unlockedSkins[skinId]
+    if (!expiresAt) return false
+    if (expiresAt === true) return true
+    return expiresAt > nowTimestamp
+  }
+
+  function getSkinRemainingHours(skinId) {
+    const expiresAt = unlockedSkins[skinId]
+    if (!expiresAt || typeof expiresAt !== 'number') return null
+    const diffMs = expiresAt - nowTimestamp
+    if (diffMs <= 0) return null
+    return Math.ceil(diffMs / (1000 * 60 * 60))
+  }
+
+  const activeSkinId = isSkinUnlocked(selectedSkin) ? selectedSkin : 'neon'
 
   function handleSelectSkin(skin) {
     registerUserGesture()
     playSound('click')
     setSelectedSkin(skin.id)
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem('xo-arena-skin', skin.id)
+    safeSetItem(STORAGE_KEYS.ACTIVE_SKIN, skin.id)
+    if (typeof document !== 'undefined') {
       document.body.setAttribute('data-skin', skin.id)
     }
+  }
+
+  function handleSkinClick(skin) {
+    registerUserGesture()
+    playSound('click')
+    if (isSkinUnlocked(skin.id)) {
+      handleSelectSkin(skin)
+    } else {
+      setSkinUnlockNotice('')
+      setPendingUnlockSkin(skin)
+    }
+  }
+
+  function handleConfirmSkinUnlock() {
+    if (!pendingUnlockSkin || isUnlockingSkin) return
+    registerUserGesture()
+    playSound('click')
+    setIsUnlockingSkin(true)
+    setSkinUnlockNotice(t('skinUnlock.watching'))
+
+    requestRewardedAd({
+      onAdStarted: () => {
+        // Video playing
+      },
+      onAdFinished: () => {
+        setIsUnlockingSkin(false)
+        const currentNow = Date.now()
+        setNowTimestamp(currentNow)
+        const expiresAt = currentNow + TWENTY_FOUR_HOURS_MS
+        const newUnlocked = {
+          ...unlockedSkins,
+          [pendingUnlockSkin.id]: expiresAt,
+        }
+        setUnlockedSkins(newUnlocked)
+        safeSetItem(STORAGE_KEYS.SKINS, newUnlocked)
+        handleSelectSkin(pendingUnlockSkin)
+        playSound('power')
+        setSkinUnlockNotice(t('skinUnlock.success'))
+        setTimeout(() => {
+          setPendingUnlockSkin(null)
+          setSkinUnlockNotice('')
+        }, 1100)
+      },
+      onAdError: () => {
+        setIsUnlockingSkin(false)
+        setSkinUnlockNotice('')
+      },
+    })
+  }
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    document.body.setAttribute('data-skin', activeSkinId)
+  }, [activeSkinId])
+
+  function renderSkinOptionsRow() {
+    return (
+      <div className="skin-options-row">
+        {SKINS.map((skin) => {
+          const isActive = activeSkinId === skin.id
+          const isUnlocked = isSkinUnlocked(skin.id)
+          const remainingHours = !skin.isFree && isUnlocked ? getSkinRemainingHours(skin.id) : null
+
+          return (
+            <button
+              key={skin.id}
+              className={`setup-option skin-option-btn ${isActive ? 'active' : ''} ${!isUnlocked ? 'skin-option-btn--locked' : ''}`}
+              type="button"
+              onClick={() => handleSkinClick(skin)}
+              title={
+                isUnlocked
+                  ? skin.isFree
+                    ? (t(`skins.${skin.id}`) || skin.name)
+                    : `${t(`skins.${skin.id}`) || skin.name} (${t('skinUnlock.hoursRemaining', { hours: remainingHours || 24 })})`
+                  : `${t(`skins.${skin.id}`) || skin.name} (${t('skinUnlock.locked')})`
+              }
+            >
+              <span className="skin-btn-content">
+                {skin.icon} {t(`skins.${skin.id}`) || skin.name}
+              </span>
+              {isActive && <span className="skin-check-badge">✓</span>}
+              {!isUnlocked && (
+                <span className="skin-lock-badge" aria-label={t('skinUnlock.locked')}>
+                  🔒
+                </span>
+              )}
+              {!skin.isFree && isUnlocked && (
+                <span className="skin-pass-badge" title={t('skinUnlock.hoursRemaining', { hours: remainingHours || 24 })}>
+                  ⏱️
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+    )
   }
 
   useEffect(() => {
@@ -412,20 +629,22 @@ export default function GameSetup({
     }
   }
 
-  function handleShareWhatsApp() {
+  async function handleCopyInviteLink() {
     registerUserGesture()
     playSound('click')
     const roomCode = onlineLobby?.room?.roomCode
-    if (!roomCode) return
+    if (!roomCode || !navigator.clipboard) return
 
     const safeRoomCode = encodeURIComponent(String(roomCode).trim())
-    const link = `${window.location.origin}${window.location.pathname}?room=${safeRoomCode}`
-    const challengeText = isTr
-      ? `⚔️ XO Tactix'te seninle kapışmak istiyorum! Odaya katılmak için tıkla:\n${link}\n\nOda Kodu: ${roomCode}`
-      : `⚔️ I challenge you to an XO Tactix duel! Click to join:\n${link}\n\nRoom Code: ${roomCode}`
+    const link = getInviteLink({ room: safeRoomCode }) || `${window.location.origin}${window.location.pathname}?room=${safeRoomCode}`
 
-    const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(challengeText)}`
-    window.open(waUrl, '_blank', 'noopener,noreferrer')
+    try {
+      await navigator.clipboard.writeText(link)
+      setIsLinkCopied(true)
+      setTimeout(() => setIsLinkCopied(false), 2200)
+    } catch {
+      // ignore
+    }
   }
 
   async function handleShareOther() {
@@ -435,7 +654,7 @@ export default function GameSetup({
     if (!roomCode) return
 
     const safeRoomCode = encodeURIComponent(String(roomCode).trim())
-    const link = `${window.location.origin}${window.location.pathname}?room=${safeRoomCode}`
+    const link = getInviteLink({ room: safeRoomCode }) || `${window.location.origin}${window.location.pathname}?room=${safeRoomCode}`
     const challengeText = isTr
       ? `⚔️ XO Tactix'te seninle kapışmak istiyorum! Odaya katılmak için tıkla:\n${link}\n\nOda Kodu: ${roomCode}`
       : `⚔️ I challenge you to an XO Tactix duel! Click to join:\n${link}\n\nRoom Code: ${roomCode}`
@@ -453,15 +672,7 @@ export default function GameSetup({
       }
     }
 
-    if (navigator.clipboard) {
-      try {
-        await navigator.clipboard.writeText(link)
-        setIsLinkCopied(true)
-        setTimeout(() => setIsLinkCopied(false), 2200)
-      } catch {
-        // ignore
-      }
-    }
+    await handleCopyInviteLink()
   }
 
   function handleOnlineFlowBack() {
@@ -624,6 +835,33 @@ export default function GameSetup({
 
         <SetupHeroBanner />
 
+        {/* ── Quick Play: 1-Click Arena Game (CG Requirement: Max 1 click to gameplay) ── */}
+        <button
+          type="button"
+          className="quick-play-button"
+          onClick={() => {
+            registerUserGesture()
+            playSound('click')
+            onStartGame({
+              boardSize: 3,
+              winLength: 3,
+              opponentType: 'ai',
+              gameMode: 'arena',
+              targetValue: 15,
+              isInfinite: false,
+              turnTimeLimit: 15,
+              firstMove: 'alternating',
+              player1Name: isTr ? 'Oyuncu' : 'Player',
+              player2Name: 'Bot',
+              difficultyOverride: 'medium',
+            })
+          }}
+        >
+          <span className="quick-play-icon">⚡</span>
+          <span className="quick-play-text">{isTr ? 'Hızlı Oyna' : 'Quick Play'}</span>
+          <span className="quick-play-desc">{isTr ? 'Arena 3x3 • Bot • Güçler Aktif' : 'Arena 3x3 • Bot • Powers On'}</span>
+        </button>
+
         {/* ── Viral Mode Action Cards Grid ── */}
         <div className="viral-mode-grid">
           <button
@@ -658,58 +896,65 @@ export default function GameSetup({
             onClick={() => handleSelectMode('online')}
             disabled={!IS_ONLINE_ENABLED}
           >
+            {!IS_ONLINE_ENABLED && (
+              <div className="viral-card-badge viral-card-badge--soon">
+                {isTr ? 'YAKINDA' : 'SOON'}
+              </div>
+            )}
             <div className="viral-card-icon">🌐</div>
             <div className="viral-card-content">
               <h3>{t('setup.modes.online')}</h3>
-              <p>{t('setup.modes.onlineDesc')}</p>
+              <p>
+                {!IS_ONLINE_ENABLED
+                  ? (isTr ? 'Online mod yeni güncellemeyle açılacak' : 'Online multiplayer coming in next update')
+                  : t('setup.modes.onlineDesc')}
+              </p>
             </div>
             <div className="viral-card-arrow">→</div>
           </button>
 
           <button
             type="button"
-            className="viral-mode-card viral-mode-card--tournament is-disabled"
-            disabled
+            className="viral-mode-card viral-mode-card--campaign"
+            onClick={() => {
+              registerUserGesture()
+              playSound('click')
+              setActiveModal('campaign_modal')
+            }}
           >
-            <div className="viral-card-badge viral-card-badge--soon">{t('setup.modes.comingSoon')}</div>
-            <div className="viral-card-icon">🏆</div>
-            <div className="viral-card-content">
-              <h3>{t('setup.modes.tournament')}</h3>
-              <p>{t('setup.modes.tournamentDesc')}</p>
+            <div className="viral-card-badge viral-card-badge--campaign">
+              {campaignStatus.completedCount > 0 ? `${campaignStatus.completedCount}/30 ${isTr ? 'BÖLÜM' : 'LEVELS'}` : (isTr ? '30 BULMACA' : '30 PUZZLES')}
             </div>
+            <div className="viral-card-icon">🧩</div>
+            <div className="viral-card-content">
+              <h3>{isTr ? 'Bulmaca Seferi' : 'Puzzle Quest'}</h3>
+              <p>{isTr ? '30 taktik bulmacayı çöz, ustalığını kanıtla' : 'Solve 30 tactical puzzles and prove your mastery'}</p>
+            </div>
+            <div className="viral-card-arrow">→</div>
           </button>
-        </div>
 
-        {/* ── Interactive Power Section ── */}
-        <div className="setup-sim-section">
-          <span className="setup-sim-label">
-            <svg
-              className="setup-sim-icon"
-              viewBox="0 0 24 24"
-              width="18"
-              height="18"
-              aria-hidden="true"
-            >
-              <defs>
-                <linearGradient id="arenaPowerBoltGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#ffffff" />
-                  <stop offset="30%" stopColor="#ff8fc5" />
-                  <stop offset="70%" stopColor="#c084fc" />
-                  <stop offset="100%" stopColor="#a855f7" />
-                </linearGradient>
-                <filter id="arenaPowerGlow" x="-30%" y="-30%" width="160%" height="160%">
-                  <feDropShadow dx="0" dy="0" stdDeviation="2.5" floodColor="#c084fc" floodOpacity="0.85" />
-                </filter>
-              </defs>
-              <path
-                d="M13.5 1.5L3.5 13.5h7l-2 9 11-12h-7.5l2-9z"
-                fill="url(#arenaPowerBoltGrad)"
-                filter="url(#arenaPowerGlow)"
-              />
-            </svg>
-            <span>{t('setup.arenaPowers')}</span>
-          </span>
-          <PowerSimulation />
+          <button
+            type="button"
+            className="viral-mode-card viral-mode-card--daily"
+            onClick={() => {
+              registerUserGesture()
+              playSound('click')
+              setActiveModal('daily_modal')
+            }}
+          >
+            <div className={`viral-card-badge viral-card-badge--daily ${dailyStatus.isCompleted ? 'is-completed' : ''}`}>
+              {dailyStatus.isCompleted
+                ? `✓ ${isTr ? 'TAMAMLANDI' : 'DONE'}${dailyStatus.streak > 0 ? ` · 🔥 ${dailyStatus.streak}` : ''}`
+                : `⚡ ${isTr ? 'GÖREV HAZIR' : 'NEW MISSION'}${dailyStatus.streak > 0 ? ` · 🔥 ${dailyStatus.streak}` : ''}`}
+            </div>
+            <div className="viral-card-icon">📅</div>
+            <div className="viral-card-content">
+              <h3>{isTr ? 'Günlük Görev' : 'Daily Challenge'}</h3>
+              <p>{isTr ? 'Her gün yeni bulmaca, seri bonusları' : 'New puzzle daily, streak bonuses'}</p>
+            </div>
+            <div className="viral-card-arrow">→</div>
+          </button>
+
         </div>
 
         {/* ── Prominent Footer Action ── */}
@@ -768,153 +1013,148 @@ export default function GameSetup({
               </div>
             </div>
 
-            <div className="setup-group">
-              <span className="setup-label">{t('setup.settingsModal.gameMode')}</span>
-              <div className="setup-options">
-                <button
-                  className={gameMode === 'classic' ? 'setup-option active' : 'setup-option'}
-                  type="button"
-                  onClick={() => handleModeChange('classic')}
-                >
-                  {t('setup.settingsModal.classic')}
-                </button>
-                <button
-                  className={gameMode === 'arena' ? 'setup-option active' : 'setup-option'}
-                  type="button"
-                  onClick={() => handleModeChange('arena')}
-                >
-                  {t('setup.settingsModal.arena')}
-                </button>
-              </div>
-            </div>
+            <button
+              type="button"
+              className="advanced-toggle-btn"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+            >
+              <span>{showAdvanced ? (isTr ? 'Gelişmiş Ayarları Gizle' : 'Hide Advanced') : (isTr ? 'Gelişmiş Ayarlar' : 'Advanced Settings')}</span>
+              <span className="advanced-toggle-arrow">{showAdvanced ? '▲' : '▼'}</span>
+            </button>
 
-            <div className="setup-group">
-              <span className="setup-label">{targetLabel}</span>
-              <div className="setup-options target-options">
-                {targetOptions.map((target) => (
-                  <button
-                    key={target}
-                    className={!isInfinite && targetValue === target ? 'setup-option active' : 'setup-option'}
-                    type="button"
-                    onClick={() => {
-                      setTargetValue(target)
-                      setIsInfinite(false)
-                    }}
-                  >
-                    {gameMode === 'classic'
-                      ? t('setup.settingsModal.roundsCount', { count: target })
-                      : t('setup.settingsModal.pointsCount', { count: target })}
-                  </button>
-                ))}
-                <button
-                  className={isInfinite ? 'setup-option active infinite-option' : 'setup-option infinite-option'}
-                  type="button"
-                  onClick={() => setIsInfinite(true)}
-                >
-                  ∞
-                </button>
-              </div>
-            </div>
-
-            {/* ── Hamle Süresi ── */}
-            <div className="setup-group">
-              <span className="setup-label">{t('setup.settingsModal.turnTime')}</span>
-              <div className="setup-options turn-time-options">
-                {turnTimeOptions.map((opt) => {
-                  const sublabel =
-                    opt.value === 5
-                      ? t('setup.settingsModal.timeBullet')
-                      : opt.value === 10
-                        ? t('setup.settingsModal.timeFast')
-                        : opt.value === 15
-                          ? t('setup.settingsModal.timeStandard')
-                          : opt.value === 20
-                            ? t('setup.settingsModal.timeTactical')
-                            : t('setup.settingsModal.timeInfinite')
-
-                  return (
+            {showAdvanced && (
+              <>
+                <div className="setup-group">
+                  <span className="setup-label">{t('setup.settingsModal.gameMode')}</span>
+                  <div className="setup-options">
                     <button
-                      key={opt.value}
-                      className={turnTimeLimit === opt.value ? 'setup-option turn-time-option active' : 'setup-option turn-time-option'}
+                      className={gameMode === 'classic' ? 'setup-option active' : 'setup-option'}
                       type="button"
-                      onClick={() => {
-                        registerUserGesture()
-                        playSound('click')
-                        setTurnTimeLimit(opt.value)
-                      }}
+                      onClick={() => handleModeChange('classic')}
                     >
-                      <span className="turn-time-label">{opt.label}</span>
-                      <span className="turn-time-sublabel">{sublabel}</span>
+                      {t('setup.settingsModal.classic')}
                     </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* ── İlk Hamle Seçimi (Sadece Bot Modunda) ── */}
-            {opponentType === 'ai' && (
-              <div className="setup-group">
-                <span className="setup-label">{t('setup.settingsModal.firstMove')}</span>
-                <div className="setup-options">
-                  <button
-                    className={firstMove === 'alternating' ? 'setup-option active' : 'setup-option'}
-                    type="button"
-                    onClick={() => {
-                      registerUserGesture()
-                      playSound('click')
-                      setFirstMove('alternating')
-                    }}
-                  >
-                    {t('setup.settingsModal.firstMoveAlternating')}
-                  </button>
-                  <button
-                    className={firstMove === 'human' ? 'setup-option active' : 'setup-option'}
-                    type="button"
-                    onClick={() => {
-                      registerUserGesture()
-                      playSound('click')
-                      setFirstMove('human')
-                    }}
-                  >
-                    {t('setup.settingsModal.firstMovePlayer')}
-                  </button>
-                  <button
-                    className={firstMove === 'ai' ? 'setup-option active' : 'setup-option'}
-                    type="button"
-                    onClick={() => {
-                      registerUserGesture()
-                      playSound('click')
-                      setFirstMove('ai')
-                    }}
-                  >
-                    {t('setup.settingsModal.firstMoveBot')}
-                  </button>
+                    <button
+                      className={gameMode === 'arena' ? 'setup-option active' : 'setup-option'}
+                      type="button"
+                      onClick={() => handleModeChange('arena')}
+                    >
+                      {t('setup.settingsModal.arena')}
+                    </button>
+                  </div>
                 </div>
-              </div>
+
+                <div className="setup-group">
+                  <span className="setup-label">{targetLabel}</span>
+                  <div className="setup-options target-options">
+                    {targetOptions.map((target) => (
+                      <button
+                        key={target}
+                        className={!isInfinite && targetValue === target ? 'setup-option active' : 'setup-option'}
+                        type="button"
+                        onClick={() => {
+                          setTargetValue(target)
+                          setIsInfinite(false)
+                        }}
+                      >
+                        {gameMode === 'classic'
+                          ? t('setup.settingsModal.roundsCount', { count: target })
+                          : t('setup.settingsModal.pointsCount', { count: target })}
+                      </button>
+                    ))}
+                    <button
+                      className={isInfinite ? 'setup-option active infinite-option' : 'setup-option infinite-option'}
+                      type="button"
+                      onClick={() => setIsInfinite(true)}
+                    >
+                      ∞
+                    </button>
+                  </div>
+                </div>
+
+                {/* ── Hamle Süresi ── */}
+                <div className="setup-group">
+                  <span className="setup-label">{t('setup.settingsModal.turnTime')}</span>
+                  <div className="setup-options turn-time-options">
+                    {turnTimeOptions.map((opt) => {
+                      const sublabel =
+                        opt.value === 5
+                          ? t('setup.settingsModal.timeBullet')
+                          : opt.value === 10
+                            ? t('setup.settingsModal.timeFast')
+                            : opt.value === 15
+                              ? t('setup.settingsModal.timeStandard')
+                              : opt.value === 20
+                                ? t('setup.settingsModal.timeTactical')
+                                : t('setup.settingsModal.timeInfinite')
+
+                      return (
+                        <button
+                          key={opt.value}
+                          className={turnTimeLimit === opt.value ? 'setup-option turn-time-option active' : 'setup-option turn-time-option'}
+                          type="button"
+                          onClick={() => {
+                            registerUserGesture()
+                            playSound('click')
+                            setTurnTimeLimit(opt.value)
+                          }}
+                        >
+                          <span className="turn-time-label">{opt.label}</span>
+                          <span className="turn-time-sublabel">{sublabel}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* ── İlk Hamle Seçimi (Sadece Bot Modunda) ── */}
+                {opponentType === 'ai' && (
+                  <div className="setup-group">
+                    <span className="setup-label">{t('setup.settingsModal.firstMove')}</span>
+                    <div className="setup-options">
+                      <button
+                        className={firstMove === 'alternating' ? 'setup-option active' : 'setup-option'}
+                        type="button"
+                        onClick={() => {
+                          registerUserGesture()
+                          playSound('click')
+                          setFirstMove('alternating')
+                        }}
+                      >
+                        {t('setup.settingsModal.firstMoveAlternating')}
+                      </button>
+                      <button
+                        className={firstMove === 'human' ? 'setup-option active' : 'setup-option'}
+                        type="button"
+                        onClick={() => {
+                          registerUserGesture()
+                          playSound('click')
+                          setFirstMove('human')
+                        }}
+                      >
+                        {t('setup.settingsModal.firstMovePlayer')}
+                      </button>
+                      <button
+                        className={firstMove === 'ai' ? 'setup-option active' : 'setup-option'}
+                        type="button"
+                        onClick={() => {
+                          registerUserGesture()
+                          playSound('click')
+                          setFirstMove('ai')
+                        }}
+                      >
+                        {t('setup.settingsModal.firstMoveBot')}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             {/* ── Single-Row Non-Wrapping Skin / Theme Selector ── */}
             <div className="setup-group">
               <span className="setup-label">{t('setup.settingsModal.skinTheme')}</span>
-              <div className="skin-options-row">
-                {SKINS.map((skin) => {
-                  const isActive = selectedSkin === skin.id
-
-                  return (
-                    <button
-                      key={skin.id}
-                      className={`setup-option skin-option-btn ${isActive ? 'active' : ''}`}
-                      type="button"
-                      onClick={() => handleSelectSkin(skin)}
-                    >
-                      <span className="skin-btn-content">
-                        {skin.icon} {t(`skins.${skin.id}`) || skin.name}
-                      </span>
-                      {isActive && <span className="skin-check-badge">✓</span>}
-                    </button>
-                  )
-                })}
-              </div>
+              {renderSkinOptionsRow()}
             </div>
 
             <div className={`setup-summary ${gameMode}`}>
@@ -1169,25 +1409,7 @@ export default function GameSetup({
                     {/* Theme Skin Setting for Host */}
                     <div className="setup-group">
                       <span className="setup-label">{t('setup.settingsModal.skinTheme')}</span>
-                      <div className="skin-options-row">
-                        {SKINS.map((skin) => {
-                          const isActive = selectedSkin === skin.id
-
-                          return (
-                            <button
-                              key={skin.id}
-                              className={`setup-option skin-option-btn ${isActive ? 'active' : ''}`}
-                              type="button"
-                              onClick={() => handleSelectSkin(skin)}
-                            >
-                              <span className="skin-btn-content">
-                                {skin.icon} {t(`skins.${skin.id}`) || skin.name}
-                              </span>
-                              {isActive && <span className="skin-check-badge">✓</span>}
-                            </button>
-                          )
-                        })}
-                      </div>
+                      {renderSkinOptionsRow()}
                     </div>
 
                     <button
@@ -1255,25 +1477,7 @@ export default function GameSetup({
                     {/* Theme Skin Setting for Guest */}
                     <div className="setup-group">
                       <span className="setup-label">{t('setup.settingsModal.skinTheme')}</span>
-                      <div className="skin-options-row">
-                        {SKINS.map((skin) => {
-                          const isActive = selectedSkin === skin.id
-
-                          return (
-                            <button
-                              key={skin.id}
-                              className={`setup-option skin-option-btn ${isActive ? 'active' : ''}`}
-                              type="button"
-                              onClick={() => handleSelectSkin(skin)}
-                            >
-                              <span className="skin-btn-content">
-                                {skin.icon} {t(`skins.${skin.id}`) || skin.name}
-                              </span>
-                              {isActive && <span className="skin-check-badge">✓</span>}
-                            </button>
-                          )
-                        })}
-                      </div>
+                      {renderSkinOptionsRow()}
                     </div>
 
                     <button
@@ -1325,22 +1529,24 @@ export default function GameSetup({
                       <div className="online-copy-buttons-group">
                         <button
                           type="button"
-                          className="online-copy-action online-copy-action--whatsapp"
-                          onClick={handleShareWhatsApp}
-                        >
-                          <span>{t('setup.onlineModal.shareWhatsApp')}</span>
-                        </button>
-                        <button
-                          type="button"
                           className={`online-copy-action online-copy-action--invite ${isLinkCopied ? 'online-copy-action--copied' : ''}`}
-                          onClick={handleShareOther}
+                          onClick={handleCopyInviteLink}
                         >
                           <span>
                             {isLinkCopied
                               ? t('setup.onlineModal.copiedLink')
-                              : (canNativeShare ? t('setup.onlineModal.shareOther') : t('setup.onlineModal.copyLink'))}
+                              : `🔗 ${t('setup.onlineModal.copyLink')}`}
                           </span>
                         </button>
+                        {canNativeShare && (
+                          <button
+                            type="button"
+                            className="online-copy-action online-copy-action--share"
+                            onClick={handleShareOther}
+                          >
+                            <span>📤 {t('setup.onlineModal.shareOther')}</span>
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1449,6 +1655,139 @@ export default function GameSetup({
           />
         </Suspense>
       )}
+
+      {/* ── REWARDED AD THEME UNLOCK MODAL ── */}
+      {pendingUnlockSkin && (
+        <div
+          className="viral-modal-overlay skin-unlock-overlay"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => {
+            if (!isUnlockingSkin) setPendingUnlockSkin(null)
+          }}
+        >
+          <div
+            className="viral-modal-card skin-unlock-modal-card"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="skin-unlock-header">
+              <span className="skin-unlock-icon">{pendingUnlockSkin.icon}</span>
+              <h3 className="skin-unlock-title">{t('skinUnlock.title')}</h3>
+              <p className="skin-unlock-subtitle">{t('skinUnlock.subtitle')}</p>
+            </div>
+
+            <div className="skin-unlock-body">
+              <div className="skin-preview-card" data-skin={pendingUnlockSkin.id}>
+                <span className="skin-preview-name">
+                  {t(`skins.${pendingUnlockSkin.id}`) || pendingUnlockSkin.name}
+                </span>
+                <span className="skin-preview-badge">{t('skinUnlock.exclusiveBadge')}</span>
+              </div>
+              <p className="skin-unlock-prompt">
+                {t('skinUnlock.prompt', {
+                  skinName: t(`skins.${pendingUnlockSkin.id}`) || pendingUnlockSkin.name,
+                })}
+              </p>
+              {skinUnlockNotice && (
+                <p className="skin-unlock-notice" role="status">
+                  {skinUnlockNotice}
+                </p>
+              )}
+            </div>
+
+            <div className="skin-unlock-actions">
+              <button
+                type="button"
+                className="skin-unlock-watch-btn"
+                onClick={handleConfirmSkinUnlock}
+                disabled={isUnlockingSkin}
+              >
+                {isUnlockingSkin ? '⏳ ...' : t('skinUnlock.watchBtn')}
+              </button>
+              <button
+                type="button"
+                className="skin-unlock-cancel-btn"
+                onClick={() => setPendingUnlockSkin(null)}
+                disabled={isUnlockingSkin}
+              >
+                {t('skinUnlock.cancelBtn')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {activeModal === 'campaign_modal' && (
+        <Suspense
+          fallback={
+            <div className="loading-fallback-overlay" role="status" aria-live="polite">
+              <div className="loading-fallback-spinner" />
+              <span>{isTr ? 'Bulmaca Seferi Yükleniyor...' : 'Loading Puzzle Quest...'}</span>
+            </div>
+          }
+        >
+          <Campaign
+            onPlayLevel={(levelConfig) => {
+              if (!levelConfig || !levelConfig.id) return
+              const savedCampaign = sanitizeCampaignProgress(safeGetItem(STORAGE_KEYS.CAMPAIGN, { completedLevels: {} }))
+              if (!isCampaignLevelUnlocked(levelConfig.id, savedCampaign)) {
+                console.warn(`[Security] Level ${levelConfig.id} is locked. Play request rejected.`)
+                return
+              }
+              setActiveModal(null)
+              onStartGame({
+                boardSize: levelConfig.boardSize,
+                winLength: levelConfig.winLength,
+                opponentType: 'ai',
+                gameMode: 'arena',
+                targetValue: 1,
+                isInfinite: false,
+                turnTimeLimit: levelConfig.timeLimit || 15,
+                firstMove: 'human',
+                player1Name: isTr ? 'Oyuncu' : 'Player',
+                player2Name: 'Bot',
+                campaignLevel: levelConfig,
+                difficultyOverride: levelConfig.difficulty || 'medium',
+              })
+            }}
+            onBack={() => setActiveModal(null)}
+            language={language}
+          />
+        </Suspense>
+      )}
+
+      {activeModal === 'daily_modal' && (
+        <Suspense
+          fallback={
+            <div className="loading-fallback-overlay" role="status" aria-live="polite">
+              <div className="loading-fallback-spinner" />
+              <span>{isTr ? 'Günün Görevi Yükleniyor...' : 'Loading Daily Challenge...'}</span>
+            </div>
+          }
+        >
+          <DailyChallenge
+            onPlayChallenge={(challengeConfig) => {
+              setActiveModal(null)
+              onStartGame({
+                boardSize: challengeConfig.boardSize || 3,
+                winLength: challengeConfig.winLength || 3,
+                opponentType: 'ai',
+                gameMode: challengeConfig.gameMode || 'arena',
+                targetValue: 1,
+                isInfinite: false,
+                turnTimeLimit: challengeConfig.timeLimit || 15,
+                firstMove: 'human',
+                player1Name: isTr ? 'Oyuncu' : 'Player',
+                player2Name: 'Bot',
+                dailyChallenge: challengeConfig,
+                difficultyOverride: challengeConfig.difficulty || 'hard',
+              })
+            }}
+            onBack={() => setActiveModal(null)}
+            language={language}
+          />
+        </Suspense>
+      )}
+
     </main>
   )
 }

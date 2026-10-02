@@ -58,8 +58,8 @@ export function calculateWinner(squares, boardSize = 3, winLength = 3) {
   return squares[winningLine[0]]
 }
 
-export function isBoardFull(squares) {
-  return squares.every(Boolean)
+export function isBoardFull(squares, blockedIndexes = []) {
+  return squares.every((square, index) => square !== null || blockedIndexes.includes(index))
 }
 
 export function createBoardMultipliers(boardSize = 3) {

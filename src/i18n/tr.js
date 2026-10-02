@@ -225,6 +225,18 @@ export default {
     cosmic: 'Kozmik Mor',
     ice: 'Buz Kristali',
   },
+  skinUnlock: {
+    title: '24 SAATLİK TEMA ERİŞİMİ',
+    subtitle: 'Kısa bir video izleyerek bu temayı 24 saat boyunca kullanın',
+    prompt: '{{skinName}} temasını 24 saat boyunca kullanmak için kısa bir video izlemek istiyor musunuz?',
+    watchBtn: '🎬 İZLE VE 24 SAAT AÇ',
+    cancelBtn: 'Vazgeç',
+    watching: 'Reklam yükleniyor...',
+    success: 'Tebrikler! Tema 24 saatliğine açıldı!',
+    locked: 'Kilitli',
+    exclusiveBadge: '⏱️ 24 SAAT',
+    hoursRemaining: '{{hours}} saat kaldı',
+  },
   rules: {
     title: 'NASIL OYNANIR?',
     subtitle: 'Taktik, güçler ve kazanma rehberi',

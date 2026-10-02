@@ -63,12 +63,24 @@ function playTone({ frequency, duration, delay = 0, type = 'sine', volume = 0.04
 
 let isAdMuted = false
 
+export function isSdkAudioMuted() {
+  if (typeof window === 'undefined') return false
+  try {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('muteAudio') === 'true') return true
+    if (window.CrazyGames?.SDK?.initialized && window.CrazyGames.SDK.game?.settings?.muteAudio) return true
+  } catch {
+    // ignore
+  }
+  return false
+}
+
 export function setAdMuted(muted) {
   isAdMuted = Boolean(muted)
 }
 
 export function isSoundEnabled() {
-  if (isAdMuted) return false
+  if (isAdMuted || isSdkAudioMuted()) return false
   return readStoredSoundEnabled()
 }
 
@@ -116,11 +128,22 @@ export function triggerHaptic(type) {
   }
 }
 
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (!audioContext) return
+    if (document.visibilityState === 'hidden') {
+      void audioContext.suspend()
+    } else if (hasUserGesture && !isAdMuted && isSoundEnabled()) {
+      void audioContext.resume()
+    }
+  })
+}
+
 export function playSound(effect) {
   // Always trigger haptics for touch feedback
   triggerHaptic(effect)
 
-  if (!readStoredSoundEnabled() || !hasUserGesture) {
+  if (!isSoundEnabled() || !hasUserGesture) {
     return
   }
 
@@ -228,11 +251,16 @@ export function playSound(effect) {
 }
 
 export function useSoundEnabled() {
-  const [enabled, setEnabled] = useState(readStoredSoundEnabled)
+  const isSdkMuted = isSdkAudioMuted()
+  const [storedEnabled, setStoredEnabled] = useState(readStoredSoundEnabled)
+
+  const enabled = !isSdkMuted && storedEnabled
 
   const toggleSound = useCallback(() => {
     registerUserGesture()
-    setEnabled((currentEnabled) => {
+    if (isSdkAudioMuted()) return // Cannot re-enable if SDK explicitly disabled audio
+
+    setStoredEnabled((currentEnabled) => {
       const nextEnabled = !currentEnabled
       setSoundEnabled(nextEnabled)
 
@@ -246,6 +274,7 @@ export function useSoundEnabled() {
 
   return {
     enabled,
+    isSdkMuted,
     toggleSound,
   }
 }

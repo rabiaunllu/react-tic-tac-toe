@@ -200,7 +200,115 @@ export function getAdaptiveDdaConfig({
   humanWinStreak = 0,
   consecutiveDraws = 0,
   roundNumber = 1,
+  difficultyOverride = null,
+  aiPersonality = null,
 } = {}) {
+  // ── Fixed difficulty presets (Campaign levels, Quick Play, etc.) ──
+  // When difficultyOverride is set, bypass the adaptive DDA system entirely.
+  let fixedConfig = null;
+
+  if (difficultyOverride === 'easy') {
+    fixedConfig = {
+      mode: 'fixed_easy',
+      skipAntiExploit: true,
+      forkHesitationChance: 0.85,
+      suboptimalMoveChance: 0.55,
+      pityBlockMissChance: 0.45,
+      skipOwnFork: true,
+      scoreTolerance: 600,
+      powerPacingChance: 0.70,
+      earlyShieldDelayChance: 0.75,
+      trapBaitChance: 0.0,
+    };
+  } else if (difficultyOverride === 'medium') {
+    fixedConfig = {
+      mode: 'fixed_medium',
+      skipAntiExploit: true,
+      forkHesitationChance: 0.45,
+      suboptimalMoveChance: 0.30,
+      pityBlockMissChance: 0.18,
+      skipOwnFork: false,
+      scoreTolerance: 300,
+      powerPacingChance: 0.40,
+      earlyShieldDelayChance: 0.40,
+      trapBaitChance: 0.15,
+    };
+  } else if (difficultyOverride === 'hard') {
+    fixedConfig = {
+      mode: 'fixed_hard',
+      skipAntiExploit: Math.random() < 0.15,
+      forkHesitationChance: 0.20,
+      suboptimalMoveChance: 0.14,
+      pityBlockMissChance: 0.05,
+      skipOwnFork: false,
+      scoreTolerance: 120,
+      powerPacingChance: 0.18,
+      earlyShieldDelayChance: 0.20,
+      trapBaitChance: 0.30,
+    };
+  } else if (difficultyOverride === 'expert') {
+    fixedConfig = {
+      mode: 'fixed_expert',
+      skipAntiExploit: false,
+      forkHesitationChance: 0.08,
+      suboptimalMoveChance: 0.06,
+      pityBlockMissChance: 0,
+      skipOwnFork: false,
+      scoreTolerance: 40,
+      powerPacingChance: 0.10,
+      earlyShieldDelayChance: 0.10,
+      trapBaitChance: 0.45,
+    };
+  }
+
+  if (fixedConfig) {
+    if (aiPersonality === 'aggressive') {
+      // Aggressive personality: focuses relentlessly on offensive attacks, traps, and power usage,
+      // but suffers from tunnel vision (overlooks player's counter-forks and sneaky setups).
+      fixedConfig.skipAntiExploit = true;
+      fixedConfig.forkHesitationChance = Math.max(fixedConfig.forkHesitationChance, 0.38);
+      fixedConfig.suboptimalMoveChance = Math.max(fixedConfig.suboptimalMoveChance, 0.18);
+      fixedConfig.pityBlockMissChance = Math.max(fixedConfig.pityBlockMissChance, 0.10);
+      fixedConfig.trapBaitChance = Math.min(0.65, fixedConfig.trapBaitChance + 0.25);
+      fixedConfig.powerPacingChance = Math.max(0.05, fixedConfig.powerPacingChance - 0.15);
+    } else if (aiPersonality === 'defensive') {
+      fixedConfig.pityBlockMissChance = 0;
+      fixedConfig.earlyShieldDelayChance = 0;
+      fixedConfig.forkHesitationChance = Math.max(0, fixedConfig.forkHesitationChance - 0.15);
+    } else if (aiPersonality === 'chaotic') {
+      fixedConfig.scoreTolerance = (fixedConfig.scoreTolerance || 100) + 200;
+      fixedConfig.suboptimalMoveChance = Math.min(0.35, fixedConfig.suboptimalMoveChance + 0.15);
+      fixedConfig.trapBaitChance = 0.35;
+    }
+
+    // ── Dynamic Draw Breakout for fixed difficulties (Campaign & Quick Play) ──
+    // In Tic-Tac-Toe, fixed high difficulties on symmetrical boards can force 100% draws.
+    // Progressively loosen defensive rigor when consecutive draws occur so players never get stuck!
+    if (consecutiveDraws >= 3) {
+      fixedConfig.skipAntiExploit = true;
+      fixedConfig.forkHesitationChance = Math.min(0.85, fixedConfig.forkHesitationChance + 0.50);
+      fixedConfig.suboptimalMoveChance = Math.min(0.60, fixedConfig.suboptimalMoveChance + 0.35);
+      fixedConfig.pityBlockMissChance = Math.min(0.40, fixedConfig.pityBlockMissChance + 0.30);
+      fixedConfig.scoreTolerance = (fixedConfig.scoreTolerance || 100) + 300;
+    } else if (consecutiveDraws === 2) {
+      fixedConfig.skipAntiExploit = true;
+      fixedConfig.forkHesitationChance = Math.min(0.70, fixedConfig.forkHesitationChance + 0.35);
+      fixedConfig.suboptimalMoveChance = Math.min(0.45, fixedConfig.suboptimalMoveChance + 0.22);
+      fixedConfig.pityBlockMissChance = Math.min(0.28, fixedConfig.pityBlockMissChance + 0.18);
+      fixedConfig.scoreTolerance = (fixedConfig.scoreTolerance || 100) + 200;
+    } else if (consecutiveDraws === 1) {
+      fixedConfig.skipAntiExploit = true;
+      fixedConfig.forkHesitationChance = Math.min(0.55, fixedConfig.forkHesitationChance + 0.20);
+      fixedConfig.suboptimalMoveChance = Math.min(0.32, fixedConfig.suboptimalMoveChance + 0.12);
+      fixedConfig.pityBlockMissChance = Math.min(0.18, fixedConfig.pityBlockMissChance + 0.10);
+      fixedConfig.scoreTolerance = (fixedConfig.scoreTolerance || 100) + 100;
+    }
+
+    return fixedConfig;
+  }
+
+  // ── Adaptive DDA system (normal gameplay) ──
+
   // 1. BERABERLİK KİLİTLENMESİ (Draw Breakout) - Can sıkıcı sonsuz beraberlik durumunu kırma
   // Beraberlik yaşandığında tur sayısına bakılmaksızın anında devreye girerek tekdüzeliği kırar.
   // Bot asla kör hata ("mallaşma") yapmaz; çatal savunması ve konumsal esneklik ile oyunu açar.
@@ -249,8 +357,7 @@ export function getAdaptiveDdaConfig({
     }
   }
 
-  // 2. İLK ROUND: Bot galibiyet oranı ~%80 olarak hedeflenmiştir (oyuncu ~%20 şans bulur).
-  // Bot açılışta asla hata yapmaz; ancak oyun geliştikçe (>= 3 taş) insan benzeri çok nadir (%5) dikkatsizlik yapabilir.
+  // 2. İLK ROUND: Adaptif - yeni oyunculara daha nazik
   if (roundNumber <= 1) {
     return {
       mode: 'grandmaster_r1',
@@ -376,8 +483,10 @@ export function getAdaptiveAiMove({
   roundNumber = 1,
   consecutiveDraws = 0,
   gameMode = 'classic',
+  difficultyOverride = null,
+  aiPersonality = null,
 }) {
-  const dda = getClassicDdaConfig({ humanWinStreak, consecutiveDraws, roundNumber, gameMode })
+  const dda = getClassicDdaConfig({ humanWinStreak, consecutiveDraws, roundNumber, gameMode, difficultyOverride, aiPersonality })
 
   const totalStones = squares.filter(Boolean).length
 
@@ -1230,12 +1339,16 @@ export function getArenaAiPowerAction({
   roundNumber = 1,
   consecutiveDraws = 0,
   gameMode = 'arena',
+  difficultyOverride = null,
+  aiPersonality = null,
 }) {
   const dda = getAdaptiveDdaConfig({
     humanWinStreak,
     consecutiveDraws,
     roundNumber,
     gameMode,
+    difficultyOverride,
+    aiPersonality,
   })
 
   transpositionTable.clear()
