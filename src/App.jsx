@@ -12,7 +12,6 @@ import QuickEmoteBar from './components/QuickEmoteBar'
 import SoundToggle from './components/SoundToggle'
 import OnlineGame from './components/OnlineGame'
 import RoundResultModal from './components/RoundResultModal'
-import IntroAnimation from './components/IntroAnimation'
 import TutorialOverlay from './components/TutorialOverlay'
 
 // PERFORMANCE OPTIMIZATION (Action 15): Decouple main thread entry from aiPlayer.js.
@@ -255,13 +254,6 @@ export default function App() {
   const isMoveProcessingRef = useRef(false)
   const pausedRemainingMsRef = useRef(null)
 
-  // Intro animation state — show only on first visit (no stored session, no gameConfig)
-  const [showIntro, setShowIntro] = useState(() => {
-    if (typeof window === 'undefined') return false
-    return !window.localStorage.getItem('xo-intro-seen') &&
-           !hasStoredOnlineSession() &&
-           !hasStoredLocalSession()
-  })
 
   // In-game tutorial state
   const [tutorialStep, setTutorialStep] = useState(0)  // 0 = not active, 1-4 = active steps
@@ -2733,42 +2725,6 @@ export default function App() {
     )
   }
 
-  // ── Quick Play: Start Arena 3x3 AI game with 1 click ──────────────────────
-  function handleQuickPlay() {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem('xo-intro-seen', 'true')
-    }
-    setShowIntro(false)
-
-    // Start tutorial for first-time players
-    const tutorialDone = typeof window !== 'undefined' && window.localStorage.getItem('xo-tutorial-complete')
-    if (!tutorialDone) {
-      setIsTutorialActive(true)
-      setTutorialStep(1)
-    }
-
-    handleStartGame({
-      boardSize: 3,
-      winLength: 3,
-      opponentType: 'ai',
-      gameMode: 'arena',
-      targetValue: 15,
-      isInfinite: false,
-      turnTimeLimit: 15,
-      firstMove: 'alternating',
-      player1Name: isTr ? 'Oyuncu' : 'Player',
-      player2Name: 'Bot',
-      difficultyOverride: 'medium',
-    })
-  }
-
-  function handleIntroCustomize() {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem('xo-intro-seen', 'true')
-    }
-    setShowIntro(false)
-  }
-
   function handleTutorialNext() {
     setTutorialStep((prev) => Math.min(prev + 1, 4))
   }
@@ -2782,17 +2738,6 @@ export default function App() {
   }
 
   if (!gameConfig) {
-    // Show intro animation for first-time visitors
-    if (showIntro) {
-      return (
-        <IntroAnimation
-          onQuickPlay={handleQuickPlay}
-          onCustomize={handleIntroCustomize}
-          language={language}
-        />
-      )
-    }
-
     return (
       <GameSetup
         onStartGame={handleStartGame}
