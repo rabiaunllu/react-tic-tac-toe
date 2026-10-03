@@ -39,10 +39,21 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', 'VITE_')
   const base = env.VITE_BASE_PATH?.trim() || '/'
   const apiOrigin = getApiOrigin(env.VITE_API_BASE_URL?.trim())
-  const connectSources = ["'self'", apiOrigin, 'https://*.crazygames.com', 'https://games.crazygames.com'].filter(Boolean).join(' ')
+  const connectSources = [
+    "'self'",
+    apiOrigin,
+    'https://*.crazygames.com',
+    'https://games.crazygames.com',
+    'https://pagead2.googlesyndication.com',
+    'https://*.google.com',
+    'https://*.googlesyndication.com',
+  ]
+    .filter(Boolean)
+    .join(' ')
   const contentSecurityPolicy =
-    "default-src 'self'; script-src 'self' https://sdk.crazygames.com; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-    "font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src " +
+    "default-src 'self'; script-src 'self' 'unsafe-inline' https://sdk.crazygames.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.google.com; " +
+    "worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+    "font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; frame-src 'self' https://googleads.g.doubleclick.net https://*.google.com https://*.googlesyndication.com; connect-src " +
     `${connectSources}; object-src 'none'; base-uri 'self'; form-action 'self'`
 
   return {

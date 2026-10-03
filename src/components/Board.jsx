@@ -1,4 +1,4 @@
-import { memo } from 'react'
+import { memo, useCallback, useRef } from 'react'
 import Square from './Square'
 
 const Board = memo(function Board({
@@ -26,6 +26,13 @@ const Board = memo(function Board({
   activePower = null,
   isAiThinking = false,
 }) {
+  const onSquareClickRef = useRef(onSquareClick)
+  onSquareClickRef.current = onSquareClick
+
+  const handleStableSquareClick = useCallback((index) => {
+    onSquareClickRef.current?.(index)
+  }, [])
+
   const supportedBoardSizes = [3, 4, 5]
   const safeBoardSize = supportedBoardSizes.includes(boardSize) ? boardSize : 3
 
@@ -114,7 +121,7 @@ const Board = memo(function Board({
             isPowerTarget={isPowerTarget}
             powerTargetLabel={powerTargetLabel}
             isLastPlaced={index === lastPlacedIndex}
-            onSquareClick={onSquareClick}
+            onSquareClick={handleStableSquareClick}
           />
         )
       })}

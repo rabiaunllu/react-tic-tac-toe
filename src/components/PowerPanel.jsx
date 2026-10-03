@@ -1,10 +1,11 @@
+import { memo } from 'react'
 import { getAvailablePowerDefinitions, getPowerDefinitions } from '../game/powers'
 import { playSound, registerUserGesture } from '../game/soundManager'
 import { useTranslation } from '../i18n'
 import CrystalSnowflake from './CrystalSnowflake'
 import EnergyShieldIcon from './EnergyShieldIcon'
 
-export default function PowerPanel({
+const PowerPanel = memo(function PowerPanel({
   currentPlayer,
   playerName,
   score = 0,
@@ -186,4 +187,6 @@ export default function PowerPanel({
       )}
     </section>
   )
-}
+})
+
+export default PowerPanel

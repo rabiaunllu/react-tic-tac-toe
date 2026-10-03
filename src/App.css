@@ -5,8 +5,11 @@
 /* GPU hardware acceleration for smooth 60fps mobile rendering */
 .game-card,
 .board,
+.square,
+.power-panel,
 .psim-container,
-.hero-clash-container {
+.hero-clash-container,
+.brand-header h1 {
   transform: translateZ(0);
   backface-visibility: hidden;
 }
@@ -358,6 +361,8 @@ body::before {
     radial-gradient(ellipse 50% 40% at 20% 80%, rgba(192, 132, 252, 0.06) 0%, transparent 50%),
     linear-gradient(165deg, #0a0b10 0%, #101320 40%, #0d0e16 100%);
   pointer-events: none;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 /* ── Subtle floating particles via CSS ── */
@@ -371,22 +376,30 @@ body::after {
     radial-gradient(1px 1px at 78% 15%, rgba(255, 143, 197, 0.2), transparent),
     radial-gradient(1.5px 1.5px at 42% 72%, rgba(192, 132, 252, 0.18), transparent),
     radial-gradient(1px 1px at 88% 58%, rgba(140, 242, 255, 0.15), transparent),
-    radial-gradient(1px 1px at 25% 90%, rgba(255, 209, 102, 0.15), transparent),
+    radial-gradient(1.5px 1.5px at 25% 90%, rgba(255, 209, 102, 0.15), transparent),
     radial-gradient(1.5px 1.5px at 65% 42%, rgba(18, 245, 220, 0.12), transparent),
     radial-gradient(1px 1px at 55% 8%, rgba(255, 143, 197, 0.18), transparent),
     radial-gradient(1px 1px at 8% 55%, rgba(192, 132, 252, 0.12), transparent),
     radial-gradient(1.5px 1.5px at 92% 85%, rgba(140, 242, 255, 0.14), transparent),
     radial-gradient(1px 1px at 35% 35%, rgba(255, 209, 102, 0.1), transparent);
   background-size: 100% 100%;
-  animation: drift-particles 25s ease-in-out infinite alternate;
   pointer-events: none;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
+@media (min-width: 769px) {
+  body::after {
+    animation: drift-particles 25s ease-in-out infinite alternate;
+  }
 }
 
 @keyframes drift-particles {
-  0%   { transform: translate(0, 0) scale(1); }
-  33%  { transform: translate(-8px, 12px) scale(1.04); }
-  66%  { transform: translate(6px, -8px) scale(0.97); }
-  100% { transform: translate(-4px, 6px) scale(1.02); }
+  0%   { transform: translate3d(0, 0, 0); }
+  33%  { transform: translate3d(-6px, 10px, 0); }
+  66%  { transform: translate3d(5px, -6px, 0); }
+  100% { transform: translate3d(-3px, 5px, 0); }
 }
 
 button {
@@ -499,13 +512,24 @@ p {
   font-size: 48px;
   font-weight: 900;
   cursor: pointer;
+  transform: translateZ(0);
+  backface-visibility: hidden;
   transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
 }
 
-.square:hover {
-  transform: translateY(-2px);
-  border-color: rgba(142, 216, 255, 0.72);
+@media (hover: hover) and (pointer: fine) {
+  .square:hover {
+    transform: translateY(-2px);
+    border-color: rgba(142, 216, 255, 0.72);
+    background: #282d3f;
+  }
+}
+
+.square:active:not(:disabled) {
+  transform: scale(0.97);
+  border-color: rgba(142, 216, 255, 0.85);
   background: #282d3f;
+  transition: transform 0.05s ease;
 }
 
 .square-filled {
@@ -3052,6 +3076,13 @@ button,
   animation: brand-shimmer 6s ease-in-out infinite;
   filter: drop-shadow(0 0 18px rgba(140, 242, 255, 0.3))
           drop-shadow(0 0 40px rgba(192, 132, 252, 0.15));
+}
+
+@media (max-width: 560px) {
+  .brand-header h1 {
+    animation: none;
+    background-position: 50% 50%;
+  }
 }
 
 @keyframes brand-shimmer {

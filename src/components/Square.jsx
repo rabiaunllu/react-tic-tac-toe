@@ -4,7 +4,7 @@ import EnergyShieldIcon from './EnergyShieldIcon'
 import ExplosionBlast from './ExplosionBlast'
 import { useTranslation } from '../i18n'
 
-const Square = memo(function Square({
+function Square({
   index,
   boardSize = 3,
   value,
@@ -148,6 +148,30 @@ const Square = memo(function Square({
       )}
     </button>
   )
-})
+}
 
-export default Square
+function areSquarePropsEqual(prev, next) {
+  return (
+    prev.index === next.index &&
+    prev.boardSize === next.boardSize &&
+    prev.value === next.value &&
+    prev.multiplier === next.multiplier &&
+    prev.isWinningSquare === next.isWinningSquare &&
+    prev.isShielded === next.isShielded &&
+    prev.isLocked === next.isLocked &&
+    prev.isFrozen === next.isFrozen &&
+    prev.isBoosted === next.isBoosted &&
+    prev.isTrapped === next.isTrapped &&
+    prev.isBlackHoleTriggered === next.isBlackHoleTriggered &&
+    prev.isBombExploding === next.isBombExploding &&
+    prev.isPowerTargeting === next.isPowerTargeting &&
+    prev.isPowerTarget === next.isPowerTarget &&
+    prev.isVampireSource === next.isVampireSource &&
+    prev.isVampireTarget === next.isVampireTarget &&
+    prev.powerTargetLabel === next.powerTargetLabel &&
+    prev.isLastPlaced === next.isLastPlaced &&
+    prev.onSquareClick === next.onSquareClick
+  )
+}
+
+export default memo(Square, areSquarePropsEqual)
