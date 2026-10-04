@@ -15,6 +15,10 @@ const translations = {
     history: "7-Day History",
     reward: "+500 XP & Streak Bonus",
     back: "Close",
+    easy: "EASY",
+    medium: "MEDIUM",
+    hard: "HARD",
+    expert: "EXPERT",
     monday_title: "Speed Challenge",
     monday_desc: "Win the game in as few moves as possible.",
     tuesday_title: "Power Master",
@@ -41,6 +45,10 @@ const translations = {
     history: "7 Günlük Takip",
     reward: "+500 TP & Seri Bonusu",
     back: "Kapat",
+    easy: "KOLAY",
+    medium: "ORTA",
+    hard: "ZOR",
+    expert: "UZMAN",
     monday_title: "Hız Görevi",
     monday_desc: "Oyunu en az hamle ile hızlıca kazan.",
     tuesday_title: "Güç Ustası",
@@ -322,7 +330,9 @@ export default function DailyChallenge({ onPlayChallenge, onBack, language = 'en
             <div className="mission-content">
               <div className="mission-badge-row">
                 <span className="mission-chip board-chip">{challenge.boardSize}x{challenge.boardSize}</span>
-                <span className="mission-chip diff-chip">{challenge.difficulty?.toUpperCase()}</span>
+                <span className={`mission-chip diff-chip ${challenge.difficulty?.toLowerCase() || ''}`}>
+                  {(t[challenge.difficulty?.toLowerCase()] || challenge.difficulty)?.toUpperCase()}
+                </span>
                 {challenge.constraints?.maxMoves && (
                   <span className="mission-chip constraint-chip">MAX {challenge.constraints.maxMoves} {isTr ? 'HAMLE' : 'MOVES'}</span>
                 )}
@@ -587,6 +597,24 @@ export default function DailyChallenge({ onPlayChallenge, onBack, language = 'en
           background: rgba(245, 158, 11, 0.15);
           border: 1px solid rgba(245, 158, 11, 0.35);
           color: #fbbf24;
+        }
+
+        .diff-chip.medium {
+          background: rgba(0, 240, 255, 0.15);
+          border: 1px solid rgba(0, 240, 255, 0.35);
+          color: #00f0ff;
+        }
+
+        .diff-chip.hard {
+          background: rgba(245, 158, 11, 0.15);
+          border: 1px solid rgba(245, 158, 11, 0.35);
+          color: #fbbf24;
+        }
+
+        .diff-chip.expert {
+          background: rgba(239, 68, 68, 0.18);
+          border: 1px solid rgba(239, 68, 68, 0.5);
+          color: #ef4444;
         }
 
         .constraint-chip {
