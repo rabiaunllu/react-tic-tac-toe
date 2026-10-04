@@ -9079,31 +9079,106 @@ body[data-skin="ice"] .o-mark-square .square-value {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  padding: clamp(6px, 1.3vh, 18px) clamp(8px, 2.2vw, 18px);
-  gap: clamp(4px, 0.9vh, 10px);
+  justify-content: center;
+  padding: clamp(6px, 1.2vh, 16px) clamp(8px, 2.2vw, 16px);
+  gap: clamp(6px, 1.3vh, 14px);
   box-sizing: border-box;
 }
 
-/* 1. Header & Title (Single Line, No Wrap) */
-.game-card--playing .game-header.brand-header {
+/* 1. Integrated Mobile Game HUD Header */
+.game-card--playing .game-hud-header {
   width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
+  gap: clamp(4px, 0.8vh, 8px);
   margin: 0;
   padding: 0;
   flex-shrink: 0;
-  z-index: 10;
+  z-index: 25;
 }
 
-.game-card--playing .brand-header h1 {
-  font-size: clamp(18px, 3.4vh, 28px);
+.game-card--playing .game-hud-top-bar {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 0 2px;
+  box-sizing: border-box;
+}
+
+.game-card--playing .game-hud-top-bar > .setup-back-button {
+  justify-self: start;
+}
+
+.game-card--playing .game-hud-title {
+  justify-self: center;
+  font-family: 'Orbitron', system-ui, sans-serif;
+  font-weight: 900;
+  font-size: clamp(16px, 3vh, 22px);
   line-height: 1;
   margin: 0;
   letter-spacing: 0.08em;
+  color: #ffffff;
   white-space: nowrap;
+  text-shadow: 0 0 12px rgba(140, 242, 255, 0.35);
+}
+
+.game-card--playing .game-hud-right-actions {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.game-card--playing .game-hud-right-actions .app-settings {
+  display: inline-flex;
+  align-items: center;
+}
+
+.game-card--playing .game-hud-btn,
+.game-card--playing .setup-back-button,
+.game-card--playing .score-reset-button,
+.game-card--playing .settings-icon-button {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  min-height: 34px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(140, 242, 255, 0.4);
+  background: rgba(15, 23, 42, 0.9);
+  color: #e0f2fe;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  transition: all 0.16s ease;
+  padding: 0;
+}
+
+.game-card--playing .game-hud-btn:hover,
+.game-card--playing .setup-back-button:hover,
+.game-card--playing .score-reset-button:hover,
+.game-card--playing .settings-icon-button:hover {
+  border-color: rgba(140, 242, 255, 0.85);
+  background: rgba(14, 165, 233, 0.25);
+  color: #ffffff;
+  transform: translateY(-1px) scale(1.05);
+  box-shadow: 0 6px 16px rgba(56, 189, 248, 0.4);
+}
+
+.game-card--playing .game-hud-btn:active,
+.game-card--playing .setup-back-button:active,
+.game-card--playing .score-reset-button:active,
+.game-card--playing .settings-icon-button:active {
+  transform: translateY(0) scale(0.96);
+}
+
+.game-card--playing .game-action-svg {
+  width: 17px;
+  height: 17px;
+  display: block;
 }
 
 /* 2. Match Info Chips (Single Line, No Wrap, No Overflow Push) */
@@ -9112,11 +9187,11 @@ body[data-skin="ice"] .o-mark-square .square-value {
   justify-content: center;
   align-items: center;
   flex-wrap: nowrap;
-  gap: 4px;
+  gap: 5px;
   overflow-x: auto;
   scrollbar-width: none;
   width: 100%;
-  margin-top: 1px;
+  margin: 0;
 }
 
 .game-card--playing .match-chip-row::-webkit-scrollbar {
@@ -9133,46 +9208,6 @@ body[data-skin="ice"] .o-mark-square .square-value {
   letter-spacing: 0.02em;
 }
 
-/* 3. In-Game Actions Row (Compact, Highly Visible Controls) */
-.game-card--playing .game-actions {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  margin: 3px 0 0 0;
-  flex-shrink: 0;
-  z-index: 20;
-}
-
-.game-card--playing .setup-back-button,
-.game-card--playing .score-reset-button,
-.game-card--playing .settings-icon-button {
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  min-height: 32px;
-  border-radius: 50%;
-  border: 1.5px solid rgba(140, 242, 255, 0.4);
-  background: rgba(15, 23, 42, 0.9);
-  color: #e0f2fe;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  transition: all 0.16s ease;
-}
-
-.game-card--playing .setup-back-button:hover,
-.game-card--playing .score-reset-button:hover,
-.game-card--playing .settings-icon-button:hover {
-  border-color: rgba(140, 242, 255, 0.85);
-  background: rgba(14, 165, 233, 0.25);
-  color: #ffffff;
-  transform: translateY(-1px) scale(1.05);
-  box-shadow: 0 6px 16px rgba(56, 189, 248, 0.4);
-}
-
 /* 3. Arena Board Stack (Fluid Flex distribution) */
 .game-card--playing .arena-board-stack {
   width: 100%;
@@ -9181,7 +9216,7 @@ body[data-skin="ice"] .o-mark-square .square-value {
   align-items: center;
   justify-content: center;
   gap: clamp(4px, 0.8vh, 8px);
-  flex: 1;
+  flex: 0 1 auto;
   min-height: 0;
 }
 
@@ -9307,9 +9342,9 @@ body[data-skin="ice"] .o-mark-square .square-value {
 
 /* 6. Dynamic Viewport-Clamped Game Board (Zero-Scroll Hero) */
 .game-card--playing .board {
-  width: min(100%, 330px, calc(100dvh - 390px));
-  max-width: min(100%, 330px, calc(100dvh - 390px));
-  max-height: calc(100dvh - 390px);
+  width: min(100%, 340px, calc(100dvh - 350px));
+  max-width: min(100%, 340px, calc(100dvh - 350px));
+  max-height: calc(100dvh - 350px);
   aspect-ratio: 1;
   padding: clamp(4px, 1.2vw, 8px);
   gap: clamp(3px, 1.2vw, 6px);
