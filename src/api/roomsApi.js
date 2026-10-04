@@ -5,10 +5,10 @@ const isOnlineFlagEnabled = onlineFlag === 'true' || (!import.meta.env?.PROD && 
 const hasConfiguredApiBaseUrl = Boolean(configuredApiBaseUrl)
 const isCrazyGamesHost =
   typeof window !== 'undefined' &&
+  !window.location.hostname.includes('xotactix.me') &&
   (window.location.hostname.includes('crazygames') ||
-   (typeof document !== 'undefined' && document.referrer?.includes('crazygames')) ||
-   window.location.search.includes('platform=crazygames') ||
-   Boolean(window.CrazyGames?.SDK))
+   (typeof document !== 'undefined' && Boolean(document.referrer?.includes('crazygames'))) ||
+   Boolean(window.location.search?.includes('platform=crazygames')))
 const canUseSameOriginApi = Boolean(import.meta.env?.PROD && !hasConfiguredApiBaseUrl && !isCrazyGamesHost)
 
 export const API_BASE_URL = (
