@@ -5,11 +5,8 @@
 /* GPU hardware acceleration for smooth 60fps mobile rendering */
 .game-card,
 .board,
-.square,
-.power-panel,
 .psim-container,
-.hero-clash-container,
-.brand-header h1 {
+.hero-clash-container {
   transform: translateZ(0);
   backface-visibility: hidden;
 }
@@ -361,8 +358,6 @@ body::before {
     radial-gradient(ellipse 50% 40% at 20% 80%, rgba(192, 132, 252, 0.06) 0%, transparent 50%),
     linear-gradient(165deg, #0a0b10 0%, #101320 40%, #0d0e16 100%);
   pointer-events: none;
-  transform: translateZ(0);
-  backface-visibility: hidden;
 }
 
 /* ── Subtle floating particles via CSS ── */
@@ -376,30 +371,22 @@ body::after {
     radial-gradient(1px 1px at 78% 15%, rgba(255, 143, 197, 0.2), transparent),
     radial-gradient(1.5px 1.5px at 42% 72%, rgba(192, 132, 252, 0.18), transparent),
     radial-gradient(1px 1px at 88% 58%, rgba(140, 242, 255, 0.15), transparent),
-    radial-gradient(1.5px 1.5px at 25% 90%, rgba(255, 209, 102, 0.15), transparent),
+    radial-gradient(1px 1px at 25% 90%, rgba(255, 209, 102, 0.15), transparent),
     radial-gradient(1.5px 1.5px at 65% 42%, rgba(18, 245, 220, 0.12), transparent),
     radial-gradient(1px 1px at 55% 8%, rgba(255, 143, 197, 0.18), transparent),
     radial-gradient(1px 1px at 8% 55%, rgba(192, 132, 252, 0.12), transparent),
     radial-gradient(1.5px 1.5px at 92% 85%, rgba(140, 242, 255, 0.14), transparent),
     radial-gradient(1px 1px at 35% 35%, rgba(255, 209, 102, 0.1), transparent);
   background-size: 100% 100%;
+  animation: drift-particles 25s ease-in-out infinite alternate;
   pointer-events: none;
-  transform: translateZ(0);
-  backface-visibility: hidden;
-  will-change: transform;
-}
-
-@media (min-width: 769px) {
-  body::after {
-    animation: drift-particles 25s ease-in-out infinite alternate;
-  }
 }
 
 @keyframes drift-particles {
-  0%   { transform: translate3d(0, 0, 0); }
-  33%  { transform: translate3d(-6px, 10px, 0); }
-  66%  { transform: translate3d(5px, -6px, 0); }
-  100% { transform: translate3d(-3px, 5px, 0); }
+  0%   { transform: translate(0, 0) scale(1); }
+  33%  { transform: translate(-8px, 12px) scale(1.04); }
+  66%  { transform: translate(6px, -8px) scale(0.97); }
+  100% { transform: translate(-4px, 6px) scale(1.02); }
 }
 
 button {
@@ -512,24 +499,13 @@ p {
   font-size: 48px;
   font-weight: 900;
   cursor: pointer;
-  transform: translateZ(0);
-  backface-visibility: hidden;
   transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .square:hover {
-    transform: translateY(-2px);
-    border-color: rgba(142, 216, 255, 0.72);
-    background: #282d3f;
-  }
-}
-
-.square:active:not(:disabled) {
-  transform: scale(0.97);
-  border-color: rgba(142, 216, 255, 0.85);
+.square:hover {
+  transform: translateY(-2px);
+  border-color: rgba(142, 216, 255, 0.72);
   background: #282d3f;
-  transition: transform 0.05s ease;
 }
 
 .square-filled {
@@ -3271,13 +3247,6 @@ button,
           drop-shadow(0 0 40px rgba(192, 132, 252, 0.15));
 }
 
-@media (max-width: 560px) {
-  .brand-header h1 {
-    animation: none;
-    background-position: 50% 50%;
-  }
-}
-
 @keyframes brand-shimmer {
   0%, 100% { background-position: 0% 50%; }
   50%      { background-position: 100% 50%; }
@@ -5029,11 +4998,12 @@ button,
   padding: 0.5rem 1rem;
 }
 
+/* Clash Animation Container */
 .hero-clash-container {
   position: relative;
   width: 100%;
-  max-width: 380px;
-  height: 110px;
+  max-width: 400px;
+  height: 120px;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -5042,39 +5012,40 @@ button,
 
 .hero-banner-container--compact .hero-clash-container {
   height: 70px;
-  max-width: 260px;
+  max-width: 280px;
 }
 
 .hero-symbol {
   font-family: 'Orbitron', system-ui, sans-serif;
-  font-size: 5rem;
+  font-size: 5.5rem;
   font-weight: 900;
   position: absolute;
   top: 50%;
+  transform: translateY(-50%);
   line-height: 1;
-  animation-duration: 2.6s;
+  animation-duration: 3s;
   animation-iteration-count: infinite;
-  animation-timing-function: cubic-bezier(0.25, 1, 0.5, 1);
+  animation-timing-function: ease-in-out;
 }
 
 .hero-banner-container--compact .hero-symbol {
-  font-size: 3rem;
+  font-size: 3.2rem;
 }
 
 .hero-symbol-x {
   color: #8cf2ff;
   text-shadow: 0 0 10px #8cf2ff, 0 0 20px #8cf2ff, 0 0 40px #8cf2ff;
-  right: 50%;
-  left: auto;
-  animation-name: hero-clash-x;
+  animation-name: hero-slide-right;
+  left: 15%;
+  right: auto;
 }
 
 .hero-symbol-o {
   color: #ff8fc5;
   text-shadow: 0 0 10px #ff8fc5, 0 0 20px #ff8fc5, 0 0 40px #ff8fc5;
-  left: 50%;
-  right: auto;
-  animation-name: hero-clash-o;
+  animation-name: hero-slide-left;
+  right: 15%;
+  left: auto;
 }
 
 .hero-clash-glow {
@@ -5088,7 +5059,7 @@ button,
   background: #ffffff;
   box-shadow: 0 0 30px 20px rgba(255, 255, 255, 0.9), 0 0 60px 40px #c084fc;
   opacity: 0;
-  animation: hero-glow-burst 2.6s infinite cubic-bezier(0.25, 1, 0.5, 1);
+  animation: hero-glow-burst 3s infinite ease-in-out;
   z-index: 0;
 }
 
@@ -5102,31 +5073,24 @@ button,
   z-index: 1;
 }
 
-@keyframes hero-clash-x {
-  0% { transform: translateY(-50%) translateX(-65px) scale(1); opacity: 0.85; }
-  35% { transform: translateY(-50%) translateX(-55px) scale(1.02); opacity: 0.95; }
-  47% { transform: translateY(-50%) translateX(-6px) scale(1.15); opacity: 1; }
-  50% { transform: translateY(-50%) translateX(0px) scale(1.22); opacity: 1; }
-  55% { transform: translateY(-50%) translateX(-18px) scale(1.08); opacity: 0.95; }
-  70% { transform: translateY(-50%) translateX(-50px) scale(1); opacity: 0.85; }
-  100% { transform: translateY(-50%) translateX(-65px) scale(1); opacity: 0.85; }
+@keyframes hero-slide-right {
+  0%, 100% { transform: translateY(-50%) translateX(0) scale(1); opacity: 0.8; }
+  40% { transform: translateY(-50%) translateX(70px) scale(1.1); opacity: 1; }
+  50% { transform: translateY(-50%) translateX(95px) scale(1.2); opacity: 1; }
+  60% { transform: translateY(-50%) translateX(70px) scale(1.1); opacity: 1; }
 }
 
-@keyframes hero-clash-o {
-  0% { transform: translateY(-50%) translateX(65px) scale(1); opacity: 0.85; }
-  35% { transform: translateY(-50%) translateX(55px) scale(1.02); opacity: 0.95; }
-  47% { transform: translateY(-50%) translateX(6px) scale(1.15); opacity: 1; }
-  50% { transform: translateY(-50%) translateX(0px) scale(1.22); opacity: 1; }
-  55% { transform: translateY(-50%) translateX(18px) scale(1.08); opacity: 0.95; }
-  70% { transform: translateY(-50%) translateX(50px) scale(1); opacity: 0.85; }
-  100% { transform: translateY(-50%) translateX(65px) scale(1); opacity: 0.85; }
+@keyframes hero-slide-left {
+  0%, 100% { transform: translateY(-50%) translateX(0) scale(1); opacity: 0.8; }
+  40% { transform: translateY(-50%) translateX(-70px) scale(1.1); opacity: 1; }
+  50% { transform: translateY(-50%) translateX(-95px) scale(1.2); opacity: 1; }
+  60% { transform: translateY(-50%) translateX(-70px) scale(1.1); opacity: 1; }
 }
 
 @keyframes hero-glow-burst {
-  0%, 42%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+  0%, 45%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
   50% { opacity: 1; transform: translate(-50%, -50%) scale(2.2); }
-  56% { opacity: 0.5; transform: translate(-50%, -50%) scale(1.4); }
-  68% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+  60% { opacity: 0.6; transform: translate(-50%, -50%) scale(1.5); }
 }
 
 /* Interactive Power Section in Setup */
@@ -7234,7 +7198,8 @@ button,
               background 180ms ease;
 }
 
-.viral-mode-card--daily {
+.viral-mode-card--daily,
+.viral-mode-card--span-2 {
   grid-column: span 2;
 }
 
@@ -7319,6 +7284,7 @@ button,
 
 .viral-card-content {
   flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
 }
@@ -7326,10 +7292,20 @@ button,
 .viral-card-content h3 {
   margin: 0;
   font-family: 'Orbitron', system-ui, sans-serif;
-  font-size: 14.5px;
+  font-size: clamp(12px, 1.4vw, 14px);
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
+  line-height: 1.18;
+  white-space: normal;
+  word-break: normal;
   color: #f1f5f9;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+/* 2 sütunlu kartlarda oku gizle, metin ferahça ve tam okunsun, asla üç nokta çıkmasın */
+.viral-mode-card:not(.viral-mode-card--daily):not(.viral-mode-card--span-2) .viral-card-arrow {
+  display: none;
 }
 
 .viral-card-arrow {
@@ -9455,42 +9431,36 @@ body[data-skin="ice"] .o-mark-square .square-value {
   }
 
   .hero-clash-container {
-    height: clamp(75px, 9vh, 95px);
-    max-width: 300px;
+    height: clamp(80px, 10vh, 105px);
+    max-width: 320px;
   }
 
   .hero-symbol {
-    font-size: clamp(3.4rem, 5vh, 4.2rem);
+    font-size: clamp(3.8rem, 5.5vh, 4.5rem);
   }
 
   .hero-symbol-x {
-    right: 50%;
-    left: auto;
-  }
-
-  .hero-symbol-o {
-    left: 50%;
+    left: 12%;
     right: auto;
   }
 
-  @keyframes hero-clash-x {
-    0% { transform: translateY(-50%) translateX(-52px) scale(1); opacity: 0.85; }
-    35% { transform: translateY(-50%) translateX(-44px) scale(1.02); opacity: 0.95; }
-    47% { transform: translateY(-50%) translateX(-5px) scale(1.14); opacity: 1; }
-    50% { transform: translateY(-50%) translateX(0px) scale(1.2); opacity: 1; }
-    55% { transform: translateY(-50%) translateX(-14px) scale(1.06); opacity: 0.95; }
-    70% { transform: translateY(-50%) translateX(-40px) scale(1); opacity: 0.85; }
-    100% { transform: translateY(-50%) translateX(-52px) scale(1); opacity: 0.85; }
+  .hero-symbol-o {
+    right: 12%;
+    left: auto;
   }
 
-  @keyframes hero-clash-o {
-    0% { transform: translateY(-50%) translateX(52px) scale(1); opacity: 0.85; }
-    35% { transform: translateY(-50%) translateX(44px) scale(1.02); opacity: 0.95; }
-    47% { transform: translateY(-50%) translateX(5px) scale(1.14); opacity: 1; }
-    50% { transform: translateY(-50%) translateX(0px) scale(1.2); opacity: 1; }
-    55% { transform: translateY(-50%) translateX(14px) scale(1.06); opacity: 0.95; }
-    70% { transform: translateY(-50%) translateX(40px) scale(1); opacity: 0.85; }
-    100% { transform: translateY(-50%) translateX(52px) scale(1); opacity: 0.85; }
+  @keyframes hero-slide-right {
+    0%, 100% { transform: translateY(-50%) translateX(0) scale(1); opacity: 0.8; }
+    40% { transform: translateY(-50%) translateX(50px) scale(1.1); opacity: 1; }
+    50% { transform: translateY(-50%) translateX(72px) scale(1.2); opacity: 1; }
+    60% { transform: translateY(-50%) translateX(50px) scale(1.1); opacity: 1; }
+  }
+
+  @keyframes hero-slide-left {
+    0%, 100% { transform: translateY(-50%) translateX(0) scale(1); opacity: 0.8; }
+    40% { transform: translateY(-50%) translateX(-50px) scale(1.1); opacity: 1; }
+    50% { transform: translateY(-50%) translateX(-72px) scale(1.2); opacity: 1; }
+    60% { transform: translateY(-50%) translateX(-50px) scale(1.1); opacity: 1; }
   }
 
   .quick-play-button {
@@ -9545,12 +9515,12 @@ body[data-skin="ice"] .o-mark-square .square-value {
 
   .viral-card-content h3 {
     font-family: 'Orbitron', system-ui, sans-serif;
-    font-size: clamp(10.2px, 2.75vw, 11.8px);
-    font-weight: 700;
-    letter-spacing: -0.01em;
+    font-size: clamp(10.5px, 2.7vw, 12px);
+    font-weight: 800;
+    letter-spacing: 0;
     white-space: normal;
     word-break: normal;
-    line-height: 1.15;
+    line-height: 1.18;
     color: #f1f5f9;
     margin: 0;
     overflow: visible;
@@ -9558,17 +9528,19 @@ body[data-skin="ice"] .o-mark-square .square-value {
   }
 
   /* 2 sütunlu kartlarda oku gizle, metin ferahça ve tam okunsun */
-  .viral-mode-card:not(.viral-mode-card--daily) .viral-card-arrow {
+  .viral-mode-card:not(.viral-mode-card--daily):not(.viral-mode-card--span-2) .viral-card-arrow {
     display: none;
   }
 
-  .viral-mode-card--daily {
+  .viral-mode-card--daily,
+  .viral-mode-card--span-2 {
     grid-column: span 2;
     min-height: clamp(44px, 5.8vh, 50px);
     padding: 8px 14px;
   }
 
-  .viral-mode-card--daily .viral-card-arrow {
+  .viral-mode-card--daily .viral-card-arrow,
+  .viral-mode-card--span-2 .viral-card-arrow {
     display: block;
     font-size: 13px;
     flex-shrink: 0;
