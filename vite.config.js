@@ -39,9 +39,11 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', 'VITE_')
   const base = env.VITE_BASE_PATH?.trim() || '/'
   const apiOrigin = getApiOrigin(env.VITE_API_BASE_URL?.trim())
+  const wsOrigin = apiOrigin ? apiOrigin.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:') : null
   const connectSources = [
     "'self'",
     apiOrigin,
+    wsOrigin,
     'https://*.crazygames.com',
     'https://games.crazygames.com',
     'https://pagead2.googlesyndication.com',

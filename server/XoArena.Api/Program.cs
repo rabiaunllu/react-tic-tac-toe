@@ -27,28 +27,14 @@ builder.Services.AddCors(options =>
         // SECURITY FIX (VULN-07): Wildcard origin cannot be combined with AllowCredentials.
         // If no origins are configured (dev/default), allow localhost origins explicitly.
         // In production, origins MUST be explicitly configured — wildcard is rejected.
-        if (allowedOrigins.Length > 0)
-        {
-            // Reject wildcards at runtime — combining "*" with AllowCredentials throws an exception.
-            var safeOrigins = allowedOrigins
-                .Where(o => o != "*")
-                .ToArray();
+        var devOrigins = new[] { "http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:5173" };
+        var safeOrigins = allowedOrigins
+            .Where(o => o != "*")
+            .Concat(devOrigins)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
 
-            if (safeOrigins.Length > 0)
-            {
-                policy.WithOrigins(safeOrigins);
-            }
-            else
-            {
-                // All origins were wildcards — fall back to safe localhost defaults
-                policy.WithOrigins("http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:5173");
-            }
-        }
-        else
-        {
-            // No origins configured: allow standard localhost dev ports
-            policy.WithOrigins("http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:5173");
-        }
+        policy.WithOrigins(safeOrigins);
 
         policy
             .AllowAnyHeader()
