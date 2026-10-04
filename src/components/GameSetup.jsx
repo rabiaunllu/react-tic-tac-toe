@@ -23,25 +23,12 @@ import {
   sanitizeDailyChallenge,
 } from '../services/storageService'
 
-function getDailyStatus() {
+function getDailyStreak() {
   try {
-    const now = new Date()
-    const today = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0')
     const data = sanitizeDailyChallenge(safeGetItem(STORAGE_KEYS.DAILY, {}))
-    const isCompleted = data.lastCompleted === today || Boolean(data.history?.[today]?.completed)
-    return { isCompleted, streak: data.streak || 0 }
+    return data.streak || 0
   } catch {
-    return { isCompleted: false, streak: 0 }
-  }
-}
-
-function getCampaignStatus() {
-  try {
-    const data = sanitizeCampaignProgress(safeGetItem(STORAGE_KEYS.CAMPAIGN, {}))
-    const count = Object.keys(data.completedLevels || {}).length
-    return { completedCount: count }
-  } catch {
-    return { completedCount: 0 }
+    return 0
   }
 }
 
@@ -194,8 +181,7 @@ export default function GameSetup({
   const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000
   const [nowTimestamp, setNowTimestamp] = useState(() => Date.now())
 
-  const [dailyStatus, setDailyStatus] = useState(getDailyStatus)
-  const [campaignStatus, setCampaignStatus] = useState(getCampaignStatus)
+  const [dailyStreak, setDailyStreak] = useState(getDailyStreak)
 
   // Skin / Cosmetic state
   const [selectedSkin, setSelectedSkin] = useState(() => {
@@ -221,8 +207,7 @@ export default function GameSetup({
   // Multi-tab real-time synchronization
   useEffect(() => {
     const handleStorage = () => {
-      setDailyStatus(getDailyStatus())
-      setCampaignStatus(getCampaignStatus())
+      setDailyStreak(getDailyStreak())
       const savedSkins = safeGetItem(STORAGE_KEYS.SKINS, { neon: true })
       setUnlockedSkins(savedSkins)
       const currentSkin = safeGetItem(STORAGE_KEYS.ACTIVE_SKIN, 'neon')
@@ -872,7 +857,6 @@ export default function GameSetup({
             <div className="viral-card-icon">🤖</div>
             <div className="viral-card-content">
               <h3>{t('setup.modes.ai')}</h3>
-              <p>{t('setup.modes.aiDesc')}</p>
             </div>
             <div className="viral-card-arrow">→</div>
           </button>
@@ -885,7 +869,6 @@ export default function GameSetup({
             <div className="viral-card-icon">👥</div>
             <div className="viral-card-content">
               <h3>{t('setup.modes.human')}</h3>
-              <p>{t('setup.modes.humanDesc')}</p>
             </div>
             <div className="viral-card-arrow">→</div>
           </button>
@@ -904,11 +887,6 @@ export default function GameSetup({
             <div className="viral-card-icon">🌐</div>
             <div className="viral-card-content">
               <h3>{t('setup.modes.online')}</h3>
-              <p>
-                {!IS_ONLINE_ENABLED
-                  ? (isTr ? 'Online mod yeni güncellemeyle açılacak' : 'Online multiplayer coming in next update')
-                  : t('setup.modes.onlineDesc')}
-              </p>
             </div>
             <div className="viral-card-arrow">→</div>
           </button>
@@ -922,13 +900,9 @@ export default function GameSetup({
               setActiveModal('campaign_modal')
             }}
           >
-            <div className="viral-card-badge viral-card-badge--campaign">
-              {campaignStatus.completedCount > 0 ? `${campaignStatus.completedCount}/30 ${isTr ? 'BÖLÜM' : 'LEVELS'}` : (isTr ? '30 BULMACA' : '30 PUZZLES')}
-            </div>
             <div className="viral-card-icon">🧩</div>
             <div className="viral-card-content">
               <h3>{isTr ? 'Bulmaca Seferi' : 'Puzzle Quest'}</h3>
-              <p>{isTr ? '30 taktik bulmacayı çöz, ustalığını kanıtla' : 'Solve 30 tactical puzzles and prove your mastery'}</p>
             </div>
             <div className="viral-card-arrow">→</div>
           </button>
@@ -942,17 +916,18 @@ export default function GameSetup({
               setActiveModal('daily_modal')
             }}
           >
-            <div className={`viral-card-badge viral-card-badge--daily ${dailyStatus.isCompleted ? 'is-completed' : ''}`}>
-              {dailyStatus.isCompleted
-                ? `✓ ${isTr ? 'TAMAMLANDI' : 'DONE'}${dailyStatus.streak > 0 ? ` · 🔥 ${dailyStatus.streak}` : ''}`
-                : `⚡ ${isTr ? 'GÖREV HAZIR' : 'NEW MISSION'}${dailyStatus.streak > 0 ? ` · 🔥 ${dailyStatus.streak}` : ''}`}
-            </div>
             <div className="viral-card-icon">📅</div>
             <div className="viral-card-content">
               <h3>{isTr ? 'Günlük Görev' : 'Daily Challenge'}</h3>
-              <p>{isTr ? 'Her gün yeni bulmaca, seri bonusları' : 'New puzzle daily, streak bonuses'}</p>
             </div>
-            <div className="viral-card-arrow">→</div>
+            <div className="viral-card-actions-right">
+              {dailyStreak > 0 && (
+                <span className="daily-streak-badge">
+                  🔥 {dailyStreak}
+                </span>
+              )}
+              <span className="viral-card-arrow">→</span>
+            </div>
           </button>
 
         </div>
@@ -1004,7 +979,7 @@ export default function GameSetup({
                 {opponentType === 'ai' ? '🤖' : '👥'}
               </span>
               <h2>{opponentType === 'ai' ? t('setup.modes.ai') : t('setup.modes.human')}</h2>
-              <p>{t('setup.settingsModal.subtitle')}</p>
+              <p>{opponentType === 'ai' ? t('setup.modes.aiDesc') : t('setup.modes.humanDesc')}</p>
             </div>
 
             <div className="setup-group">
@@ -1284,7 +1259,7 @@ export default function GameSetup({
             <div className="viral-modal-header">
               <span className="viral-modal-icon">🌐</span>
               <h2>{t('setup.onlineModal.title')}</h2>
-              <p>{t('setup.onlineModal.subtitle')}</p>
+              <p>{t('setup.modes.onlineDesc')}</p>
             </div>
 
             <div className="online-lobby-panel">

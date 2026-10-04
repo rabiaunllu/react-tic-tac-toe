@@ -503,16 +503,8 @@ export default function App() {
         ? (isTr ? '🏆 Maçı Kazandı' : '🏆 Match Winner')
         : (isTr ? 'Maç Bitti' : 'Match Ended')
     }
-    if (effectiveWinner) {
-      return effectiveWinner === p1Symbol
-        ? (isTr ? '🎉 Turu Kazandı' : '🎉 Round Winner')
-        : (isTr ? 'Tur Bitti' : 'Round Ended')
-    }
-    if (isDraw) {
-      return isTr ? '🤝 Berabere' : '🤝 Draw'
-    }
     return undefined
-  }, [isGameOver, isMissionMode, effectiveWinner, humanSymbol, matchWinner, player1Name, aiSymbol, player2Name, isDraw, isTr, p1Symbol])
+  }, [isGameOver, isMissionMode, effectiveWinner, humanSymbol, matchWinner, player1Name, aiSymbol, player2Name, isDraw, isTr])
 
   const p2GameOverStatus = useMemo(() => {
     if (!isGameOver) return undefined
@@ -532,16 +524,8 @@ export default function App() {
         ? (isTr ? '🏆 Maçı Kazandı' : '🏆 Match Winner')
         : (isTr ? 'Maç Bitti' : 'Match Ended')
     }
-    if (effectiveWinner) {
-      return effectiveWinner === p2Symbol
-        ? (isTr ? '🎉 Turu Kazandı' : '🎉 Round Winner')
-        : (isTr ? 'Tur Bitti' : 'Round Ended')
-    }
-    if (isDraw) {
-      return isTr ? '🤝 Berabere' : '🤝 Draw'
-    }
     return undefined
-  }, [isGameOver, isMissionMode, effectiveWinner, aiSymbol, matchWinner, player2Name, humanSymbol, player1Name, isDraw, isTr, p2Symbol])
+  }, [isGameOver, isMissionMode, effectiveWinner, aiSymbol, matchWinner, player2Name, humanSymbol, player1Name, isDraw, isTr])
 
   // ── Quick Emote Callbacks ──────────────────────────────────────────────────
   const handleSendEmote = useCallback((emoteId) => {
@@ -2749,13 +2733,10 @@ export default function App() {
   }
 
   return (
-    <main className="app-shell">
-      <section className="game-card">
+    <main className="app-shell app-shell--playing">
+      <section className="game-card game-card--playing">
         <header className="game-header brand-header">
           <h1>XO TACTIX</h1>
-          {!isMissionMode && (
-            <p>{t('setup.slogan') || (isTr ? 'Taşını koy. Gücünü kullan. Rövanşı al.' : 'Place your mark. Unleash powers. Claim revenge.')}</p>
-          )}
           <div className="match-chip-row" aria-label={t('common.matchInfo') || (isTr ? 'Maç bilgileri' : 'Match details')}>
             {!isMissionMode && <span className={`match-chip ${gameMode}`}>{modeChip}</span>}
             {!isMissionMode && <span className="match-chip">{targetChip}</span>}
@@ -2844,11 +2825,25 @@ export default function App() {
               setShowScoreResetConfirm(false)
               setShowSetupReturnConfirm(true)
             }}
+            title={t('common.mainMenu')}
+            aria-label={t('common.mainMenu')}
           >
-            {t('common.mainMenu')}
+            <svg className="game-action-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <line x1="4" y1="7" x2="20" y2="7" />
+              <line x1="4" y1="12" x2="20" y2="12" />
+              <line x1="4" y1="17" x2="20" y2="17" />
+            </svg>
           </button>
-          <button className="score-reset-button" onClick={handleRequestScoreReset}>
-            {t('common.restart')}
+          <button
+            className="score-reset-button"
+            onClick={handleRequestScoreReset}
+            title={t('common.restart')}
+            aria-label={t('common.restart')}
+          >
+            <svg className="game-action-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polyline points="1 4 1 10 7 10" />
+              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+            </svg>
           </button>
           <SoundToggle>
             {gameMode === 'arena' && (
@@ -2864,52 +2859,78 @@ export default function App() {
         </div>
 
         {showSetupReturnConfirm && (
-          <div className="setup-return-confirm" role="alertdialog" aria-modal="true">
-            <strong>{t('modals.confirmMenuTitle')}</strong>
-            <p>{t('modals.confirmMenuDesc')}</p>
+          <div
+            className="confirm-modal-overlay"
+            role="presentation"
+            onClick={() => {
+              registerUserGesture()
+              playSound('click')
+              setShowSetupReturnConfirm(false)
+            }}
+          >
+            <div
+              className="setup-return-confirm"
+              role="alertdialog"
+              aria-modal="true"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <strong>{t('modals.confirmMenuTitle')}</strong>
+              <p>{t('modals.confirmMenuDesc')}</p>
 
-            <div className="setup-return-actions">
-              <button
-                type="button"
-                onClick={() => {
-                  registerUserGesture()
-                  playSound('click')
-                  setShowSetupReturnConfirm(false)
-                }}
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                type="button"
-                className="danger-action"
-                onClick={() => {
-                  registerUserGesture()
-                  playSound('click')
-                  handleResultMenu()
-                }}
-              >
-                {t('modals.confirmMenuAction')}
-              </button>
+              <div className="setup-return-actions">
+                <button
+                  type="button"
+                  onClick={() => {
+                    registerUserGesture()
+                    playSound('click')
+                    setShowSetupReturnConfirm(false)
+                  }}
+                >
+                  {t('common.cancel')}
+                </button>
+                <button
+                  type="button"
+                  className="danger-action"
+                  onClick={() => {
+                    registerUserGesture()
+                    playSound('click')
+                    handleResultMenu()
+                  }}
+                >
+                  {t('modals.confirmMenuAction')}
+                </button>
+              </div>
             </div>
           </div>
         )}
 
         {showScoreResetConfirm && (
-          <div className="setup-return-confirm" role="alertdialog" aria-modal="true">
-            <strong>{t('modals.confirmRestartTitle')}</strong>
-            <p>{t('modals.confirmRestartDesc')}</p>
+          <div
+            className="confirm-modal-overlay"
+            role="presentation"
+            onClick={handleCancelScoreReset}
+          >
+            <div
+              className="setup-return-confirm"
+              role="alertdialog"
+              aria-modal="true"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <strong>{t('modals.confirmRestartTitle')}</strong>
+              <p>{t('modals.confirmRestartDesc')}</p>
 
-            <div className="setup-return-actions">
-              <button type="button" onClick={handleCancelScoreReset}>
-                {t('common.cancel')}
-              </button>
-              <button
-                type="button"
-                className="danger-action"
-                onClick={handleConfirmScoreReset}
-              >
-                {t('modals.confirmRestartAction')}
-              </button>
+              <div className="setup-return-actions">
+                <button type="button" onClick={handleCancelScoreReset}>
+                  {t('common.cancel')}
+                </button>
+                <button
+                  type="button"
+                  className="danger-action"
+                  onClick={handleConfirmScoreReset}
+                >
+                  {t('modals.confirmRestartAction')}
+                </button>
+              </div>
             </div>
           </div>
         )}

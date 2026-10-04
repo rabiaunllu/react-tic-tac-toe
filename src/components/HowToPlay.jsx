@@ -3,20 +3,6 @@ import { createPortal } from 'react-dom'
 import { useTranslation } from '../i18n'
 import PowerSimulation from './PowerSimulation'
 
-const fallbackGameConfig = {
-  boardSize: 3,
-  winLength: 3,
-  targetValue: 5,
-  isInfinite: false,
-  opponentType: 'human',
-}
-
-const fallbackArenaSettings = {
-  powersEnabled: true,
-  multipliersEnabled: true,
-  boostMode: 'random',
-}
-
 function RuleItem({ icon, title, children }) {
   return (
     <div className="accordion-rule-item">
@@ -42,12 +28,7 @@ function QuickReferencePower({ icon, title, description }) {
   )
 }
 
-export default function HowToPlay({
-  gameConfig = fallbackGameConfig,
-  gameMode = gameConfig.gameMode ?? 'classic',
-  arenaSettings = fallbackArenaSettings,
-  onClose,
-}) {
+export default function HowToPlay({ onClose }) {
   const { t, language } = useTranslation()
   const isTr = language === 'tr'
   const [openSection, setOpenSection] = useState(null)
@@ -142,13 +123,6 @@ export default function HowToPlay({
           <RuleItem icon="✨" title={t('rules.tactics.tip3Title')}>
             {t('rules.tactics.tip3Desc')}
           </RuleItem>
-          {gameMode === 'arena' && (
-            <div className="how-to-play-state-line">
-              {isTr
-                ? `Çarpanlar: ${arenaSettings.multipliersEnabled ? 'Açık' : 'Kapalı'} · Güçler: ${arenaSettings.powersEnabled ? 'Açık' : 'Kapalı'}`
-                : `Multipliers: ${arenaSettings.multipliersEnabled ? 'ON' : 'OFF'} · Powers: ${arenaSettings.powersEnabled ? 'ON' : 'OFF'}`}
-            </div>
-          )}
         </>
       ),
     },
@@ -206,8 +180,14 @@ export default function HowToPlay({
             <h2 id="how-to-play-title">{t('rules.title')}</h2>
           </div>
 
-          <button type="button" className="panel-close-button" onClick={onClose}>
-            {t('common.close')}
+          <button
+            type="button"
+            className="panel-close-button"
+            onClick={onClose}
+            aria-label={t('common.close')}
+            title={t('common.close')}
+          >
+            ×
           </button>
         </div>
 

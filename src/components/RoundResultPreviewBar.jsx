@@ -7,37 +7,29 @@ const RoundResultPreviewBar = memo(function RoundResultPreviewBar({
   nextRoundLabel,
   isNextRoundDisabled = false,
   nextRoundTitle,
-  statusMessage,
 }) {
   const { t } = useTranslation()
   const resolvedLabel = nextRoundLabel ?? t('game.nextRound')
 
-  return (
-    <section
-      className={`round-result-preview${statusMessage ? '' : ' round-result-preview--action-only'}`}
-      aria-live="polite"
-    >
-      {statusMessage && (
-        <div className="round-result-preview-copy">
-          <small>{statusMessage}</small>
-        </div>
-      )}
+  if (!onNextRound) return null
 
-      {onNextRound && (
-        <button
-          type="button"
-          onClick={() => {
-            registerUserGesture()
-            playSound('click')
-            onNextRound()
-          }}
-          disabled={isNextRoundDisabled}
-          title={nextRoundTitle}
-        >
-          {resolvedLabel}
-        </button>
-      )}
-    </section>
+  return (
+    <aside className="round-result-preview round-result-preview-floating" aria-live="polite">
+      <button
+        type="button"
+        className="round-result-preview-cta"
+        onClick={() => {
+          registerUserGesture()
+          playSound('click')
+          onNextRound()
+        }}
+        disabled={isNextRoundDisabled}
+        title={nextRoundTitle}
+      >
+        <span>{resolvedLabel}</span>
+        {!resolvedLabel.includes('➔') && <span aria-hidden="true">➔</span>}
+      </button>
+    </aside>
   )
 })
 

@@ -58,18 +58,13 @@ export default function ArenaSettings({
 
   return (
     <section className="arena-settings" aria-label={t('arenaSettings.title')}>
-      <div>
-        <h2>{t('arenaSettings.title')}</h2>
-        <p>{t('arenaSettings.desc')}</p>
+      <div className="arena-settings-header">
+        <span className="settings-section-label">⚡ {t('arenaSettings.title')}</span>
       </div>
 
       <div className="arena-setting-list">
         <label className="arena-setting">
-          <span>
-            <strong>{t('arenaSettings.powersTitle')}</strong>
-            <small>{t('arenaSettings.powersDesc')}</small>
-          </span>
-
+          <span className="arena-setting-name">{t('arenaSettings.powersTitle')}</span>
           <input
             type="checkbox"
             checked={settings.powersEnabled}
@@ -78,11 +73,7 @@ export default function ArenaSettings({
         </label>
 
         <label className="arena-setting">
-          <span>
-            <strong>{t('arenaSettings.multipliersTitle')}</strong>
-            <small>{t('arenaSettings.multipliersDesc')}</small>
-          </span>
-
+          <span className="arena-setting-name">{t('arenaSettings.multipliersTitle')}</span>
           <input
             type="checkbox"
             checked={settings.multipliersEnabled}
@@ -90,8 +81,6 @@ export default function ArenaSettings({
           />
         </label>
 
-        {/* BoostModeSetting: Boost arka planda hazır, şimdilik UI'da gösterilmiyor */}
-        
         {pendingSettings && (
           <div className="settings-confirm-panel">
             <p>{t('arenaSettings.resetConfirm')}</p>
@@ -110,16 +99,6 @@ export default function ArenaSettings({
           </div>
         )}
       </div>
-
-      {settings.multipliersEnabled && (
-        <div className="score-info-box">
-          <strong>{t('arenaSettings.howScoringWorks')}</strong>
-          <p>{t('arenaSettings.scoringExplanation')}</p>
-          <p className="score-example">
-            {t('arenaSettings.scoringExample')}
-          </p>
-        </div>
-      )}
     </section>
   )
 }

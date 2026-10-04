@@ -832,11 +832,10 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
   }
 
   return (
-    <main className="app-shell">
-      <section className="game-card online-game-card">
+    <main className="app-shell app-shell--playing">
+      <section className="game-card online-game-card game-card--playing">
         <header className="game-header brand-header">
           <h1>XO TACTIX</h1>
-          <p>{t('setup.slogan')}</p>
           <div className="match-chip-row" aria-label={t('common.matchInfo')}>
             <span className={`match-chip ${room.gameMode}`}>{room.gameMode === 'arena' ? 'ARENA' : (isTr ? 'KLASİK' : 'CLASSIC')}</span>
             <span className="match-chip">{room.targetValue} {isArena ? (isTr ? 'PUAN' : 'PTS') : (isTr ? 'TUR' : 'ROUNDS')}</span>
@@ -861,28 +860,43 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
         </div>
 
         {isMenuConfirmOpen && (
-          <div className="setup-return-confirm" role="alertdialog" aria-modal="true">
-            <strong>{t('modals.confirmMenuTitle')}</strong>
-            <p>{isTr ? 'Odadan ayrılacaksın ve maç sonlandırılacak.' : 'You will leave the room and forfeit the match.'}</p>
+          <div
+            className="confirm-modal-overlay"
+            role="presentation"
+            onClick={() => {
+              registerUserGesture()
+              playSound('click')
+              setIsMenuConfirmOpen(false)
+            }}
+          >
+            <div
+              className="setup-return-confirm"
+              role="alertdialog"
+              aria-modal="true"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <strong>{t('modals.confirmMenuTitle')}</strong>
+              <p>{isTr ? 'Odadan ayrılacaksın ve maç sonlandırılacak.' : 'You will leave the room and forfeit the match.'}</p>
 
-            <div className="setup-return-actions">
-              <button
-                type="button"
-                onClick={() => {
-                  registerUserGesture()
-                  playSound('click')
-                  setIsMenuConfirmOpen(false)
-                }}
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                type="button"
-                className="danger-action"
-                onClick={handleOnlineMenuWithLeave}
-              >
-                {t('modals.confirmMenuAction')}
-              </button>
+              <div className="setup-return-actions">
+                <button
+                  type="button"
+                  onClick={() => {
+                    registerUserGesture()
+                    playSound('click')
+                    setIsMenuConfirmOpen(false)
+                  }}
+                >
+                  {t('common.cancel')}
+                </button>
+                <button
+                  type="button"
+                  className="danger-action"
+                  onClick={handleOnlineMenuWithLeave}
+                >
+                  {t('modals.confirmMenuAction')}
+                </button>
+              </div>
             </div>
           </div>
         )}

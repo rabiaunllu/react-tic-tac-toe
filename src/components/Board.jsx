@@ -77,7 +77,7 @@ const Board = memo(function Board({
     <div
       className={`board board-size-${safeBoardSize}${shakeClass ? ` ${shakeClass}` : ''}${
         isAiThinking ? ' board-ai-thinking' : ''
-      }`}
+      }${activePower ? ` board-targeting-${activePower}` : ''}`}
       style={activePowerColor ? { '--current-power-color': activePowerColor } : undefined}
     >
       {/* D3: Dynamic Turn Bridge — Sırası gelen oyuncunun panel yönünde ve sembol renginde parlar */}
@@ -119,6 +119,7 @@ const Board = memo(function Board({
             isVampireTarget={isVampireTarget}
             isPowerTargeting={isPowerTargeting}
             isPowerTarget={isPowerTarget}
+            activePower={activePower}
             powerTargetLabel={powerTargetLabel}
             isLastPlaced={index === lastPlacedIndex}
             onSquareClick={handleStableSquareClick}

@@ -60,6 +60,7 @@ export default function Campaign({ onPlayLevel, onBack, language }) {
     (sum, lvl) => sum + (lvl.stars || 0),
     0
   );
+  const completedLevelsCount = Object.keys(campaignProgress.completedLevels || {}).length;
 
   const isLevelUnlocked = (levelId) => {
     return isCampaignLevelUnlocked(levelId, campaignProgress);
@@ -108,13 +109,17 @@ export default function Campaign({ onPlayLevel, onBack, language }) {
           </div>
 
           <div className="campaign-stats-group">
-            <div className="campaign-stat-pill xp-pill" title={t('Account Rank (Earned with XP)', 'Hesap Rütbesi (Kazanılan TP ile artar)')}>
-              <span className="pill-icon">⚡</span>
-              <span className="pill-val">{isTr ? `RÜTBE ${xpLevel}` : `RANK ${xpLevel}`}</span>
+            <div className="campaign-stat-pill level-pill" title={t(`Completed: ${completedLevelsCount} / 30 Levels`, `Tamamlanan: ${completedLevelsCount} / 30 Bölüm`)}>
+              <span className="pill-icon">🧩</span>
+              <span className="pill-val">{completedLevelsCount} / 30</span>
             </div>
-            <div className="campaign-stat-pill star-pill" title={t('Total Stars Collected', 'Kazanılan Yıldızlar')}>
+            <div className="campaign-stat-pill star-pill" title={t(`Total Stars: ${collectedStars} / ${totalPossibleStars}`, `Kazanılan Yıldızlar: ${collectedStars} / ${totalPossibleStars}`)}>
               <span className="pill-icon">⭐</span>
               <span className="pill-val">{collectedStars} / {totalPossibleStars}</span>
+            </div>
+            <div className="campaign-stat-pill xp-pill" title={t(`Account Rank: ${xpLevel}`, `Hesap Rütbesi: ${xpLevel}`)}>
+              <span className="pill-icon">⚡</span>
+              <span className="pill-val">{isTr ? `RÜTBE ${xpLevel}` : `RANK ${xpLevel}`}</span>
             </div>
           </div>
 
@@ -132,8 +137,8 @@ export default function Campaign({ onPlayLevel, onBack, language }) {
         <div className="campaign-scroll-body">
           <p className="campaign-subtext">
             {t(
-              'Conquer handcrafted puzzle battles, master special powers, and collect stars to level up.',
-              'Özel bulmaca savaşlarını tamamla, güçleri ustalıkla kullan ve seviye atlamak için yıldızları topla.'
+              'Solve 30 tactical puzzles and prove your mastery.',
+              '30 taktik bulmacayı çöz, ustalığını kanıtla.'
             )}
           </p>
 
@@ -373,6 +378,7 @@ export default function Campaign({ onPlayLevel, onBack, language }) {
           overflow: hidden;
           box-sizing: border-box;
           animation: campaignPopUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+          container-type: inline-size;
         }
 
         @keyframes campaignPopUp {
@@ -384,10 +390,17 @@ export default function Campaign({ onPlayLevel, onBack, language }) {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 18px 24px;
+          padding: 16px 22px;
           border-bottom: 1px solid rgba(0, 240, 255, 0.15);
           background: rgba(15, 23, 42, 0.6);
           gap: 12px;
+          flex-shrink: 0;
+          box-sizing: border-box;
+        }
+
+        .campaign-title-block {
+          min-width: 0;
+          flex-shrink: 1;
         }
 
         .campaign-badge {
@@ -398,33 +411,59 @@ export default function Campaign({ onPlayLevel, onBack, language }) {
           color: #a855f7;
           text-transform: uppercase;
           margin-bottom: 2px;
+          white-space: nowrap;
         }
 
         .campaign-main-title {
           margin: 0;
-          font-size: 1.35rem;
+          font-size: 1.3rem;
           font-weight: 800;
           color: #ffffff;
           letter-spacing: 0.5px;
           text-shadow: 0 0 16px rgba(0, 240, 255, 0.4);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
 
         .campaign-stats-group {
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 8px;
           margin-left: auto;
+          flex-shrink: 0;
         }
 
         .campaign-stat-pill {
-          display: flex;
+          display: inline-flex;
           align-items: center;
           gap: 6px;
           padding: 6px 12px;
           border-radius: 999px;
-          font-size: 0.85rem;
+          font-size: 0.82rem;
           font-weight: 700;
           border: 1px solid;
+          white-space: nowrap;
+          flex-shrink: 0;
+          line-height: 1;
+          box-sizing: border-box;
+        }
+
+        .campaign-stat-pill .pill-icon {
+          font-size: 0.9rem;
+          line-height: 1;
+          flex-shrink: 0;
+        }
+
+        .campaign-stat-pill .pill-val {
+          white-space: nowrap;
+          letter-spacing: 0.02em;
+        }
+
+        .level-pill {
+          background: rgba(236, 72, 153, 0.15);
+          border-color: rgba(236, 72, 153, 0.4);
+          color: #f472b6;
         }
 
         .xp-pill {
@@ -831,18 +870,131 @@ export default function Campaign({ onPlayLevel, onBack, language }) {
           transform: translateY(0);
         }
 
-        @media (max-width: 500px) {
+        @container (max-width: 620px) {
           .campaign-top-bar {
-            padding: 14px 16px;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            grid-template-rows: auto auto;
+            row-gap: 10px;
+            column-gap: 8px;
+            padding: 12px 14px;
           }
+
+          .campaign-title-block {
+            grid-column: 1 / 2;
+            grid-row: 1 / 2;
+            min-width: 0;
+          }
+
+          .campaign-badge {
+            font-size: 10px;
+            letter-spacing: 1.2px;
+          }
+
+          .campaign-main-title {
+            font-size: 1.15rem;
+          }
+
+          .campaign-close-btn {
+            grid-column: 2 / 3;
+            grid-row: 1 / 2;
+            align-self: center;
+            width: 32px;
+            height: 32px;
+            font-size: 13px;
+          }
+
+          .campaign-stats-group {
+            grid-column: 1 / -1;
+            grid-row: 2 / 3;
+            margin-left: 0;
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 6px;
+          }
+
+          .campaign-stat-pill {
+            width: 100%;
+            justify-content: center;
+            padding: 6px 4px;
+            font-size: clamp(0.68rem, 2.2vw, 0.78rem);
+            gap: 4px;
+            box-sizing: border-box;
+          }
+
+          .campaign-stat-pill .pill-icon {
+            font-size: 0.8rem;
+          }
+        }
+
+        @media (max-width: 620px) {
+          .campaign-top-bar {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            grid-template-rows: auto auto;
+            row-gap: 10px;
+            column-gap: 8px;
+            padding: 12px 14px;
+          }
+
+          .campaign-title-block {
+            grid-column: 1 / 2;
+            grid-row: 1 / 2;
+            min-width: 0;
+          }
+
+          .campaign-badge {
+            font-size: 10px;
+            letter-spacing: 1.2px;
+          }
+
+          .campaign-main-title {
+            font-size: 1.15rem;
+          }
+
+          .campaign-close-btn {
+            grid-column: 2 / 3;
+            grid-row: 1 / 2;
+            align-self: center;
+            width: 32px;
+            height: 32px;
+            font-size: 13px;
+          }
+
+          .campaign-stats-group {
+            grid-column: 1 / -1;
+            grid-row: 2 / 3;
+            margin-left: 0;
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 6px;
+          }
+
+          .campaign-stat-pill {
+            width: 100%;
+            justify-content: center;
+            padding: 6px 4px;
+            font-size: clamp(0.68rem, 2.2vw, 0.78rem);
+            gap: 4px;
+            box-sizing: border-box;
+          }
+
+          .campaign-stat-pill .pill-icon {
+            font-size: 0.8rem;
+          }
+
           .campaign-scroll-body {
-            padding: 16px;
+            padding: 14px;
           }
+
           .chapter-levels-grid {
             grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
             gap: 8px;
             padding: 10px;
           }
+
           .level-number-display {
             font-size: 1.25rem;
           }

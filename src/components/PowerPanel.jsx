@@ -5,6 +5,25 @@ import { useTranslation } from '../i18n'
 import CrystalSnowflake from './CrystalSnowflake'
 import EnergyShieldIcon from './EnergyShieldIcon'
 
+function getShortPowerSummary(powerId, isTr) {
+  switch (powerId) {
+    case 'bomb':
+      return isTr ? 'Karedeki taşı patlatır' : 'Destroys mark'
+    case 'shield':
+      return isTr ? 'Taşını korur' : 'Protects mark'
+    case 'freeze':
+      return isTr ? 'Kareyi 1 tur dondurur' : 'Freezes cell'
+    case 'trap':
+      return isTr ? 'Gizli tuzak kurar' : 'Sets trap'
+    case 'vampire':
+      return isTr ? 'Çarpanı çeker' : 'Steals multiplier'
+    case 'boost':
+      return isTr ? 'Boş kareye 2x puan ekler' : '+2x cell value'
+    default:
+      return ''
+  }
+}
+
 const PowerPanel = memo(function PowerPanel({
   currentPlayer,
   playerName,
@@ -14,7 +33,6 @@ const PowerPanel = memo(function PowerPanel({
   isActivePlayer = true,
   canInteract = isActivePlayer,
   isPowersEnabled = true,
-  modeLabel,
   powerCounts,
   activePower,
   boostMode,
@@ -37,7 +55,6 @@ const PowerPanel = memo(function PowerPanel({
   const availablePowers = [...basePowers, ...extraPowers.filter((power) => (
     !basePowers.some((basePower) => basePower.id === power.id)
   ))]
-  const selectedPower = availablePowers.find((power) => power.id === activePower)
 
   function renderPowerIcon(power) {
     if (power.id === 'freeze') {
@@ -115,24 +132,9 @@ const PowerPanel = memo(function PowerPanel({
         </div>
       )}
 
-      <div className="power-panel-header">
-        {!isPowersEnabled && modeLabel !== null && <span>{modeLabel ?? t('game.classicMode')}</span>}
-        <small>
-          {statusText ?? (isPowersEnabled
-            ? isActivePlayer
-              ? activePower
-                ? t('game.activePowerHint')
-                : t('game.turnActionHintArena')
-              : t('game.waitActionHintArena')
-            : isActivePlayer
-              ? t('game.turnActionHintClassic')
-              : t('game.waitActionHintClassic'))}
-        </small>
-      </div>
-
-      {isPowersEnabled && canInteract && !hasUsedPowerThisTurn && selectedPower && (
-        <div className="active-power-hint">
-          {renderPowerIcon(selectedPower)} <strong>{t(`powers.${selectedPower.id}.name`) || selectedPower.name}</strong> — {t(`powers.${selectedPower.id}.desc`) || selectedPower.description}
+      {statusText && (
+        <div className="power-panel-status">
+          <small>{statusText}</small>
         </div>
       )}
 
@@ -153,33 +155,30 @@ const PowerPanel = memo(function PowerPanel({
       )}
 
       {isPowersEnabled && (
-        <div className="power-list">
+        <div className={`power-list ${isActivePlayer && activePower ? 'has-active-power' : ''}`}>
           {availablePowers.map((power) => {
             const count = powerCounts[power.id]
             const isActive = canInteract && activePower === power.id
             const isDisabled = !canInteract || count === 0 || hasUsedPowerThisTurn
             const powerName = t(`powers.${power.id}.name`) || power.name
-            const powerDesc = t(`powers.${power.id}.desc`) || power.description
+            const shortHint = getShortPowerSummary(power.id, isTr)
 
             return (
               <button
                 key={power.id}
                 className={`power-button ${isActive ? 'active' : ''}`}
                 disabled={isDisabled}
-                aria-label={`${powerName}: ${powerDesc}`}
-                data-hint={hasUsedPowerThisTurn ? (isTr ? 'Bu tur güç kilitli' : 'Powers locked this turn') : powerDesc}
-                title={
-                  count === 0
-                    ? (isTr ? 'Bu güç bitti.' : 'Power depleted.')
-                    : hasUsedPowerThisTurn
-                      ? (isTr ? 'Bu turda zaten bir güç kullandın. Lütfen taşını koy.' : 'Already used a power this turn. Place a mark.')
-                      : powerDesc
-                }
+                aria-label={`${powerName} (${count}): ${shortHint}`}
+                title={`${powerName} (${count}): ${shortHint}`}
                 onClick={() => handlePowerClick(power.id, isActive)}
               >
                 <span className="power-icon">{renderPowerIcon(power)}</span>
                 <span className="power-name">{powerName}</span>
-                <span className="power-count">{count}</span>
+                {count > 1 ? (
+                  <span className="power-count" aria-hidden="true">x{count}</span>
+                ) : count === 0 ? (
+                  <span className="power-depleted-dot" aria-hidden="true" />
+                ) : null}
               </button>
             )
           })}

@@ -19,6 +19,7 @@ function Square({
   isBombExploding,
   isPowerTargeting,
   isPowerTarget,
+  activePower = null,
   isVampireSource,
   isVampireTarget,
   powerTargetLabel,
@@ -53,8 +54,9 @@ function Square({
     isVampireTarget ? 'vampire-target-square' : '',
     isPowerTargeting ? 'power-targeting-square' : '',
     isPowerTarget ? 'power-target-eligible' : '',
+    isPowerTarget && activePower ? `power-target-${activePower}` : '',
     isPowerTargeting && !isPowerTarget ? 'power-target-ineligible' : '',
-  ].join(' ')
+  ].filter(Boolean).join(' ')
 
   // D4: Floating score — multiplier olan kareye taş konunca puan yukarı uçar
   const scoreGain = isLastPlaced && value ? (multiplier ?? 1) : null
@@ -166,6 +168,7 @@ function areSquarePropsEqual(prev, next) {
     prev.isBombExploding === next.isBombExploding &&
     prev.isPowerTargeting === next.isPowerTargeting &&
     prev.isPowerTarget === next.isPowerTarget &&
+    prev.activePower === next.activePower &&
     prev.isVampireSource === next.isVampireSource &&
     prev.isVampireTarget === next.isVampireTarget &&
     prev.powerTargetLabel === next.powerTargetLabel &&
