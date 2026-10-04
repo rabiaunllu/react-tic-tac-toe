@@ -987,7 +987,7 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
           ))}
         </div>
 
-        <div className={`arena-board-stack ${isArena ? 'online-arena-stack' : 'online-classic-stack'}`}>
+        <div className={`arena-board-stack ${isArena ? 'online-arena-stack arena-board-stack--powers' : 'online-classic-stack arena-board-stack--classic'}`}>
           {isArena ? (
             <>
               <PowerPanel

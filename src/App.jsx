@@ -2976,7 +2976,7 @@ export default function App() {
           ))}
         </div>
 
-        <div className="arena-board-stack">
+        <div className={`arena-board-stack ${powersEnabled ? 'arena-board-stack--powers' : 'arena-board-stack--classic'}`}>
           <PowerPanel
             currentPlayer={p1Symbol}
             playerName={player1Name}
