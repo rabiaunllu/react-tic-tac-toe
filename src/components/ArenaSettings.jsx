@@ -82,9 +82,6 @@ export default function ArenaSettings({
             <span className="cyber-toggle-track">
               <span className="cyber-toggle-thumb" />
             </span>
-            <span className="cyber-toggle-label">
-              {settings.powersEnabled ? (isTr ? 'AÇIK' : 'ON') : (isTr ? 'KAPALI' : 'OFF')}
-            </span>
           </button>
         </div>
 
@@ -105,9 +102,6 @@ export default function ArenaSettings({
           >
             <span className="cyber-toggle-track">
               <span className="cyber-toggle-thumb" />
-            </span>
-            <span className="cyber-toggle-label">
-              {settings.multipliersEnabled ? (isTr ? 'AÇIK' : 'ON') : (isTr ? 'KAPALI' : 'OFF')}
             </span>
           </button>
         </div>

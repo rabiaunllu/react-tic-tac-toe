@@ -6021,10 +6021,10 @@ button,
 .settings-modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 99999;
-  background: rgba(3, 7, 18, 0.82);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  z-index: 999999;
+  background: rgba(3, 7, 18, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -6043,15 +6043,15 @@ button,
   max-width: 440px;
   max-height: min(90vh, 640px);
   background:
-    radial-gradient(ellipse at top left, rgba(56, 189, 248, 0.14), transparent 60%),
-    radial-gradient(ellipse at bottom right, rgba(139, 92, 246, 0.12), transparent 60%),
-    rgba(15, 23, 42, 0.96);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+    radial-gradient(ellipse at top left, rgba(56, 189, 248, 0.16), transparent 60%),
+    radial-gradient(ellipse at bottom right, rgba(139, 92, 246, 0.14), transparent 60%),
+    #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 20px;
   box-shadow:
-    0 24px 60px rgba(0, 0, 0, 0.8),
-    0 0 35px rgba(56, 189, 248, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    0 24px 60px rgba(0, 0, 0, 0.85),
+    0 0 35px rgba(56, 189, 248, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -6179,10 +6179,15 @@ button,
 .cyber-toggle-switch {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  width: 48px;
+  height: 26px;
+  min-width: 48px;
+  min-height: 26px;
   background: transparent;
   border: none;
   padding: 0;
+  margin: 0;
   cursor: pointer;
   flex-shrink: 0;
   user-select: none;
@@ -6227,22 +6232,6 @@ button,
   transform: translateX(22px);
   background: #ffffff;
   box-shadow: 0 0 8px rgba(255, 255, 255, 0.9);
-}
-
-.cyber-toggle-label {
-  font-family: 'Orbitron', system-ui, sans-serif;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  color: #64748b;
-  min-width: 38px;
-  text-align: left;
-  transition: color 0.2s ease;
-}
-
-.cyber-toggle-switch.is-active .cyber-toggle-label {
-  color: #34d399;
-  text-shadow: 0 0 6px rgba(52, 211, 153, 0.5);
 }
 
 /* ── Segmented Language Selector ── */
@@ -7135,6 +7124,16 @@ button,
 
 .viral-hub-card {
   gap: 18px;
+  background:
+    radial-gradient(ellipse 90% 45% at 50% -5%, rgba(56, 189, 248, 0.18), transparent 70%),
+    radial-gradient(ellipse 65% 40% at 100% 100%, rgba(139, 92, 246, 0.14), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 0% 100%, rgba(244, 63, 94, 0.1), transparent 60%),
+    linear-gradient(180deg, rgba(17, 24, 46, 0.96) 0%, rgba(11, 15, 30, 0.98) 100%);
+  border: 1.5px solid rgba(140, 242, 255, 0.22);
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.65),
+    0 0 50px rgba(56, 189, 248, 0.1),
+    inset 0 1px 0 rgba(140, 242, 255, 0.2);
 }
 
 /* ── Quick Play Button ── */
@@ -9066,79 +9065,60 @@ body[data-skin="ice"] .o-mark-square .square-value {
   box-sizing: border-box;
 }
 
-/* 1. In-Game Top HUD Bar (Single Ergonomic Navigation Strip) */
-.game-card--playing .game-hud-header {
+/* 1. Header & Title (Single Line, No Wrap) */
+.game-card--playing .game-header.brand-header {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  gap: 2px;
   margin: 0;
   padding: 0;
   flex-shrink: 0;
 }
 
-.game-hud-bar {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 4px 6px;
-  background: rgba(15, 23, 42, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-  backdrop-filter: blur(8px);
+.game-card--playing .brand-header h1 {
+  font-size: clamp(18px, 3.4vh, 28px);
+  line-height: 1;
+  margin: 0;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
 }
 
-.game-hud-btn {
-  width: 34px;
-  height: 34px;
-  min-width: 34px;
-  min-height: 34px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.05);
-  color: #94a3b8;
-  display: inline-flex;
+/* 2. Match Info Chips (Single Line, No Wrap, No Overflow Push) */
+.game-card--playing .match-chip-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  width: 100%;
+  margin-top: 2px;
+}
+
+.game-card--playing .match-chip-row::-webkit-scrollbar {
+  display: none;
+}
+
+.game-card--playing .match-chip {
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-height: 20px;
+  padding: 2px 7px;
+  font-size: clamp(8.5px, 1.8vw, 10px);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* 3. In-Game Actions Row (Compact) */
+.game-card--playing .game-actions {
+  display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  padding: 0;
-  transition: all 0.18s ease;
-}
-
-.game-hud-btn:hover {
-  background: rgba(56, 189, 248, 0.15);
-  border-color: rgba(56, 189, 248, 0.45);
-  color: #38bdf8;
-  transform: translateY(-1px);
-}
-
-.game-hud-meta {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  min-width: 0;
-  flex: 1;
-}
-
-.game-hud-title {
-  font-family: 'Orbitron', system-ui, sans-serif;
-  font-size: clamp(12px, 2.2vh, 15px);
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  background: linear-gradient(135deg, #38bdf8, #818cf8, #c084fc);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  line-height: 1.1;
-  text-shadow: 0 0 12px rgba(129, 140, 248, 0.35);
-}
-
-.game-hud-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  gap: 8px;
+  margin: 0;
   flex-shrink: 0;
 }
 
