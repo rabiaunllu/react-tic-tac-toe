@@ -7368,15 +7368,16 @@ button,
     gap: 8px;
   }
   .viral-mode-card {
-    padding: 10px 12px;
-    gap: 8px;
-    min-height: 52px;
+    padding: 8px 10px;
+    gap: 7px;
+    min-height: 48px;
   }
   .viral-card-icon {
-    font-size: 20px;
+    font-size: 19px;
   }
   .viral-card-content h3 {
-    font-size: 12.5px;
+    font-size: clamp(9.5px, 2.55vw, 10.8px);
+    letter-spacing: 0;
   }
 }
 
@@ -9500,8 +9501,8 @@ body[data-skin="ice"] .o-mark-square .square-value {
 
   .viral-mode-card {
     min-height: clamp(44px, 5.8vh, 50px);
-    padding: 8px 12px;
-    gap: 8px;
+    padding: 8px clamp(7px, 2vw, 10px);
+    gap: clamp(5px, 1.5vw, 7px);
     display: flex;
     align-items: center;
     border-radius: 12px;
@@ -9509,7 +9510,7 @@ body[data-skin="ice"] .o-mark-square .square-value {
   }
 
   .viral-card-icon {
-    font-size: clamp(18px, 2.4vh, 22px);
+    font-size: clamp(17px, 2.2vh, 20px);
     flex-shrink: 0;
   }
 
@@ -9521,17 +9522,18 @@ body[data-skin="ice"] .o-mark-square .square-value {
 
   .viral-card-content h3 {
     font-family: 'Orbitron', system-ui, sans-serif;
-    font-size: clamp(11px, 1.5vh, 12.5px);
+    font-size: clamp(9.5px, 2.55vw, 10.8px);
     font-weight: 800;
+    letter-spacing: 0;
     white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis;
+    text-overflow: clip;
     line-height: 1.2;
     margin: 0;
   }
 
   .viral-card-arrow {
-    font-size: 14px;
+    font-size: 11px;
     flex-shrink: 0;
     margin-left: auto;
     color: rgba(255, 255, 255, 0.4);
