@@ -13,11 +13,10 @@ const canUseSameOriginApi = Boolean(import.meta.env?.PROD && !hasConfiguredApiBa
 
 export const API_BASE_URL = (
   configuredApiBaseUrl ||
-  (isCrazyGamesHost ? 'https://xotactix.me' : '') ||
   (import.meta.env?.DEV ? DEFAULT_API_BASE_URL : '')
 ).replace(/\/+$/, '')
 export const IS_ONLINE_ENABLED =
-  isOnlineFlagEnabled && (Boolean(import.meta.env?.DEV) || hasConfiguredApiBaseUrl || canUseSameOriginApi || isCrazyGamesHost)
+  isOnlineFlagEnabled && (Boolean(import.meta.env?.DEV) || hasConfiguredApiBaseUrl || canUseSameOriginApi)
 export const ONLINE_UNAVAILABLE_MESSAGE = 'Online mod yakında açılacak.'
 
 export class RoomRequestError extends Error {

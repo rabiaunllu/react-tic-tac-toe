@@ -873,23 +873,19 @@ export default function GameSetup({
             <div className="viral-card-arrow">→</div>
           </button>
 
-          <button
-            type="button"
-            className={`viral-mode-card viral-mode-card--online ${!IS_ONLINE_ENABLED ? 'is-disabled' : ''}`}
-            onClick={() => handleSelectMode('online')}
-            disabled={!IS_ONLINE_ENABLED}
-          >
-            {!IS_ONLINE_ENABLED && (
-              <div className="viral-card-badge viral-card-badge--soon">
-                {isTr ? 'YAKINDA' : 'SOON'}
+          {IS_ONLINE_ENABLED && (
+            <button
+              type="button"
+              className="viral-mode-card viral-mode-card--online"
+              onClick={() => handleSelectMode('online')}
+            >
+              <div className="viral-card-icon">🌐</div>
+              <div className="viral-card-content">
+                <h3>{t('setup.modes.online')}</h3>
               </div>
-            )}
-            <div className="viral-card-icon">🌐</div>
-            <div className="viral-card-content">
-              <h3>{t('setup.modes.online')}</h3>
-            </div>
-            <div className="viral-card-arrow">→</div>
-          </button>
+              <div className="viral-card-arrow">→</div>
+            </button>
+          )}
 
           <button
             type="button"
