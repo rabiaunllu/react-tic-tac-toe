@@ -1613,14 +1613,6 @@ export default function GameSetup({
                 </div>
               )}
             </div>
-
-            {!onlineLobby && (
-              <div className="viral-modal-actions">
-                <button type="button" className="viral-btn-secondary" onClick={closeModal}>
-                  {t('common.close')}
-                </button>
-              </div>
-            )}
           </div>
         </div>
       )}

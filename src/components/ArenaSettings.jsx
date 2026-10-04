@@ -47,8 +47,7 @@ export default function ArenaSettings({
   onConfirmSettingsChange,
   onCancelSettingsChange,
 }) {
-  const { t, language } = useTranslation()
-  const isTr = language === 'tr'
+  const { t } = useTranslation()
 
   function handleToggle(settingName) {
     onSettingsChange({
@@ -69,7 +68,6 @@ export default function ArenaSettings({
             <span className="arena-setting-icon" aria-hidden="true">💣</span>
             <div className="arena-setting-texts">
               <strong>{t('arenaSettings.powersTitle')}</strong>
-              <small>{isTr ? 'Bomba, kalkan, dondurma ve vampir güçleri' : 'Bomb, shield, freeze, and vampire powers'}</small>
             </div>
           </div>
           <button
@@ -90,7 +88,6 @@ export default function ArenaSettings({
             <span className="arena-setting-icon" aria-hidden="true">✖️</span>
             <div className="arena-setting-texts">
               <strong>{t('arenaSettings.multipliersTitle')}</strong>
-              <small>{isTr ? '2x ve 3x çarpan bonuslu kareler' : '2x and 3x score multiplier cells'}</small>
             </div>
           </div>
           <button
