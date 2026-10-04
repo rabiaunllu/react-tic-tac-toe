@@ -86,7 +86,7 @@ const PowerPanel = memo(function PowerPanel({
     <section
       className={`power-panel player-panel player-${currentPlayer.toLowerCase()} ${
         isActivePlayer ? 'active-player' : 'inactive-player'
-      }`}
+      } ${!isPowersEnabled ? 'player-panel--classic' : ''}`}
       aria-label={`${currentPlayer} ${isTr ? 'oyuncusu paneli' : 'player panel'}`}
     >
       <div className="player-panel-topline">

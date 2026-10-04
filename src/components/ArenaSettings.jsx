@@ -47,7 +47,8 @@ export default function ArenaSettings({
   onConfirmSettingsChange,
   onCancelSettingsChange,
 }) {
-  const { t } = useTranslation()
+  const { t, language } = useTranslation()
+  const isTr = language === 'tr'
 
   function handleToggle(settingName) {
     onSettingsChange({
@@ -63,23 +64,53 @@ export default function ArenaSettings({
       </div>
 
       <div className="arena-setting-list">
-        <label className="arena-setting">
-          <span className="arena-setting-name">{t('arenaSettings.powersTitle')}</span>
-          <input
-            type="checkbox"
-            checked={settings.powersEnabled}
-            onChange={() => handleToggle('powersEnabled')}
-          />
-        </label>
+        <div className="arena-setting-card">
+          <div className="arena-setting-info">
+            <span className="arena-setting-icon" aria-hidden="true">💣</span>
+            <div className="arena-setting-texts">
+              <strong>{t('arenaSettings.powersTitle')}</strong>
+              <small>{isTr ? 'Bomba, kalkan, dondurma ve vampir güçleri' : 'Bomb, shield, freeze, and vampire powers'}</small>
+            </div>
+          </div>
+          <button
+            type="button"
+            className={`cyber-toggle-switch ${settings.powersEnabled ? 'is-active' : ''}`}
+            onClick={() => handleToggle('powersEnabled')}
+            aria-pressed={settings.powersEnabled}
+            aria-label={t('arenaSettings.powersTitle')}
+          >
+            <span className="cyber-toggle-track">
+              <span className="cyber-toggle-thumb" />
+            </span>
+            <span className="cyber-toggle-label">
+              {settings.powersEnabled ? (isTr ? 'AÇIK' : 'ON') : (isTr ? 'KAPALI' : 'OFF')}
+            </span>
+          </button>
+        </div>
 
-        <label className="arena-setting">
-          <span className="arena-setting-name">{t('arenaSettings.multipliersTitle')}</span>
-          <input
-            type="checkbox"
-            checked={settings.multipliersEnabled}
-            onChange={() => handleToggle('multipliersEnabled')}
-          />
-        </label>
+        <div className="arena-setting-card">
+          <div className="arena-setting-info">
+            <span className="arena-setting-icon" aria-hidden="true">✖️</span>
+            <div className="arena-setting-texts">
+              <strong>{t('arenaSettings.multipliersTitle')}</strong>
+              <small>{isTr ? '2x ve 3x çarpan bonuslu kareler' : '2x and 3x score multiplier cells'}</small>
+            </div>
+          </div>
+          <button
+            type="button"
+            className={`cyber-toggle-switch ${settings.multipliersEnabled ? 'is-active' : ''}`}
+            onClick={() => handleToggle('multipliersEnabled')}
+            aria-pressed={settings.multipliersEnabled}
+            aria-label={t('arenaSettings.multipliersTitle')}
+          >
+            <span className="cyber-toggle-track">
+              <span className="cyber-toggle-thumb" />
+            </span>
+            <span className="cyber-toggle-label">
+              {settings.multipliersEnabled ? (isTr ? 'AÇIK' : 'ON') : (isTr ? 'KAPALI' : 'OFF')}
+            </span>
+          </button>
+        </div>
 
         {pendingSettings && (
           <div className="settings-confirm-panel">

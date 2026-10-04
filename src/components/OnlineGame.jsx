@@ -834,30 +834,42 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
   return (
     <main className="app-shell app-shell--playing">
       <section className="game-card online-game-card game-card--playing">
-        <header className="game-header brand-header">
-          <h1>XO TACTIX</h1>
-          <div className="match-chip-row" aria-label={t('common.matchInfo')}>
-            <span className={`match-chip ${room.gameMode}`}>{room.gameMode === 'arena' ? 'ARENA' : (isTr ? 'KLASİK' : 'CLASSIC')}</span>
-            <span className="match-chip">{room.targetValue} {isArena ? (isTr ? 'PUAN' : 'PTS') : (isTr ? 'TUR' : 'ROUNDS')}</span>
-            <span className="match-chip">{room.boardSize}x{room.boardSize}</span>
-            <span className="match-chip">{room.winLength} {isTr ? 'TAŞ' : 'IN A ROW'}</span>
-            <span className="match-chip match-chip--room">{isTr ? 'ODA' : 'ROOM'}: <strong>{roomCode}</strong></span>
+        <header className="game-hud-header">
+          <div className="game-hud-bar">
+            <button
+              type="button"
+              className="setup-back-button game-hud-btn"
+              onClick={() => {
+                registerUserGesture()
+                playSound('click')
+                setIsMenuConfirmOpen(true)
+              }}
+              title={t('common.mainMenu')}
+              aria-label={t('common.mainMenu')}
+            >
+              <svg className="game-action-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <line x1="4" y1="7" x2="20" y2="7" />
+                <line x1="4" y1="12" x2="20" y2="12" />
+                <line x1="4" y1="17" x2="20" y2="17" />
+              </svg>
+            </button>
+
+            <div className="game-hud-meta">
+              <span className="game-hud-title">XO TACTIX</span>
+              <div className="match-chip-row" aria-label={t('common.matchInfo')}>
+                <span className={`match-chip ${room.gameMode}`}>{room.gameMode === 'arena' ? 'ARENA' : (isTr ? 'KLASİK' : 'CLASSIC')}</span>
+                <span className="match-chip">{room.targetValue} {isArena ? (isTr ? 'PUAN' : 'PTS') : (isTr ? 'TUR' : 'ROUNDS')}</span>
+                <span className="match-chip">{room.boardSize}x{room.boardSize}</span>
+                <span className="match-chip">{room.winLength} {isTr ? 'TAŞ' : 'IN A ROW'}</span>
+                <span className="match-chip match-chip--room">{isTr ? 'ODA' : 'ROOM'}: <strong>{roomCode}</strong></span>
+              </div>
+            </div>
+
+            <div className="game-hud-actions">
+              <SoundToggle />
+            </div>
           </div>
         </header>
-
-        <div className="game-actions">
-          <button
-            className="setup-back-button"
-            onClick={() => {
-              registerUserGesture()
-              playSound('click')
-              setIsMenuConfirmOpen(true)
-            }}
-          >
-            {t('common.mainMenu')}
-          </button>
-          <SoundToggle />
-        </div>
 
         {isMenuConfirmOpen && (
           <div

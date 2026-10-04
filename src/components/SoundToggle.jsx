@@ -44,68 +44,103 @@ export default function SoundToggle({ children }) {
       </button>
 
       {isOpen && (
-        <>
+        <div className="settings-modal-overlay" role="presentation" onClick={handleClose}>
           <div
-            className="settings-backdrop"
-            onClick={handleClose}
-            aria-hidden="true"
-          />
-          <div className={`settings-popover ${children ? 'settings-popover--expanded' : ''}`}>
-            <div className="settings-popover-header">
-              <span className="settings-popover-title">⚙ {isTr ? 'Ayarlar' : 'Settings'}</span>
+            className={`settings-modal-card ${children ? 'settings-modal-card--expanded' : ''}`}
+            role="dialog"
+            aria-modal="true"
+            aria-label={isTr ? 'Oyun Ayarları' : 'Game Settings'}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="settings-modal-header">
+              <div className="settings-modal-title">
+                <span className="settings-title-icon" aria-hidden="true">⚙️</span>
+                <h3>{isTr ? 'Oyun Ayarları' : 'Game Settings'}</h3>
+              </div>
               <button
                 type="button"
-                className="settings-popover-close-btn"
+                className="settings-modal-close-btn"
                 onClick={handleClose}
                 aria-label={t('common.close')}
                 title={t('common.close')}
               >
-                ×
+                ✕
               </button>
             </div>
 
-            <div className="settings-popover-section settings-sound-section">
-              <button
-                type="button"
-                className={`settings-sound-btn ${enabled ? 'is-on' : 'is-off'}`}
-                onClick={toggleSound}
-                aria-pressed={enabled}
-                disabled={isSdkMuted}
-                title={isSdkMuted ? (isTr ? 'Platform tarafından susturuldu' : 'Muted by platform') : (enabled ? (isTr ? 'Sesi Kapat' : 'Mute') : (isTr ? 'Sesi Aç' : 'Unmute'))}
-                aria-label={isSdkMuted ? (isTr ? 'Platform Susturdu' : 'Platform Muted') : (enabled ? (isTr ? 'Sesi Kapat' : 'Mute') : (isTr ? 'Sesi Aç' : 'Unmute'))}
-              >
-                <span className="sound-emoji-icon" aria-hidden="true">{enabled ? '🔊' : '🔇'}</span>
-              </button>
-            </div>
+            <div className="settings-modal-body">
+              {/* Sound Setting Card */}
+              <div className="settings-row-card">
+                <div className="settings-row-info">
+                  <span className="settings-row-icon" aria-hidden="true">
+                    {enabled ? '🔊' : '🔇'}
+                  </span>
+                  <div className="settings-row-texts">
+                    <strong>{isTr ? 'Ses Efektleri' : 'Sound Effects'}</strong>
+                    <small>
+                      {isSdkMuted
+                        ? (isTr ? 'Platform tarafından susturuldu' : 'Muted by platform')
+                        : (isTr ? 'Hamle, patlama ve zafer sesleri' : 'Move, blast, and victory audio')}
+                    </small>
+                  </div>
+                </div>
 
-            <div className="settings-popover-section settings-lang-section">
-              <span className="settings-section-label">
-                <span className="settings-lang-globe" aria-hidden="true">🌐</span>
-                <span>{isTr ? 'Dil' : 'Language'}</span>
-              </span>
-              <div className="settings-lang-pills" role="group" aria-label={isTr ? 'Dil seçimi' : 'Language selection'}>
                 <button
                   type="button"
-                  className={`settings-lang-pill ${isTr ? 'is-active' : ''}`}
-                  onClick={() => handleLanguageChange('tr')}
-                  aria-pressed={isTr}
+                  className={`cyber-toggle-switch ${enabled ? 'is-active' : ''}`}
+                  onClick={toggleSound}
+                  aria-pressed={enabled}
+                  disabled={isSdkMuted}
+                  aria-label={isTr ? 'Ses Efektleri Açık/Kapalı' : 'Sound Effects Toggle'}
                 >
-                  Türkçe
-                </button>
-                <button
-                  type="button"
-                  className={`settings-lang-pill ${!isTr ? 'is-active' : ''}`}
-                  onClick={() => handleLanguageChange('en')}
-                  aria-pressed={!isTr}
-                >
-                  English
+                  <span className="cyber-toggle-track">
+                    <span className="cyber-toggle-thumb" />
+                  </span>
+                  <span className="cyber-toggle-label">
+                    {enabled ? (isTr ? 'AÇIK' : 'ON') : (isTr ? 'KAPALI' : 'OFF')}
+                  </span>
                 </button>
               </div>
-            </div>
 
-            {children}
+              {/* Language Setting Card */}
+              <div className="settings-row-card">
+                <div className="settings-row-info">
+                  <span className="settings-row-icon" aria-hidden="true">🌐</span>
+                  <div className="settings-row-texts">
+                    <strong>{isTr ? 'Oyun Dili' : 'Game Language'}</strong>
+                    <small>{isTr ? 'Arayüz ve mesaj dili' : 'Interface and message language'}</small>
+                  </div>
+                </div>
+
+                <div className="settings-lang-segmented" role="group" aria-label={isTr ? 'Dil seçimi' : 'Language selection'}>
+                  <button
+                    type="button"
+                    className={`settings-lang-pill ${isTr ? 'is-active' : ''}`}
+                    onClick={() => handleLanguageChange('tr')}
+                    aria-pressed={isTr}
+                  >
+                    🇹🇷 Türkçe
+                  </button>
+                  <button
+                    type="button"
+                    className={`settings-lang-pill ${!isTr ? 'is-active' : ''}`}
+                    onClick={() => handleLanguageChange('en')}
+                    aria-pressed={!isTr}
+                  >
+                    🇬🇧 English
+                  </button>
+                </div>
+              </div>
+
+              {/* Children (Arena Settings) */}
+              {children && (
+                <div className="settings-modal-children">
+                  {children}
+                </div>
+              )}
+            </div>
           </div>
-        </>
+        </div>
       )}
     </div>
   )

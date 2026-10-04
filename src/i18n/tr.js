@@ -81,7 +81,7 @@ export default {
       startMatch: 'MAÇI BAŞLAT',
     },
     onlineModal: {
-      title: 'ÇEVRİMİÇİ ARENA',
+      title: 'ÇEVRİMİÇİ ODA',
       subtitle: 'Arkadaşınla gerçek zamanlı kapış',
       createRoom: 'Oda Kur',
       joinRoom: 'Odaya Katıl',
