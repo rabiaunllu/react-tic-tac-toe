@@ -9099,6 +9099,7 @@ body[data-skin="ice"] .o-mark-square .square-value {
   justify-self: start;
 }
 
+.game-hud-title,
 .game-card--playing .game-hud-title {
   justify-self: center;
   font-family: 'Orbitron', system-ui, sans-serif;
@@ -9107,9 +9108,17 @@ body[data-skin="ice"] .o-mark-square .square-value {
   line-height: 1;
   margin: 0;
   letter-spacing: 0.08em;
-  color: #ffffff;
   white-space: nowrap;
-  text-shadow: 0 0 12px rgba(140, 242, 255, 0.35);
+  background: linear-gradient(95deg, #ffffff 0%, #8cf2ff 35%, #c084fc 65%, #ff8fc5 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  text-shadow: none;
+  animation: brand-shimmer 6s ease-in-out infinite;
+  filter: drop-shadow(0 0 10px rgba(140, 242, 255, 0.45))
+          drop-shadow(0 0 22px rgba(192, 132, 252, 0.25));
 }
 
 .game-card--playing .game-hud-right-actions {
