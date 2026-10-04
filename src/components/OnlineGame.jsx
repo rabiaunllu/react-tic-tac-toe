@@ -843,22 +843,27 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
             <span className="match-chip">{room.winLength} {isTr ? 'TAŞ' : 'IN A ROW'}</span>
             <span className="match-chip match-chip--room">{isTr ? 'ODA' : 'ROOM'}: <strong>{roomCode}</strong></span>
           </div>
+          <div className="game-actions">
+            <button
+              type="button"
+              className="setup-back-button"
+              onClick={() => {
+                registerUserGesture()
+                playSound('click')
+                setIsMenuConfirmOpen(true)
+              }}
+              title={t('common.mainMenu')}
+              aria-label={t('common.mainMenu')}
+            >
+              <svg className="game-action-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <line x1="4" y1="7" x2="20" y2="7" />
+                <line x1="4" y1="12" x2="20" y2="12" />
+                <line x1="4" y1="17" x2="20" y2="17" />
+              </svg>
+            </button>
+            <SoundToggle />
+          </div>
         </header>
-
-        <div className="game-actions">
-          <button
-            type="button"
-            className="setup-back-button"
-            onClick={() => {
-              registerUserGesture()
-              playSound('click')
-              setIsMenuConfirmOpen(true)
-            }}
-          >
-            {t('common.mainMenu')}
-          </button>
-          <SoundToggle />
-        </div>
 
         {isMenuConfirmOpen && (
           <div

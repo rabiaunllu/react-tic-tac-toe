@@ -2744,6 +2744,50 @@ export default function App() {
             <span className="match-chip">{lineChip}</span>
           </div>
 
+          <div className="game-actions">
+            <button
+              type="button"
+              className="setup-back-button"
+              onClick={() => {
+                registerUserGesture()
+                playSound('click')
+                setShowScoreResetConfirm(false)
+                setShowSetupReturnConfirm(true)
+              }}
+              title={t('common.mainMenu')}
+              aria-label={t('common.mainMenu')}
+            >
+              <svg className="game-action-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <line x1="4" y1="7" x2="20" y2="7" />
+                <line x1="4" y1="12" x2="20" y2="12" />
+                <line x1="4" y1="17" x2="20" y2="17" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              className="score-reset-button"
+              onClick={handleRequestScoreReset}
+              title={t('common.restart')}
+              aria-label={t('common.restart')}
+            >
+              <svg className="game-action-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polyline points="1 4 1 10 7 10" />
+                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+              </svg>
+            </button>
+            <SoundToggle>
+              {gameMode === 'arena' && (
+                <ArenaSettings
+                  settings={arenaSettings}
+                  pendingSettings={pendingArenaSettings}
+                  onSettingsChange={handleArenaSettingsChange}
+                  onConfirmSettingsChange={handleConfirmArenaSettingsChange}
+                  onCancelSettingsChange={handleCancelArenaSettingsChange}
+                />
+              )}
+            </SoundToggle>
+          </div>
+
           {(gameConfig.campaignLevel || gameConfig.dailyChallenge) && (
             <div
               className={`mission-hud ${gameConfig.campaignLevel ? 'mission-hud--campaign' : 'mission-hud--daily'}`}
@@ -2816,50 +2860,6 @@ export default function App() {
             </div>
           )}
         </header>
-
-        <div className="game-actions">
-          <button
-            type="button"
-            className="setup-back-button"
-            onClick={() => {
-              registerUserGesture()
-              playSound('click')
-              setShowScoreResetConfirm(false)
-              setShowSetupReturnConfirm(true)
-            }}
-            title={t('common.mainMenu')}
-            aria-label={t('common.mainMenu')}
-          >
-            <svg className="game-action-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <line x1="4" y1="7" x2="20" y2="7" />
-              <line x1="4" y1="12" x2="20" y2="12" />
-              <line x1="4" y1="17" x2="20" y2="17" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            className="score-reset-button"
-            onClick={handleRequestScoreReset}
-            title={t('common.restart')}
-            aria-label={t('common.restart')}
-          >
-            <svg className="game-action-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <polyline points="1 4 1 10 7 10" />
-              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-            </svg>
-          </button>
-          <SoundToggle>
-            {gameMode === 'arena' && (
-              <ArenaSettings
-                settings={arenaSettings}
-                pendingSettings={pendingArenaSettings}
-                onSettingsChange={handleArenaSettingsChange}
-                onConfirmSettingsChange={handleConfirmArenaSettingsChange}
-                onCancelSettingsChange={handleCancelArenaSettingsChange}
-              />
-            )}
-          </SoundToggle>
-        </div>
 
         {showSetupReturnConfirm && (
           <div
