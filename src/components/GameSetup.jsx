@@ -899,7 +899,7 @@ export default function GameSetup({
           >
             <div className="viral-card-icon">🧩</div>
             <div className="viral-card-content">
-              <h3>{isTr ? 'Bulmaca Seferi' : 'Puzzle Quest'}</h3>
+              <h3>{t('setup.modes.campaign') || (isTr ? 'Bulmaca Seferi' : 'Puzzle Quest')}</h3>
             </div>
             <div className="viral-card-arrow">→</div>
           </button>
@@ -915,7 +915,7 @@ export default function GameSetup({
           >
             <div className="viral-card-icon">📅</div>
             <div className="viral-card-content">
-              <h3>{isTr ? 'Günlük Görev' : 'Daily Challenge'}</h3>
+              <h3>{t('setup.modes.daily') || (isTr ? 'Günlük Görev' : 'Daily Challenge')}</h3>
             </div>
             <div className="viral-card-actions-right">
               {dailyStreak > 0 && (

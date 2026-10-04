@@ -5032,48 +5032,49 @@ button,
 .hero-clash-container {
   position: relative;
   width: 100%;
-  max-width: 260px;
-  height: 80px;
-  margin: 0 auto;
+  max-width: 380px;
+  height: 110px;
   display: flex;
   justify-content: center;
   align-items: center;
+  margin: 0 auto;
 }
 
 .hero-banner-container--compact .hero-clash-container {
-  height: 60px;
-  max-width: 220px;
+  height: 70px;
+  max-width: 260px;
 }
 
 .hero-symbol {
   font-family: 'Orbitron', system-ui, sans-serif;
-  font-size: 3.6rem;
+  font-size: 5rem;
   font-weight: 900;
   position: absolute;
+  top: 50%;
   line-height: 1;
-  animation-duration: 3s;
+  animation-duration: 2.6s;
   animation-iteration-count: infinite;
-  animation-timing-function: ease-in-out;
+  animation-timing-function: cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .hero-banner-container--compact .hero-symbol {
-  font-size: 2.8rem;
+  font-size: 3rem;
 }
 
 .hero-symbol-x {
   color: #8cf2ff;
   text-shadow: 0 0 10px #8cf2ff, 0 0 20px #8cf2ff, 0 0 40px #8cf2ff;
-  animation-name: hero-clash-x;
-  right: calc(50% + 4px);
+  right: 50%;
   left: auto;
+  animation-name: hero-clash-x;
 }
 
 .hero-symbol-o {
   color: #ff8fc5;
   text-shadow: 0 0 10px #ff8fc5, 0 0 20px #ff8fc5, 0 0 40px #ff8fc5;
-  animation-name: hero-clash-o;
-  left: calc(50% + 4px);
+  left: 50%;
   right: auto;
+  animation-name: hero-clash-o;
 }
 
 .hero-clash-glow {
@@ -5081,20 +5082,20 @@ button,
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: 26px;
-  height: 26px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   background: #ffffff;
-  box-shadow: 0 0 24px 14px rgba(255, 255, 255, 0.9), 0 0 50px 30px #c084fc;
+  box-shadow: 0 0 30px 20px rgba(255, 255, 255, 0.9), 0 0 60px 40px #c084fc;
   opacity: 0;
-  animation: hero-glow-burst 3s infinite ease-in-out;
+  animation: hero-glow-burst 2.6s infinite cubic-bezier(0.25, 1, 0.5, 1);
   z-index: 0;
 }
 
 .hero-banner-container--compact .hero-clash-glow {
-  width: 18px;
-  height: 18px;
-  box-shadow: 0 0 18px 10px rgba(255, 255, 255, 0.8), 0 0 35px 20px #c084fc;
+  width: 20px;
+  height: 20px;
+  box-shadow: 0 0 20px 12px rgba(255, 255, 255, 0.8), 0 0 40px 24px #c084fc;
 }
 
 .hero-symbol-x, .hero-symbol-o {
@@ -5102,23 +5103,30 @@ button,
 }
 
 @keyframes hero-clash-x {
-  0%, 100% { transform: translateX(0) scale(1); opacity: 0.85; }
-  40% { transform: translateX(14px) scale(1.08); opacity: 1; }
-  50% { transform: translateX(20px) scale(1.15); opacity: 1; }
-  60% { transform: translateX(14px) scale(1.08); opacity: 1; }
+  0% { transform: translateY(-50%) translateX(-65px) scale(1); opacity: 0.85; }
+  35% { transform: translateY(-50%) translateX(-55px) scale(1.02); opacity: 0.95; }
+  47% { transform: translateY(-50%) translateX(-6px) scale(1.15); opacity: 1; }
+  50% { transform: translateY(-50%) translateX(0px) scale(1.22); opacity: 1; }
+  55% { transform: translateY(-50%) translateX(-18px) scale(1.08); opacity: 0.95; }
+  70% { transform: translateY(-50%) translateX(-50px) scale(1); opacity: 0.85; }
+  100% { transform: translateY(-50%) translateX(-65px) scale(1); opacity: 0.85; }
 }
 
 @keyframes hero-clash-o {
-  0%, 100% { transform: translateX(0) scale(1); opacity: 0.85; }
-  40% { transform: translateX(-14px) scale(1.08); opacity: 1; }
-  50% { transform: translateX(-20px) scale(1.15); opacity: 1; }
-  60% { transform: translateX(-14px) scale(1.08); opacity: 1; }
+  0% { transform: translateY(-50%) translateX(65px) scale(1); opacity: 0.85; }
+  35% { transform: translateY(-50%) translateX(55px) scale(1.02); opacity: 0.95; }
+  47% { transform: translateY(-50%) translateX(6px) scale(1.15); opacity: 1; }
+  50% { transform: translateY(-50%) translateX(0px) scale(1.22); opacity: 1; }
+  55% { transform: translateY(-50%) translateX(18px) scale(1.08); opacity: 0.95; }
+  70% { transform: translateY(-50%) translateX(50px) scale(1); opacity: 0.85; }
+  100% { transform: translateY(-50%) translateX(65px) scale(1); opacity: 0.85; }
 }
 
 @keyframes hero-glow-burst {
-  0%, 45%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
-  50% { opacity: 1; transform: translate(-50%, -50%) scale(2); }
-  60% { opacity: 0.6; transform: translate(-50%, -50%) scale(1.4); }
+  0%, 42%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(2.2); }
+  56% { opacity: 0.5; transform: translate(-50%, -50%) scale(1.4); }
+  68% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
 }
 
 /* Interactive Power Section in Setup */
@@ -7363,23 +7371,6 @@ button,
   color: #f1f5f9;
 }
 
-@media (max-width: 480px) {
-  .viral-mode-grid {
-    gap: 8px;
-  }
-  .viral-mode-card {
-    padding: 8px 10px;
-    gap: 7px;
-    min-height: 48px;
-  }
-  .viral-card-icon {
-    font-size: 19px;
-  }
-  .viral-card-content h3 {
-    font-size: clamp(9.5px, 2.55vw, 10.8px);
-    letter-spacing: 0;
-  }
-}
 
 /* ── Badges ── */
 .viral-card-badge {
@@ -9464,12 +9455,42 @@ body[data-skin="ice"] .o-mark-square .square-value {
   }
 
   .hero-clash-container {
-    height: clamp(55px, 7.5vh, 70px);
-    max-width: 220px;
+    height: clamp(75px, 9vh, 95px);
+    max-width: 300px;
   }
 
   .hero-symbol {
-    font-size: clamp(2.8rem, 4.6vh, 3.6rem);
+    font-size: clamp(3.4rem, 5vh, 4.2rem);
+  }
+
+  .hero-symbol-x {
+    right: 50%;
+    left: auto;
+  }
+
+  .hero-symbol-o {
+    left: 50%;
+    right: auto;
+  }
+
+  @keyframes hero-clash-x {
+    0% { transform: translateY(-50%) translateX(-52px) scale(1); opacity: 0.85; }
+    35% { transform: translateY(-50%) translateX(-44px) scale(1.02); opacity: 0.95; }
+    47% { transform: translateY(-50%) translateX(-5px) scale(1.14); opacity: 1; }
+    50% { transform: translateY(-50%) translateX(0px) scale(1.2); opacity: 1; }
+    55% { transform: translateY(-50%) translateX(-14px) scale(1.06); opacity: 0.95; }
+    70% { transform: translateY(-50%) translateX(-40px) scale(1); opacity: 0.85; }
+    100% { transform: translateY(-50%) translateX(-52px) scale(1); opacity: 0.85; }
+  }
+
+  @keyframes hero-clash-o {
+    0% { transform: translateY(-50%) translateX(52px) scale(1); opacity: 0.85; }
+    35% { transform: translateY(-50%) translateX(44px) scale(1.02); opacity: 0.95; }
+    47% { transform: translateY(-50%) translateX(5px) scale(1.14); opacity: 1; }
+    50% { transform: translateY(-50%) translateX(0px) scale(1.2); opacity: 1; }
+    55% { transform: translateY(-50%) translateX(14px) scale(1.06); opacity: 0.95; }
+    70% { transform: translateY(-50%) translateX(40px) scale(1); opacity: 0.85; }
+    100% { transform: translateY(-50%) translateX(52px) scale(1); opacity: 0.85; }
   }
 
   .quick-play-button {
@@ -9501,8 +9522,8 @@ body[data-skin="ice"] .o-mark-square .square-value {
 
   .viral-mode-card {
     min-height: clamp(44px, 5.8vh, 50px);
-    padding: 8px clamp(7px, 2vw, 10px);
-    gap: clamp(5px, 1.5vw, 7px);
+    padding: 8px clamp(8px, 2.2vw, 11px);
+    gap: clamp(6px, 1.8vw, 8px);
     display: flex;
     align-items: center;
     border-radius: 12px;
@@ -9510,39 +9531,49 @@ body[data-skin="ice"] .o-mark-square .square-value {
   }
 
   .viral-card-icon {
-    font-size: clamp(17px, 2.2vh, 20px);
+    font-size: clamp(17px, 2.2vh, 19px);
     flex-shrink: 0;
+    line-height: 1;
   }
 
   .viral-card-content {
     flex: 1;
     min-width: 0;
-    overflow: hidden;
+    display: flex;
+    align-items: center;
   }
 
   .viral-card-content h3 {
     font-family: 'Orbitron', system-ui, sans-serif;
-    font-size: clamp(9.5px, 2.55vw, 10.8px);
-    font-weight: 800;
-    letter-spacing: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: clip;
-    line-height: 1.2;
+    font-size: clamp(10.2px, 2.75vw, 11.8px);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    white-space: normal;
+    word-break: normal;
+    line-height: 1.15;
+    color: #f1f5f9;
     margin: 0;
+    overflow: visible;
+    text-overflow: clip;
   }
 
-  .viral-card-arrow {
-    font-size: 11px;
-    flex-shrink: 0;
-    margin-left: auto;
-    color: rgba(255, 255, 255, 0.4);
+  /* 2 sütunlu kartlarda oku gizle, metin ferahça ve tam okunsun */
+  .viral-mode-card:not(.viral-mode-card--daily) .viral-card-arrow {
+    display: none;
   }
 
   .viral-mode-card--daily {
     grid-column: span 2;
     min-height: clamp(44px, 5.8vh, 50px);
     padding: 8px 14px;
+  }
+
+  .viral-mode-card--daily .viral-card-arrow {
+    display: block;
+    font-size: 13px;
+    flex-shrink: 0;
+    margin-left: auto;
+    color: rgba(255, 255, 255, 0.45);
   }
 
   .daily-streak-badge {
