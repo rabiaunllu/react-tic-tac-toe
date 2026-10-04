@@ -44,6 +44,8 @@ export default defineConfig(({ mode }) => {
     "'self'",
     apiOrigin,
     wsOrigin,
+    'https://xotactix.me',
+    'wss://xotactix.me',
     'https://*.crazygames.com',
     'https://games.crazygames.com',
     'https://pagead2.googlesyndication.com',

@@ -6,15 +6,18 @@ const hasConfiguredApiBaseUrl = Boolean(configuredApiBaseUrl)
 const isCrazyGamesHost =
   typeof window !== 'undefined' &&
   (window.location.hostname.includes('crazygames') ||
-   (typeof document !== 'undefined' && document.referrer?.includes('crazygames')))
+   (typeof document !== 'undefined' && document.referrer?.includes('crazygames')) ||
+   window.location.search.includes('platform=crazygames') ||
+   Boolean(window.CrazyGames?.SDK))
 const canUseSameOriginApi = Boolean(import.meta.env?.PROD && !hasConfiguredApiBaseUrl && !isCrazyGamesHost)
 
 export const API_BASE_URL = (
   configuredApiBaseUrl ||
+  (isCrazyGamesHost ? 'https://xotactix.me' : '') ||
   (import.meta.env?.DEV ? DEFAULT_API_BASE_URL : '')
 ).replace(/\/+$/, '')
 export const IS_ONLINE_ENABLED =
-  isOnlineFlagEnabled && (Boolean(import.meta.env?.DEV) || hasConfiguredApiBaseUrl || canUseSameOriginApi)
+  isOnlineFlagEnabled && (Boolean(import.meta.env?.DEV) || hasConfiguredApiBaseUrl || canUseSameOriginApi || isCrazyGamesHost)
 export const ONLINE_UNAVAILABLE_MESSAGE = 'Online mod yakında açılacak.'
 
 export class RoomRequestError extends Error {
