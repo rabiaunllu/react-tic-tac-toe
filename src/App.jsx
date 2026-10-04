@@ -26,6 +26,7 @@ function getAiPlayerModule() {
 }
 import { useTranslation } from './i18n'
 import {
+  ENABLE_CRAZYGAMES,
   initCrazyGamesSdk,
   gameplayStart,
   gameplayStop,
@@ -454,8 +455,9 @@ export default function App() {
   const activePowerTargets = powersEnabled && activePower ? arenaPowerTargets[activePower] ?? [] : null
   const isArena = gameMode === 'arena'
   const isMissionMode = Boolean(gameConfig?.campaignLevel || gameConfig?.dailyChallenge)
-  // Hediye kutusu reklam izleme sadece VS Bot modunda (Arena + güçler aktifken) geçerlidir
+  // Hediye kutusu reklam izleme sadece CrazyGames platformunda geçerlidir; GitHub Pages ve kendi sitemizde reklam asla gösterilmez
   const isRewardedPowerAvailable = Boolean(
+    ENABLE_CRAZYGAMES &&
     gameConfig &&
     opponentType === 'ai' &&
     gameMode === 'arena' &&
@@ -2406,9 +2408,9 @@ export default function App() {
   function handleNextRound() {
     registerUserGesture()
     playSound('click')
-    // Asla oyun esnasında çıkmaz; sadece her 3 turda bir (3, 6, 9...) tur bitiminde gösterilir.
+    // Asla oyun esnasında çıkmaz; sadece CrazyGames platformunda her 3 turda bir (3, 6, 9...) tur bitiminde gösterilir.
     // Yeni tur, süre sayacı ve bot hamlesi SADECE reklam tamamen bittiğinde başlar!
-    if (roundNumber % 3 === 0) {
+    if (ENABLE_CRAZYGAMES && roundNumber % 3 === 0) {
       requestMidgameAd({
         onAdStarted: () => setAdMuted(true),
         onAdFinished: () => {
@@ -2486,8 +2488,8 @@ export default function App() {
       handleResultMenu()
       return
     }
-    // Maç bittiğinde en az 3 tur oynandıysa reklam göster; yeni maç reklam bitince başlar
-    if (roundNumber >= 3) {
+    // Maç bittiğinde en az 3 tur oynandıysa sadece CrazyGames üzerinde reklam göster; yeni maç reklam bitince başlar
+    if (ENABLE_CRAZYGAMES && roundNumber >= 3) {
       requestMidgameAd({
         onAdStarted: () => setAdMuted(true),
         onAdFinished: () => {

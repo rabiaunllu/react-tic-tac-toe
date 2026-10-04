@@ -34,10 +34,32 @@ function productionCspPlugin(contentSecurityPolicy) {
   }
 }
 
+function crazyGamesScriptPlugin(isCrazyGamesBuild) {
+  return {
+    name: 'crazygames-script-injection',
+    apply: 'build',
+    transformIndexHtml() {
+      if (!isCrazyGamesBuild) {
+        return []
+      }
+      return [
+        {
+          tag: 'script',
+          attrs: {
+            src: 'https://sdk.crazygames.com/crazygames-sdk-v3.js',
+          },
+          injectTo: 'head',
+        },
+      ]
+    },
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', 'VITE_')
   const base = env.VITE_BASE_PATH?.trim() || '/'
+  const isCrazyGamesBuild = base === './' || mode === 'crazygames' || env.VITE_PLATFORM === 'crazygames'
   const apiOrigin = getApiOrigin(env.VITE_API_BASE_URL?.trim())
   const wsOrigin = apiOrigin ? apiOrigin.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:') : null
   const connectSources = [
@@ -62,6 +84,6 @@ export default defineConfig(({ mode }) => {
 
   return {
     base,
-    plugins: [react(), productionCspPlugin(contentSecurityPolicy)],
+    plugins: [react(), productionCspPlugin(contentSecurityPolicy), crazyGamesScriptPlugin(isCrazyGamesBuild)],
   }
 })

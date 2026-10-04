@@ -13,7 +13,7 @@ import SoundToggle from './SoundToggle'
 import { useTranslation } from '../i18n'
 import { playSound, registerUserGesture } from '../game/soundManager'
 import SetupHeroBanner from './SetupHeroBanner'
-import { initCrazyGamesSdk, requestRewardedAd, getInviteLink, getInviteParam, updateRoom, leftRoom } from '../services/crazyGamesService'
+import { ENABLE_CRAZYGAMES, initCrazyGamesSdk, requestRewardedAd, getInviteLink, getInviteParam, updateRoom, leftRoom } from '../services/crazyGamesService'
 import { isCampaignLevelUnlocked } from '../game/levels'
 import {
   safeGetItem,
@@ -222,6 +222,7 @@ export default function GameSetup({
   const [skinUnlockNotice, setSkinUnlockNotice] = useState('')
 
   function isSkinUnlocked(skinId) {
+    if (!ENABLE_CRAZYGAMES) return true
     const skinObj = SKINS.find((s) => s.id === skinId)
     if (skinObj?.isFree) return true
     const expiresAt = unlockedSkins[skinId]

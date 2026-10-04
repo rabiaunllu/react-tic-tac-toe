@@ -17,11 +17,17 @@ import { setAdMuted } from '../game/soundManager.js'
 export function isCrazyGamesEnvironment() {
   if (typeof window === 'undefined') return false
 
-  // 1. Direct hostname check (e.g. developer.crazygames.com, games.crazygames.com)
   const host = window.location.hostname || ''
+
+  // 1. Explicit domain block: GitHub Pages, xotactix.me, and Azure MUST NEVER run CrazyGames or any ads
+  if (host.includes('github.io') || host.includes('xotactix.me') || host.includes('azurewebsites.net')) {
+    return false
+  }
+
+  // 2. Direct hostname check (e.g. developer.crazygames.com, games.crazygames.com)
   if (host.includes('crazygames')) return true
 
-  // 2. Query param override for testing (?platform=crazygames)
+  // 3. Query param override for manual local testing only (?platform=crazygames)
   try {
     const params = new URLSearchParams(window.location.search)
     if (params.get('platform') === 'crazygames') return true
@@ -29,7 +35,7 @@ export function isCrazyGamesEnvironment() {
     // ignore query parsing errors
   }
 
-  // 3. Iframe referrer check (when embedded in an iframe on crazygames.com)
+  // 4. Iframe referrer check (when embedded in an iframe on crazygames.com)
   try {
     if (window.parent && window.parent !== window) {
       const referrer = document.referrer || ''
@@ -38,9 +44,6 @@ export function isCrazyGamesEnvironment() {
   } catch {
     // cross-origin security may prevent reading iframe parent
   }
-
-  // 4. Pre-injected CrazyGames SDK object
-  if (window.CrazyGames?.SDK) return true
 
   return false
 }
