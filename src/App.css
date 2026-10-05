@@ -9028,6 +9028,7 @@ body[data-skin="ice"] .o-mark-square .square-value {
 }
 
 .game-card--playing {
+  --board-dim: min(300px, calc(100dvh - 390px), calc(100vw - 32px));
   width: min(460px, 100%);
   height: 100%;
   max-height: min(100dvh, 880px);
@@ -9037,9 +9038,16 @@ body[data-skin="ice"] .o-mark-square .square-value {
   align-items: center;
   justify-content: center;
   justify-content: safe center;
-  padding: clamp(4px, 0.8vh, 12px) clamp(8px, 2vw, 16px);
-  gap: clamp(4px, 0.8vh, 8px);
+  padding: clamp(3px, 0.6vh, 10px) clamp(8px, 2vw, 16px);
+  gap: clamp(3px, 0.5vh, 6px);
   box-sizing: border-box;
+}
+
+/* In mission mode (Bulmaca Seferi / Günün Görevi) */
+.game-card--playing.game-card--mission,
+.game-card--playing:has(.mission-hud) {
+  --board-dim: min(252px, calc(100dvh - 440px), calc(100vw - 36px));
+  gap: clamp(2px, 0.4vh, 4px);
 }
 
 /* 1. Integrated Mobile Game HUD Header */
@@ -9174,6 +9182,103 @@ body[data-skin="ice"] .o-mark-square .square-value {
   letter-spacing: 0.02em;
 }
 
+/* In-Game Ultra-Compact Mission HUD (Prevents Board Overlap & Squeezing) */
+.game-card--playing .mission-hud {
+  width: 100%;
+  max-width: 400px;
+  margin: 0;
+  padding: clamp(3px, 0.5vh, 6px) clamp(8px, 1.8vw, 12px);
+  gap: clamp(2px, 0.35vh, 4px);
+  border-radius: 10px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.game-card--playing .mission-hud__top {
+  gap: 6px;
+}
+
+.game-card--playing .mission-hud__identity {
+  gap: 6px;
+}
+
+.game-card--playing .mission-hud__badge-pill {
+  padding: 1.5px 6px;
+  font-size: clamp(8.5px, 1.8vw, 9.5px);
+  border-radius: 5px;
+}
+
+.game-card--playing .mission-hud__title {
+  font-size: clamp(10.5px, 2vw, 12px);
+}
+
+.game-card--playing .mission-hud__stats {
+  gap: 6px;
+}
+
+.game-card--playing .mission-hud__moves-pill {
+  padding: 1.5px 6px;
+  font-size: clamp(9px, 1.8vw, 10.5px);
+  border-radius: 6px;
+}
+
+.game-card--playing .mission-hud__stars {
+  font-size: clamp(10px, 2vw, 12px);
+  letter-spacing: 1px;
+}
+
+.game-card--playing .mission-hud__target-box {
+  padding: clamp(2.5px, 0.35vh, 4.5px) clamp(6px, 1.5vw, 10px);
+  gap: 5px;
+  border-radius: 7px;
+}
+
+.game-card--playing .mission-hud__target-icon {
+  font-size: 11px;
+}
+
+.game-card--playing .mission-hud__target-label {
+  font-size: clamp(9px, 1.8vw, 10px);
+}
+
+.game-card--playing .mission-hud__target-text {
+  font-size: clamp(9.5px, 1.9vw, 11px);
+  line-height: 1.25;
+}
+
+.game-card--playing .mission-hud__stars-row {
+  gap: 4px;
+  padding-top: 0;
+}
+
+.game-card--playing .mission-hud__stars-label {
+  font-size: clamp(8.5px, 1.7vw, 9.5px);
+}
+
+.game-card--playing .mission-hud__star-pills {
+  gap: 4px;
+}
+
+.game-card--playing .mission-hud__star-pill {
+  padding: 1px 5px;
+  font-size: clamp(8px, 1.7vw, 9.5px);
+  border-radius: 5px;
+}
+
+/* Streamlined In-Game AI Thinking Status */
+.game-card--playing .status.ai-thinking {
+  padding: 2px 10px;
+  margin: 0;
+  border-radius: 6px;
+  font-size: 10.5px;
+  line-height: 1.2;
+  width: auto;
+  max-width: 90%;
+  flex-shrink: 0;
+  background: rgba(14, 165, 233, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
 /* 3. Arena Board Stack (Fluid Flex distribution) */
 .game-card--playing .arena-board-stack {
   width: 100%;
@@ -9182,7 +9287,7 @@ body[data-skin="ice"] .o-mark-square .square-value {
   align-items: center;
   justify-content: center;
   justify-content: safe center;
-  gap: clamp(3px, 0.5vh, 6px);
+  gap: clamp(2px, 0.4vh, 5px);
   flex: 0 1 auto;
   min-height: 0;
 }
@@ -9190,10 +9295,15 @@ body[data-skin="ice"] .o-mark-square .square-value {
 /* 4. Player HUD & Powers (Compact & Elegant) */
 .game-card--playing .player-panel {
   width: 100%;
-  padding: clamp(4px, 0.6vh, 7px) clamp(8px, 1.4vw, 12px);
+  padding: clamp(3px, 0.5vh, 6px) clamp(8px, 1.4vw, 12px);
   border-radius: 12px;
-  gap: clamp(2px, 0.4vh, 4px);
+  gap: clamp(1.5px, 0.3vh, 3.5px);
   flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.game-card--playing.game-card--mission .player-panel {
+  padding: clamp(2.5px, 0.4vh, 5px) clamp(6px, 1.2vw, 10px);
 }
 
 /* Classic Mode / Powers Disabled Compact Styling (Eliminates empty void) */
@@ -9240,17 +9350,17 @@ body[data-skin="ice"] .o-mark-square .square-value {
 }
 
 .game-card--playing .player-symbol {
-  width: clamp(22px, 3.2vh, 28px);
-  height: clamp(22px, 3.2vh, 28px);
-  min-width: clamp(22px, 3.2vh, 28px);
-  border-radius: 8px;
-  font-size: clamp(14px, 2.1vh, 17px);
+  width: clamp(20px, 3vh, 26px);
+  height: clamp(20px, 3vh, 26px);
+  min-width: clamp(20px, 3vh, 26px);
+  border-radius: 7px;
+  font-size: clamp(13px, 1.9vh, 16px);
   display: grid;
   place-items: center;
 }
 
 .game-card--playing .player-name {
-  font-size: clamp(11px, 2.2vw, 13px);
+  font-size: clamp(10.5px, 2.1vw, 12.5px);
   font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
@@ -9268,46 +9378,54 @@ body[data-skin="ice"] .o-mark-square .square-value {
 }
 
 .game-card--playing .player-score strong {
-  font-size: clamp(15px, 2.3vh, 20px);
+  font-size: clamp(14px, 2.1vh, 18px);
 }
 
 .game-card--playing .panel-timer-badge {
-  padding: 2px 6px;
-  border-radius: 6px;
+  padding: 2px 5px;
+  border-radius: 5px;
 }
 
 .game-card--playing .panel-timer-digits {
-  font-size: clamp(10px, 1.8vh, 12px);
+  font-size: clamp(9.5px, 1.7vh, 11px);
 }
 
 .game-card--playing .reward-pack-button {
-  width: clamp(24px, 3.4vh, 28px);
-  height: clamp(24px, 3.4vh, 28px);
-  min-width: clamp(24px, 3.4vh, 28px);
-  font-size: 0.85rem;
+  width: clamp(22px, 3.2vh, 26px);
+  height: clamp(22px, 3.2vh, 26px);
+  min-width: clamp(22px, 3.2vh, 26px);
+  font-size: 0.8rem;
   margin-left: 2px;
 }
 
 .game-card--playing .power-list {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: clamp(2px, 0.7vw, 5px);
+  gap: clamp(2px, 0.7vw, 4px);
   width: 100%;
 }
 
 .game-card--playing .power-button {
-  min-height: clamp(32px, 4.2vh, 40px);
-  padding: clamp(1px, 0.3vh, 3px) 2px;
-  border-radius: 8px;
+  min-height: clamp(28px, 3.8vh, 36px);
+  padding: clamp(1px, 0.3vh, 2px) 2px;
+  border-radius: 7px;
   gap: 1px;
 }
 
+.game-card--playing.game-card--mission .power-button {
+  min-height: clamp(25px, 3.3vh, 31px);
+}
+
 .game-card--playing .power-icon {
-  font-size: clamp(13px, 1.7vh, 16px);
+  font-size: clamp(12px, 1.6vh, 15px);
+}
+
+.game-card--playing.game-card--mission .power-icon {
+  font-size: clamp(10.5px, 1.4vh, 13px);
 }
 
 .game-card--playing .power-name {
-  font-size: clamp(7px, 1.5vw, 8.5px);
+  font-size: clamp(7px, 1.4vw, 8px);
   font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
@@ -9315,59 +9433,78 @@ body[data-skin="ice"] .o-mark-square .square-value {
   max-width: 100%;
 }
 
-/* 6. Dynamic Viewport-Clamped Game Board (Zero-Scroll Hero) */
+/* 6. Dynamic Viewport-Clamped Game Board (Strict Square Grid, Zero Overlap) */
 .game-card--playing .board {
-  width: min(100%, 300px, calc(100dvh - 430px));
-  max-width: min(100%, 300px, calc(100dvh - 430px));
-  max-height: min(300px, calc(100dvh - 430px));
-  height: auto;
+  display: grid;
+  grid-template-columns: repeat(var(--board-size), minmax(0, 1fr));
+  grid-template-rows: repeat(var(--board-size), minmax(0, 1fr));
+  width: var(--board-dim);
+  height: var(--board-dim);
+  max-width: var(--board-dim);
+  max-height: var(--board-dim);
+  box-sizing: border-box;
   aspect-ratio: 1;
   padding: clamp(4px, 1.2vw, 8px);
   gap: clamp(3px, 1.2vw, 6px);
   margin: 0 auto;
   min-height: 0;
-  flex-shrink: 1;
+  flex-shrink: 0;
 }
 
-/* Classic Mode / Powers Disabled (Expand board to fill space since power panels are slim) */
+/* Classic Mode / Powers Disabled (Expand board since power panels are slim) */
 .game-card--playing:has(.player-panel--classic) .board,
 .game-card--playing .arena-board-stack--classic .board {
-  width: min(100%, 340px, calc(100dvh - 350px));
-  max-width: min(100%, 340px, calc(100dvh - 350px));
-  max-height: min(340px, calc(100dvh - 350px));
+  --board-dim: min(340px, calc(100dvh - 330px), calc(100vw - 32px));
 }
 
 @media (min-width: 600px) and (min-height: 750px) {
   .game-card--playing .board {
-    width: min(100%, 340px, calc(100dvh - 430px));
-    max-width: min(100%, 340px, calc(100dvh - 430px));
-    max-height: min(340px, calc(100dvh - 430px));
+    --board-dim: min(340px, calc(100dvh - 410px), calc(100vw - 40px));
   }
 }
 
 .game-card--playing .square {
+  width: 100%;
+  height: 100%;
   aspect-ratio: 1;
   min-width: 0;
   min-height: 0;
+  box-sizing: border-box;
   border-radius: clamp(7px, 1.8vw, 13px);
-  font-size: clamp(18px, calc(52px / var(--board-size) + 10px), 40px);
+  font-size: clamp(16px, calc(var(--board-dim) / var(--board-size) * 0.52), 38px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* 7. Quick Emote Bar & Bottom Elements */
 .game-card--playing .quick-emote-bar {
   margin: 0;
-  gap: clamp(3px, 1vw, 6px);
+  gap: clamp(2px, 0.8vw, 5px);
   flex-shrink: 0;
 }
 
 .game-card--playing .quick-emote-btn {
-  width: clamp(28px, 3.8vh, 34px);
-  height: clamp(24px, 3.4vh, 30px);
-  border-radius: 8px;
+  width: clamp(26px, 3.5vh, 32px);
+  height: clamp(22px, 3.1vh, 28px);
+  border-radius: 7px;
 }
 
 .game-card--playing .quick-emote-btn-emoji {
-  font-size: clamp(12px, 1.7vh, 15px);
+  font-size: clamp(11px, 1.6vh, 14px);
+}
+
+.game-card--playing.game-card--mission .quick-emote-bar {
+  gap: 3px;
+}
+
+.game-card--playing.game-card--mission .quick-emote-btn {
+  width: clamp(23px, 3vh, 27px);
+  height: clamp(19px, 2.6vh, 23px);
+}
+
+.game-card--playing.game-card--mission .quick-emote-btn-emoji {
+  font-size: clamp(10px, 1.3vh, 12px);
 }
 
 .game-card--playing .round-result-preview {
@@ -9379,6 +9516,49 @@ body[data-skin="ice"] .o-mark-square .square-value {
   min-height: 0;
   font-size: clamp(11.5px, 2vw, 13px);
   padding: 0 16px;
+}
+
+/* Short Mobile Viewports (e.g. iPhone portrait with browser navigation bar) */
+@media (max-height: 740px) {
+  .game-card--playing {
+    gap: 2px;
+    padding: max(2px, env(safe-area-inset-top)) 6px max(2px, env(safe-area-inset-bottom)) 6px;
+    --board-dim: min(240px, calc(100dvh - 360px), calc(100vw - 28px));
+  }
+
+  .game-card--playing.game-card--mission,
+  .game-card--playing:has(.mission-hud) {
+    --board-dim: min(226px, calc(100dvh - 410px), calc(100vw - 32px));
+  }
+
+  .game-card--playing .game-hud-title {
+    font-size: 15px;
+  }
+
+  .game-card--playing .game-hud-btn,
+  .game-card--playing .setup-back-button,
+  .game-card--playing .score-reset-button,
+  .game-card--playing .settings-icon-button {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    min-height: 28px;
+  }
+
+  .game-card--playing.game-card--mission .mission-hud__stars-label {
+    display: none;
+  }
+}
+
+@media (max-height: 650px) {
+  .game-card--playing.game-card--mission .quick-emote-bar {
+    display: none;
+  }
+
+  .game-card--playing.game-card--mission,
+  .game-card--playing:has(.mission-hud) {
+    --board-dim: min(200px, calc(100dvh - 360px), calc(100vw - 28px));
+  }
 }
 
 /* 8. Setup Screen Responsive Adaptations (Compact, Perfectly Centered Arcade Card) */

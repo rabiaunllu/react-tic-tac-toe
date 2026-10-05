@@ -2736,7 +2736,7 @@ export default function App() {
 
   return (
     <main className="app-shell app-shell--playing">
-      <section className="game-card game-card--playing">
+      <section className={`game-card game-card--playing ${isMissionMode ? 'game-card--mission' : ''}`}>
         <header className="game-hud-header">
           <div className="game-hud-top-bar">
             <button
