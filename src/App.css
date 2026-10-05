@@ -7818,7 +7818,8 @@ button,
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 6px 8px;
   font-size: 11px;
   color: #64748b;
   margin-top: 4px;
@@ -9566,7 +9567,9 @@ body[data-skin="ice"] .o-mark-square .square-value {
     padding: 1px 0;
     font-size: 10px;
     line-height: 1.1;
-    opacity: 0.6;
+    opacity: 0.75;
+    flex-wrap: wrap;
+    gap: 4px 6px;
   }
 }
 

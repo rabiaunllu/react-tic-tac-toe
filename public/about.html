@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About Us - XO Tactix</title>
+  <meta name="description" content="Learn more about XO Tactix, its game modes, strategic puzzle mechanics, and developer background.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: #111827;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --accent: #00d2ff;
+      --border: #1f2937;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg);
+      color: var(--text-main);
+      line-height: 1.6;
+      padding: 32px 16px;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: var(--card-bg);
+      padding: 40px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    }
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-bottom: 28px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    h2 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-top: 24px;
+      margin-bottom: 12px;
+      color: #38bdf8;
+    }
+    p, ul {
+      color: #d1d5db;
+      margin-bottom: 16px;
+      font-size: 0.975rem;
+    }
+    ul {
+      padding-left: 24px;
+    }
+    li {
+      margin-bottom: 8px;
+    }
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    .back-btn {
+      display: inline-block;
+      margin-bottom: 24px;
+      padding: 8px 16px;
+      background: #1f2937;
+      color: var(--accent);
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+    .back-btn:hover {
+      background: #374151;
+      text-decoration: none;
+    }
+    .feature-card {
+      background: #162032;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    .feature-card h3 {
+      font-size: 1.05rem;
+      color: #f3f4f6;
+      margin-bottom: 6px;
+    }
+    .feature-card p {
+      margin-bottom: 0;
+      font-size: 0.925rem;
+      color: #9ca3af;
+    }
+    .footer-links {
+      margin-top: 32px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="/" class="back-btn">← Back to Game</a>
+    <h1>About XO Tactix</h1>
+    <div class="subtitle">A modern, strategic browser game developed by Rabia Ünlü</div>
+
+    <p>Welcome to <strong>XO Tactix</strong> (<a href="https://xotactix.me">https://xotactix.me</a>)! XO Tactix is an indie web-based strategy game designed to evolve the traditional Tic-Tac-Toe concept into a rich, brain-training tactical battleground.</p>
+
+    <h2>Our Mission & Vision</h2>
+    <p>Classic Tic-Tac-Toe often ends in a repetitive draw. We set out to change that by blending chess-inspired foresight, tactical power-ups, and level-based puzzle mechanics into a smooth, instantaneous web experience accessible to everyone across mobile and desktop browsers.</p>
+    <p>Our core philosophy centers on:</p>
+    <ul>
+      <li><strong>Instant Playability:</strong> No lengthy downloads, paywalls, or mandatory sign-ups. Jump right into a match within seconds.</li>
+      <li><strong>Pure Mental Strategy:</strong> Every mode challenges pattern recognition, spatial reasoning, and tactical depth.</li>
+      <li><strong>Family-Friendly Entertainment:</strong> Non-violent, clean gameplay crafted for all age groups.</li>
+      <li><strong>Client-First Privacy:</strong> Your progress and preferences stay securely on your local device.</li>
+    </ul>
+
+    <h2>Game Modes & Highlights</h2>
+    <div class="feature-card">
+      <h3>🤖 Smart AI Arena</h3>
+      <p>Play against heuristic & Minimax algorithms across four carefully tuned difficulty tiers: Easy, Medium, Hard, and Master.</p>
+    </div>
+    <div class="feature-card">
+      <h3>🧩 Puzzle Campaign (Sefer Modu)</h3>
+      <p>Over 30 handcrafted tactical puzzle boards designed to teach advanced positioning, blocking, and winning combinations.</p>
+    </div>
+    <div class="feature-card">
+      <h3>⚡ Tactical Powers</h3>
+      <p>Strategic elements such as Shield, Freeze, Bomb, and Double Move introduce dynamic counterplay and depth to each match.</p>
+    </div>
+    <div class="feature-card">
+      <h3>🌐 Real-Time Multiplayer Rooms</h3>
+      <p>Challenge friends anywhere in the world in real-time through WebSocket & SignalR powered peer-to-peer rooms.</p>
+    </div>
+
+    <h2>Technology & Craftsmanship</h2>
+    <p>XO Tactix is engineered with modern web standards:</p>
+    <ul>
+      <li><strong>Frontend:</strong> React 19, Vite, GPU-accelerated CSS animations, and Web Audio API for immersive soundscapes.</li>
+      <li><strong>Backend:</strong> ASP.NET Core 8 Web API & SignalR Hub for scalable real-time matchmaking.</li>
+      <li><strong>Hosting & Security:</strong> Hosted on Microsoft Azure Cloud infrastructure with end-to-end SSL/TLS encryption.</li>
+      <li><strong>Ad Policy Compliance:</strong> Full compliance with Google AdSense publisher policies, ensuring a respectful, non-intrusive advertising experience.</li>
+    </ul>
+
+    <h2>About the Developer</h2>
+    <p>XO Tactix is created and maintained by <strong>Rabia Ünlü</strong>, a passionate software developer dedicated to building responsive, user-centric web applications and games. The open-source development and technical evolution can be explored on <a href="https://github.com/rabiaunllu/react-tic-tac-toe" target="_blank" rel="noopener">GitHub</a>.</p>
+
+    <div class="footer-links">
+      <a href="/contact.html">Contact Us</a>
+      <a href="/privacy.html">Privacy Policy</a>
+      <a href="/terms.html">Terms of Service</a>
+    </div>
+  </div>
+</body>
+</html>

@@ -2,17 +2,27 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://xotactix.me/</loc>
-    <lastmod>2026-10-03</lastmod>
+    <lastmod>2026-10-05</lastmod>
     <priority>1.0</priority>
   </url>
   <url>
+    <loc>https://xotactix.me/about.html</loc>
+    <lastmod>2026-10-05</lastmod>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://xotactix.me/contact.html</loc>
+    <lastmod>2026-10-05</lastmod>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://xotactix.me/privacy.html</loc>
-    <lastmod>2026-10-03</lastmod>
-    <priority>0.5</priority>
+    <lastmod>2026-10-05</lastmod>
+    <priority>0.6</priority>
   </url>
   <url>
     <loc>https://xotactix.me/terms.html</loc>
-    <lastmod>2026-10-03</lastmod>
-    <priority>0.5</priority>
+    <lastmod>2026-10-05</lastmod>
+    <priority>0.6</priority>
   </url>
 </urlset>
