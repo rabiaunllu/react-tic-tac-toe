@@ -7821,12 +7821,12 @@ button,
   flex-wrap: wrap;
   gap: 6px 8px;
   font-size: 11px;
-  color: #64748b;
+  color: #94a3b8;
   margin-top: 4px;
 }
 
 .setup-legal-links a {
-  color: #64748b;
+  color: #94a3b8;
   text-decoration: none;
   font-family: 'Inter', system-ui, sans-serif;
   transition: color 150ms ease;
@@ -7838,7 +7838,7 @@ button,
 }
 
 .legal-dot {
-  color: #475569;
+  color: #64748b;
 }
 
 .viral-footer-btn--prominent {
