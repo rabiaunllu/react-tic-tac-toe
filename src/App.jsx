@@ -1,9 +1,27 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import './App.css'
 import { useTranslation } from './i18n'
-import { createInitialPowerCounts, missionPowerIds, ARENA_POWER_NAMES } from './game/powers'
+import { ARENA_POWER_NAMES, createInitialPowerCounts, missionPowerIds, rewardedPowerIds } from './game/powers'
 import Board from './components/Board'
+import GameStatus from './components/GameStatus'
+import ArenaSettings from './components/ArenaSettings'
+import PowerPanel from './components/PowerPanel'
 import GameSetup from './components/GameSetup'
 import OnlineGame from './components/OnlineGame'
+import RoundResultPreviewBar from './components/RoundResultPreviewBar'
+import FloatingEmote from './components/FloatingEmote'
+import QuickEmoteBar from './components/QuickEmoteBar'
+import SoundToggle from './components/SoundToggle'
+import RoundResultModal from './components/RoundResultModal'
+import TutorialOverlay from './components/TutorialOverlay'
+
+let aiPlayerModulePromise = null
+function getAiPlayerModule() {
+  if (!aiPlayerModulePromise) {
+    aiPlayerModulePromise = import('./game/aiPlayer')
+  }
+  return aiPlayerModulePromise
+}
 import {
   calculateRoundScore,
   calculateWinner,

@@ -1,3 +1,18 @@
+import { lazy, Suspense, useEffect, useState } from 'react'
+import {
+  getRoomStatusText,
+  IS_ONLINE_ENABLED,
+  isConnectionError,
+  isRoomNotFoundError,
+  leaveRoom,
+  requestRoomJson,
+  startRoom,
+} from '../api/roomsApi'
+import { clearOnlineSession } from '../sessionStorage'
+import SoundToggle from './SoundToggle'
+import { useTranslation } from '../i18n'
+import { playSound, registerUserGesture } from '../game/soundManager'
+import SetupHeroBanner from './SetupHeroBanner'
 import { isCampaignLevelUnlocked } from '../game/levels'
 import {
   safeGetItem,
@@ -136,7 +151,7 @@ export default function GameSetup({
   
 
   const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000
-  const [nowTimestamp, setNowTimestamp] = useState(() => Date.now())
+  const [nowTimestamp] = useState(() => Date.now())
 
   const [dailyStreak, setDailyStreak] = useState(getDailyStreak)
 
@@ -175,7 +190,7 @@ export default function GameSetup({
   }, [])
 
   const [pendingUnlockSkin, setPendingUnlockSkin] = useState(null)
-  const [isUnlockingSkin, setIsUnlockingSkin] = useState(false)
+  const [isUnlockingSkin] = useState(false)
   const [skinUnlockNotice, setSkinUnlockNotice] = useState('')
 
   function isSkinUnlocked() {
