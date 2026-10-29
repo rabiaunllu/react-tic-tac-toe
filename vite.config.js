@@ -50,7 +50,8 @@ export default defineConfig(({ mode }) => {
   const contentSecurityPolicy =
     "default-src 'self'; script-src 'self' 'unsafe-inline'; " +
     "worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-    "font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; frame-src 'self'; connect-src " +
+    "font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; " +
+    "media-src 'self' data: blob:; frame-src 'self'; connect-src " +
     `${connectSources}; object-src 'none'; base-uri 'self'; form-action 'self'`
 
   return {
