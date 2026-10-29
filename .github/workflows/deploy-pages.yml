@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - production/xotactix-ads
   workflow_dispatch:
 
 concurrency:

@@ -1,15 +1,11 @@
 # XO Tactix
 
 <p align="center">
-  <img src="docs/images/banner.png" alt="XO Tactix Banner" width="100%" style="border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);" />
-</p>
-
-<p align="center">
   <strong>Klasik Tic-Tac-Toe mantığını stratejik özel güçler, Web Worker tabanlı Minimax yapay zekâsı ve ASP.NET Core SignalR gerçek zamanlı oda altyapısıyla birleştiren taktiksel web oyunu.</strong>
 </p>
 
 <p align="center">
-  <a href="https://rabiaunllu.github.io/react-tic-tac-toe/"><img src="https://img.shields.io/badge/Canlı%20Demo-GitHub%20Pages-00f0ff?style=for-the-badge&logo=githubpages&logoColor=black" alt="Live Demo" /></a>
+  <a href="https://rabiaunllu.github.io/xo-tactix/"><img src="https://img.shields.io/badge/Canlı%20Demo-GitHub%20Pages-00f0ff?style=for-the-badge&logo=githubpages&logoColor=black" alt="Live Demo" /></a>
   <img src="https://img.shields.io/badge/React%2019-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React 19" />
   <img src="https://img.shields.io/badge/.NET%208-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" alt=".NET 8" />
   <img src="https://img.shields.io/badge/SignalR-WebSockets-f34f29?style=for-the-badge&logo=socketdotio&logoColor=white" alt="SignalR" />
@@ -22,7 +18,7 @@
 
 ## 🎮 Canlı Demo
 
-* 🌐 **Tarayıcıda Oyna:** [https://rabiaunllu.github.io/react-tic-tac-toe/](https://rabiaunllu.github.io/react-tic-tac-toe/)
+* 🌐 **Tarayıcıda Oyna:** [https://rabiaunllu.github.io/xo-tactix/](https://rabiaunllu.github.io/xo-tactix/)
 * 💡 *Not: Bot (PvC), Lokal 2P, 30 Bölümlük Bulmaca Seferi ve Günün Görevi tarayıcı üzerinde tamamen istemci tarafında (Client-side) çalışır. Çevrim içi oda (SignalR) modu için bulut sunucusu maliyet tasarrufu nedeniyle durdurulmuştur; yerelde çalıştırma adımları aşağıda belirtilmiştir.*
 
 ---
@@ -94,8 +90,8 @@ Klasik 3x3, 4x4 ve 5x5 tahtalarda 2x ve 3x puan çarpanlarının yanı sıra 5 t
 
 ### 1. Frontend Kurulumu
 ```bash
-git clone https://github.com/rabiaunllu/react-tic-tac-toe.git
-cd react-tic-tac-toe
+git clone https://github.com/rabiaunllu/xo-tactix.git
+cd xo-tactix
 
 # Bağımlılıkları yükle
 npm install
