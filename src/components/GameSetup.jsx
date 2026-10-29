@@ -870,23 +870,6 @@ export default function GameSetup({
             <span>{t('setup.rulesButton')}</span>
           </button>
 
-          <div className="setup-legal-links">
-            <a href="/about.html" target="_blank" rel="noopener noreferrer">
-              {isTr ? 'Hakkımızda' : 'About'}
-            </a>
-            <span className="legal-dot">•</span>
-            <a href="/contact.html" target="_blank" rel="noopener noreferrer">
-              {isTr ? 'İletişim' : 'Contact'}
-            </a>
-            <span className="legal-dot">•</span>
-            <a href="/privacy.html" target="_blank" rel="noopener noreferrer">
-              {isTr ? 'Gizlilik Politikası' : 'Privacy Policy'}
-            </a>
-            <span className="legal-dot">•</span>
-            <a href="/terms.html" target="_blank" rel="noopener noreferrer">
-              {isTr ? 'Kullanım Koşulları' : 'Terms of Service'}
-            </a>
-          </div>
         </footer>
       </section>
 
