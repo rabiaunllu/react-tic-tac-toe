@@ -68,7 +68,6 @@ export function isSdkAudioMuted() {
   try {
     const params = new URLSearchParams(window.location.search)
     if (params.get('muteAudio') === 'true') return true
-    if (window.CrazyGames?.SDK?.initialized && window.CrazyGames.SDK.game?.settings?.muteAudio) return true
   } catch {
     // ignore
   }

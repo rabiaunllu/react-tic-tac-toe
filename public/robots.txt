@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://xotactix.me/sitemap.xml
+Sitemap: https://rabiaunllu.github.io/react-tic-tac-toe/sitemap.xml

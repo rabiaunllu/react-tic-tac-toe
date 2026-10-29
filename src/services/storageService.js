@@ -1,5 +1,3 @@
-import { loadData, saveData } from './crazyGamesService.js';
-
 /**
  * Storage Keys
  */
@@ -75,9 +73,9 @@ export function safeGetItem(key, defaultValue = null) {
 }
 
 /**
- * Safely writes to localStorage, mirrors to memory fallback, and queues CrazyGames cloud save.
+ * Safely writes to localStorage and mirrors to memory fallback.
  */
-export function safeSetItem(key, value, options = { syncCloud: true }) {
+export function safeSetItem(key, value) {
   if (typeof window === 'undefined') return false;
 
   memoryFallback.set(key, value);
@@ -90,11 +88,6 @@ export function safeSetItem(key, value, options = { syncCloud: true }) {
     }
   } catch (err) {
     console.warn(`[StorageService] Failed to write "${key}" to localStorage:`, err);
-  }
-
-  // Asynchronously push to CrazyGames cloud if applicable
-  if (options.syncCloud && (key === STORAGE_KEYS.CAMPAIGN || key === STORAGE_KEYS.DAILY || key === STORAGE_KEYS.PROGRESSION || key === STORAGE_KEYS.SKINS)) {
-    saveData(key, value).catch(() => {});
   }
 
   return writtenLocally || memoryFallback.has(key);
@@ -168,7 +161,6 @@ export function sanitizeDailyChallenge(raw) {
 
   if (raw.history && typeof raw.history === 'object' && !Array.isArray(raw.history)) {
     for (const [dateStr, record] of Object.entries(raw.history)) {
-      // Must match YYYY-MM-DD format
       if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr) && dateStr <= maxDateStr && record) {
         sanitized.history[dateStr] = {
           completed: Boolean(record.completed),
@@ -181,9 +173,6 @@ export function sanitizeDailyChallenge(raw) {
   return sanitized;
 }
 
-/**
- * Merges local and cloud campaign saves, picking the highest progress.
- */
 export function mergeCampaignProgress(local, cloud) {
   const cleanLocal = sanitizeCampaignProgress(local);
   const cleanCloud = sanitizeCampaignProgress(cloud);
@@ -205,9 +194,6 @@ export function mergeCampaignProgress(local, cloud) {
   return merged;
 }
 
-/**
- * Merges local and cloud daily challenge progress.
- */
 export function mergeDailyChallenge(local, cloud) {
   const cleanLocal = sanitizeDailyChallenge(local);
   const cleanCloud = sanitizeDailyChallenge(cloud);
@@ -221,43 +207,6 @@ export function mergeDailyChallenge(local, cloud) {
   return merged;
 }
 
-/**
- * Background synchronizer: checks CrazyGames cloud storage on game boot and merges any remote progress.
- */
 export async function syncAllWithCrazyGamesCloud() {
-  try {
-    const [cloudCampaign, cloudDaily, cloudProgression] = await Promise.all([
-      loadData(STORAGE_KEYS.CAMPAIGN),
-      loadData(STORAGE_KEYS.DAILY),
-      loadData(STORAGE_KEYS.PROGRESSION),
-    ]);
-
-    if (cloudCampaign) {
-      const localCampaign = safeGetItem(STORAGE_KEYS.CAMPAIGN, { completedLevels: {} });
-      const merged = mergeCampaignProgress(localCampaign, cloudCampaign);
-      safeSetItem(STORAGE_KEYS.CAMPAIGN, merged, { syncCloud: false });
-    }
-
-    if (cloudDaily) {
-      const localDaily = safeGetItem(STORAGE_KEYS.DAILY, { streak: 0, history: {} });
-      const merged = mergeDailyChallenge(localDaily, cloudDaily);
-      safeSetItem(STORAGE_KEYS.DAILY, merged, { syncCloud: false });
-    }
-
-    if (cloudProgression && typeof cloudProgression === 'object') {
-      const localProg = safeGetItem(STORAGE_KEYS.PROGRESSION, { totalXP: 0, level: 1 });
-      const mergedProg = {
-        ...localProg,
-        totalXP: Math.max(localProg.totalXP || 0, cloudProgression.totalXP || 0),
-        level: Math.max(localProg.level || 1, cloudProgression.level || 1),
-        campaignStars: { ...(localProg.campaignStars || {}), ...(cloudProgression.campaignStars || {}) },
-      };
-      safeSetItem(STORAGE_KEYS.PROGRESSION, mergedProg, { syncCloud: false });
-    }
-
-    return true;
-  } catch (err) {
-    console.warn('[StorageService] Cloud sync notice:', err);
-    return false;
-  }
+  return false;
 }

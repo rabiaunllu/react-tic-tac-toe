@@ -3,20 +3,20 @@ const configuredApiBaseUrl = import.meta.env?.VITE_API_BASE_URL?.trim()
 const onlineFlag = import.meta.env?.VITE_ENABLE_ONLINE?.trim().toLowerCase()
 const isOnlineFlagEnabled = onlineFlag === 'true' || (!import.meta.env?.PROD && !onlineFlag)
 const hasConfiguredApiBaseUrl = Boolean(configuredApiBaseUrl)
-const isCrazyGamesHost =
-  typeof window !== 'undefined' &&
-  !window.location.hostname.includes('xotactix.me') &&
-  (window.location.hostname.includes('crazygames') ||
-   (typeof document !== 'undefined' && Boolean(document.referrer?.includes('crazygames'))) ||
-   Boolean(window.location.search?.includes('platform=crazygames')))
-const canUseSameOriginApi = Boolean(import.meta.env?.PROD && !hasConfiguredApiBaseUrl && !isCrazyGamesHost)
+const isGitHubPagesHost =
+  typeof window !== 'undefined' && window.location.hostname.includes('github.io')
+const canUseSameOriginApi = Boolean(import.meta.env?.PROD && !hasConfiguredApiBaseUrl && !isGitHubPagesHost)
 
 export const API_BASE_URL = (
   configuredApiBaseUrl ||
   (import.meta.env?.DEV ? DEFAULT_API_BASE_URL : '')
 ).replace(/\/+$/, '')
-export const IS_ONLINE_ENABLED =
-  isOnlineFlagEnabled && (Boolean(import.meta.env?.DEV) || hasConfiguredApiBaseUrl || canUseSameOriginApi)
+export const IS_ONLINE_ENABLED = isOnlineFlagEnabled
+export const IS_BACKEND_AVAILABLE = Boolean(
+  import.meta.env?.DEV ||
+  hasConfiguredApiBaseUrl ||
+  canUseSameOriginApi
+)
 export const ONLINE_UNAVAILABLE_MESSAGE = 'Online mod yakında açılacak.'
 
 export class RoomRequestError extends Error {

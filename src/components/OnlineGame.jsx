@@ -17,14 +17,11 @@ import QuickEmoteBar from './QuickEmoteBar'
 import SoundToggle from './SoundToggle'
 import { playSound, registerUserGesture } from '../game/soundManager'
 import { useTranslation } from '../i18n'
-import { gameplayStart, gameplayStop, updateRoom, leftRoom } from '../services/crazyGamesService'
-
 function isChatDisabledByPlatform() {
   if (typeof window === 'undefined') return false
   try {
     const params = new URLSearchParams(window.location.search)
     if (params.get('disableChat') === 'true') return true
-    if (window.CrazyGames?.SDK?.initialized && window.CrazyGames.SDK.game?.settings?.disableChat) return true
   } catch {
     // ignore
   }
@@ -265,32 +262,11 @@ export default function OnlineGame({ initialOnlineGame, onMenu }) {
   }, [turnTimeLimit, currentSymbol, room.game.roundNumber, room.status, room.game.winner, room.game.isDraw, playerId, playerSecret, roomCode])
   const isRoundFinished = Boolean(room.game.winner) || room.game.isDraw || room.status === 'completed'
 
-  useEffect(() => {
-    if (room.status === 'playing' && !isRoundFinished) {
-      gameplayStart()
-    } else if (isRoundFinished || room.status === 'completed') {
-      gameplayStop()
-    }
-  }, [room.status, isRoundFinished])
+  
 
-  useEffect(() => {
-    return () => {
-      gameplayStop()
-    }
-  }, [])
+  
 
-  useEffect(() => {
-    if (roomCode) {
-      updateRoom({
-        roomId: roomCode,
-        isJoinable: false,
-        inviteParams: { room: roomCode },
-      })
-    }
-    return () => {
-      leftRoom()
-    }
-  }, [roomCode])
+  
 
   const isPlatformChatDisabled = isChatDisabledByPlatform()
   const nextRoundPlayerIds = room.game.nextRoundPlayerIds ?? []

@@ -1,42 +1,3 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import './App.css'
-import Board from './components/Board'
-import GameStatus from './components/GameStatus'
-import ArenaSettings from './components/ArenaSettings'
-import PowerPanel from './components/PowerPanel'
-import GameSetup from './components/GameSetup'
-import { ARENA_POWER_NAMES, createInitialPowerCounts, missionPowerIds, rewardedPowerIds } from './game/powers'
-import RoundResultPreviewBar from './components/RoundResultPreviewBar'
-import FloatingEmote from './components/FloatingEmote'
-import QuickEmoteBar from './components/QuickEmoteBar'
-import SoundToggle from './components/SoundToggle'
-import OnlineGame from './components/OnlineGame'
-import RoundResultModal from './components/RoundResultModal'
-import TutorialOverlay from './components/TutorialOverlay'
-
-// PERFORMANCE OPTIMIZATION (Action 15): Decouple main thread entry from aiPlayer.js.
-// AI calculations run in aiWorker.js. By loading aiPlayer dynamically on demand,
-// we eliminate ~56KB of Minimax & Zobrist tables from the initial bundle.
-let aiPlayerModulePromise = null
-function getAiPlayerModule() {
-  if (!aiPlayerModulePromise) {
-    aiPlayerModulePromise = import('./game/aiPlayer')
-  }
-  return aiPlayerModulePromise
-}
-import { useTranslation } from './i18n'
-import {
-  ENABLE_CRAZYGAMES,
-  initCrazyGamesSdk,
-  gameplayStart,
-  gameplayStop,
-  requestMidgameAd,
-  requestRewardedAd,
-  triggerHappytime,
-  loadingStart,
-  loadingStop,
-} from './services/crazyGamesService'
-import { setAdMuted } from './game/soundManager'
 import {
   calculateRoundScore,
   calculateWinner,
@@ -83,7 +44,6 @@ import {
   STORAGE_KEYS,
   sanitizeCampaignProgress,
   sanitizeDailyChallenge,
-  syncAllWithCrazyGamesCloud,
 } from './services/storageService'
 
 const defaultBoardSize = 3
@@ -283,25 +243,7 @@ export default function App() {
     activeTimeoutsRef.current.clear()
   }, [])
 
-  useEffect(() => {
-    let isSubscribed = true
-    const initApp = async () => {
-      try {
-        await initCrazyGamesSdk()
-        if (!isSubscribed) return
-        await loadingStart()
-        await syncAllWithCrazyGamesCloud()
-      } catch (err) {
-        console.warn('[App] Initialization notice:', err)
-      } finally {
-        await loadingStop()
-      }
-    }
-    void initApp()
-    return () => {
-      isSubscribed = false
-    }
-  }, [])
+  
 
   useEffect(() => {
     return () => {
@@ -456,14 +398,7 @@ export default function App() {
   const isArena = gameMode === 'arena'
   const isMissionMode = Boolean(gameConfig?.campaignLevel || gameConfig?.dailyChallenge)
   // Hediye kutusu reklam izleme sadece CrazyGames platformunda geçerlidir; GitHub Pages ve kendi sitemizde reklam asla gösterilmez
-  const isRewardedPowerAvailable = Boolean(
-    ENABLE_CRAZYGAMES &&
-    gameConfig &&
-    opponentType === 'ai' &&
-    gameMode === 'arena' &&
-    powersEnabled &&
-    !isMissionMode
-  )
+  const isRewardedPowerAvailable = false
   const scoreLabel = isArena
     ? (t('common.point') || (isTr ? 'Puan' : 'Points'))
     : (t('common.score') || (isTr ? 'Skor' : 'Score'))
@@ -680,7 +615,7 @@ export default function App() {
               if (awardedXP > 0) {
                 addXP(awardedXP, 'campaign')
               }
-              triggerHappytime()
+              
               missionCompletionRef.current = mission.id
             }
           } else {
@@ -707,7 +642,7 @@ export default function App() {
                 }
                 safeSetItem(STORAGE_KEYS.DAILY, daily)
                 addXP(mission.reward?.value ?? 500, 'daily_challenge')
-                triggerHappytime()
+                
                 missionCompletionRef.current = mission.id
               }
               if (alreadyCompleted || isPractice) {
@@ -736,7 +671,7 @@ export default function App() {
               if (currentStreak === -1) return 0
               const newStreak = Math.min(currentStreak + 1, 3)
               // Trigger CrazyGames confetti on any human win
-              triggerHappytime()
+              
               if (newStreak >= 3) {
                 isStreakVictory = true
               }
@@ -762,7 +697,6 @@ export default function App() {
         setResultMessage(getRandomMessage(winnerMessages, language))
         setLoserMessage(getRandomMessage(loserMessages, language))
         playSound(isStreakVictory ? 'streak' : 'win')
-        gameplayStop()
         return
       }
 
@@ -774,7 +708,6 @@ export default function App() {
         setResultMessage(getRandomMessage(drawMessages, language))
         setLoserMessage(null)
         playSound('draw')
-        gameplayStop()
       }
     },
     [boardSize, winLength, multipliers, multipliersEnabled, boostedSquares, blockedSquares, opponentType, gameMode, isP1X, humanSymbol, aiSymbol, language, triggerBotEmote, gameConfig, playerPowers, isTr]
@@ -834,7 +767,6 @@ export default function App() {
       setResultMessage(['⏰', timeoutTitle, timeoutSub, { type: 'timeout', timedOutPlayerName, winnerName }])
       setLoserMessage(null)
       playSound('win')
-      gameplayStop()
     },
     [
       winner,
@@ -1071,41 +1003,22 @@ export default function App() {
       pausedRemainingMsRef.current = Math.max(0, turnDeadlineRef.current - Date.now())
     }
 
-    setIsRewarding(true)
     setIsRewardedPowerPickerOpen(false)
-    setRewardedPowerMessage(isTr ? 'Reklam izleniyor...' : 'Loading reward video...')
-    gameplayStop()
-
-    requestRewardedAd({
-      onAdStarted: () => {
-        setAdMuted(true)
+    setPlayerPowers((currentPowers) => ({
+      ...currentPowers,
+      [humanSymbol]: {
+        ...currentPowers[humanSymbol],
+        [powerId]: (currentPowers[humanSymbol]?.[powerId] ?? 0) + 1,
       },
-      onAdFinished: () => {
-        setAdMuted(false)
-        setPlayerPowers((currentPowers) => ({
-          ...currentPowers,
-          [humanSymbol]: {
-            ...currentPowers[humanSymbol],
-            [powerId]: (currentPowers[humanSymbol]?.[powerId] ?? 0) + 1,
-          },
-        }))
-        setRewardedPowerClaimed(true)
-        setIsRewarding(false)
-        setRewardedPowerMessage(
-          isTr
-            ? `${powerId === 'freeze' ? 'Freeze' : 'Vampir'} gücü eklendi.`
-            : `${powerId === 'freeze' ? 'Freeze' : 'Vampire'} power added.`
-        )
-        playSound('power')
-        gameplayStart()
-      },
-      onAdError: () => {
-        setAdMuted(false)
-        setIsRewarding(false)
-        setRewardedPowerMessage('')
-        gameplayStart()
-      },
-    })
+    }))
+    setRewardedPowerClaimed(true)
+    setIsRewarding(false)
+    setRewardedPowerMessage(
+      isTr
+        ? `${powerId === 'freeze' ? 'Freeze' : 'Vampir'} gücü eklendi.`
+        : `${powerId === 'freeze' ? 'Freeze' : 'Vampire'} power added.`
+    )
+    playSound('power')
   }
 
   function handleSelectHumanPower(powerId) {
@@ -2390,7 +2303,6 @@ export default function App() {
   }
 
   function proceedToNextRound() {
-    gameplayStart()
     const nextRound = roundNumber + 1
     missionTotalTurnsRef.current = 0
     setCurrentMoves(0)
@@ -2408,28 +2320,11 @@ export default function App() {
   function handleNextRound() {
     registerUserGesture()
     playSound('click')
-    // Asla oyun esnasında çıkmaz; sadece CrazyGames platformunda her 3 turda bir (3, 6, 9...) tur bitiminde gösterilir.
-    // Yeni tur, süre sayacı ve bot hamlesi SADECE reklam tamamen bittiğinde başlar!
-    if (ENABLE_CRAZYGAMES && roundNumber % 3 === 0) {
-      requestMidgameAd({
-        onAdStarted: () => setAdMuted(true),
-        onAdFinished: () => {
-          setAdMuted(false)
-          proceedToNextRound()
-        },
-        onAdError: () => {
-          setAdMuted(false)
-          proceedToNextRound()
-        },
-      })
-    } else {
-      proceedToNextRound()
-    }
+    proceedToNextRound()
   }
 
   function proceedToNewMatch() {
     clearLocalSession()
-    gameplayStart()
     setTimeoutWinner(null)
     turnDeadlineRef.current = null
     pausedRemainingMsRef.current = null
@@ -2489,21 +2384,7 @@ export default function App() {
       return
     }
     // Maç bittiğinde en az 3 tur oynandıysa sadece CrazyGames üzerinde reklam göster; yeni maç reklam bitince başlar
-    if (ENABLE_CRAZYGAMES && roundNumber >= 3) {
-      requestMidgameAd({
-        onAdStarted: () => setAdMuted(true),
-        onAdFinished: () => {
-          setAdMuted(false)
-          proceedToNewMatch()
-        },
-        onAdError: () => {
-          setAdMuted(false)
-          proceedToNewMatch()
-        },
-      })
-    } else {
-      proceedToNewMatch()
-    }
+    proceedToNewMatch()
   }
 
   function handleResetScores() {
@@ -2513,7 +2394,6 @@ export default function App() {
   }
 
   function handleResultMenu() {
-    gameplayStop()
     setTimeoutWinner(null)
     turnDeadlineRef.current = null
     pausedRemainingMsRef.current = null
@@ -2588,7 +2468,6 @@ export default function App() {
     if (config.dailyChallenge && isDailyChallengeCompletedForDate(config.dailyChallenge.date)) {
       config.dailyChallenge.isPractice = true
     }
-    gameplayStart()
     setOnlineGame(null)
     setSetupRestoreMessage('')
     setGameConfig(config)
@@ -2669,7 +2548,6 @@ export default function App() {
   }
 
   function handleStartOnlineGame(nextOnlineGame) {
-    gameplayStart()
     setGameConfig(null)
     setOnlineGame(nextOnlineGame)
     handleSaveOnlineSession({
@@ -2685,7 +2563,6 @@ export default function App() {
   }
 
   function handleOnlineMenu() {
-    gameplayStop()
     setOnlineGame(null)
     setGameConfig(null)
     clearOnlineSession()

@@ -1,19 +1,3 @@
-import { useEffect, useState, lazy, Suspense } from 'react'
-import {
-  getRoomStatusText,
-  IS_ONLINE_ENABLED,
-  isConnectionError,
-  isRoomNotFoundError,
-  leaveRoom,
-  requestRoomJson,
-  startRoom,
-} from '../api/roomsApi'
-import { clearOnlineSession } from '../sessionStorage'
-import SoundToggle from './SoundToggle'
-import { useTranslation } from '../i18n'
-import { playSound, registerUserGesture } from '../game/soundManager'
-import SetupHeroBanner from './SetupHeroBanner'
-import { ENABLE_CRAZYGAMES, initCrazyGamesSdk, requestRewardedAd, getInviteLink, getInviteParam, updateRoom, leftRoom } from '../services/crazyGamesService'
 import { isCampaignLevelUnlocked } from '../game/levels'
 import {
   safeGetItem,
@@ -94,7 +78,7 @@ function getCurrentOnlinePlayer(room, playerName, preferredSymbol) {
 
 function getInitialDeepLinkRoom() {
   if (typeof window === 'undefined') return null
-  const sdkRoom = getInviteParam('room')
+  const sdkRoom = null
   const params = new URLSearchParams(window.location.search)
   const roomParam = sdkRoom || params.get('room')
   if (roomParam && IS_ONLINE_ENABLED) {
@@ -147,36 +131,9 @@ export default function GameSetup({
   const [onlineBoostMode] = useState('random')
   const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false)
 
-  useEffect(() => {
-    if (!onlineLobby?.room?.roomCode) return
-    updateRoom({
-      roomId: onlineLobby.room.roomCode,
-      isJoinable: onlineLobby.room.status === 'waiting',
-      inviteParams: { room: onlineLobby.room.roomCode },
-    })
-    return () => {
-      leftRoom()
-    }
-  }, [onlineLobby?.room?.roomCode, onlineLobby?.room?.status])
+  
 
-  useEffect(() => {
-    let isSubscribed = true
-    const checkInviteParam = async () => {
-      await initCrazyGamesSdk()
-      if (!isSubscribed) return
-      const room = getInviteParam('room')
-      if (room && isValidRoomCodeInput(room.toUpperCase())) {
-        const sanitized = room.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8)
-        setJoinRoomCode(sanitized)
-        setOnlineFlow('join')
-        setActiveModal('online_modal')
-      }
-    }
-    void checkInviteParam()
-    return () => {
-      isSubscribed = false
-    }
-  }, [])
+  
 
   const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000
   const [nowTimestamp, setNowTimestamp] = useState(() => Date.now())
@@ -221,14 +178,8 @@ export default function GameSetup({
   const [isUnlockingSkin, setIsUnlockingSkin] = useState(false)
   const [skinUnlockNotice, setSkinUnlockNotice] = useState('')
 
-  function isSkinUnlocked(skinId) {
-    if (!ENABLE_CRAZYGAMES) return true
-    const skinObj = SKINS.find((s) => s.id === skinId)
-    if (skinObj?.isFree) return true
-    const expiresAt = unlockedSkins[skinId]
-    if (!expiresAt) return false
-    if (expiresAt === true) return true
-    return expiresAt > nowTimestamp
+  function isSkinUnlocked() {
+    return true
   }
 
   function getSkinRemainingHours(skinId) {
@@ -262,42 +213,7 @@ export default function GameSetup({
     }
   }
 
-  function handleConfirmSkinUnlock() {
-    if (!pendingUnlockSkin || isUnlockingSkin) return
-    registerUserGesture()
-    playSound('click')
-    setIsUnlockingSkin(true)
-    setSkinUnlockNotice(t('skinUnlock.watching'))
-
-    requestRewardedAd({
-      onAdStarted: () => {
-        // Video playing
-      },
-      onAdFinished: () => {
-        setIsUnlockingSkin(false)
-        const currentNow = Date.now()
-        setNowTimestamp(currentNow)
-        const expiresAt = currentNow + TWENTY_FOUR_HOURS_MS
-        const newUnlocked = {
-          ...unlockedSkins,
-          [pendingUnlockSkin.id]: expiresAt,
-        }
-        setUnlockedSkins(newUnlocked)
-        safeSetItem(STORAGE_KEYS.SKINS, newUnlocked)
-        handleSelectSkin(pendingUnlockSkin)
-        playSound('power')
-        setSkinUnlockNotice(t('skinUnlock.success'))
-        setTimeout(() => {
-          setPendingUnlockSkin(null)
-          setSkinUnlockNotice('')
-        }, 1100)
-      },
-      onAdError: () => {
-        setIsUnlockingSkin(false)
-        setSkinUnlockNotice('')
-      },
-    })
-  }
+  function handleConfirmSkinUnlock() {}
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -622,7 +538,7 @@ export default function GameSetup({
     if (!roomCode || !navigator.clipboard) return
 
     const safeRoomCode = encodeURIComponent(String(roomCode).trim())
-    const link = getInviteLink({ room: safeRoomCode }) || `${window.location.origin}${window.location.pathname}?room=${safeRoomCode}`
+    const link = `${window.location.origin}${window.location.pathname}?room=${safeRoomCode}`
 
     try {
       await navigator.clipboard.writeText(link)
@@ -640,7 +556,7 @@ export default function GameSetup({
     if (!roomCode) return
 
     const safeRoomCode = encodeURIComponent(String(roomCode).trim())
-    const link = getInviteLink({ room: safeRoomCode }) || `${window.location.origin}${window.location.pathname}?room=${safeRoomCode}`
+    const link = `${window.location.origin}${window.location.pathname}?room=${safeRoomCode}`
     const challengeText = isTr
       ? `⚔️ XO Tactix'te seninle kapışmak istiyorum! Odaya katılmak için tıkla:\n${link}\n\nOda Kodu: ${roomCode}`
       : `⚔️ I challenge you to an XO Tactix duel! Click to join:\n${link}\n\nRoom Code: ${roomCode}`

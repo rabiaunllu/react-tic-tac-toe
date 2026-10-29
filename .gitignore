@@ -32,3 +32,8 @@ server/XoArena.Api/publish/
 *.njsproj
 *.sln
 *.sw?
+
+# Clutter / Internal Tools / AI / Build Archives
+.agent/
+tools/
+crazygames-assets/

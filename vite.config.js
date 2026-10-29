@@ -34,58 +34,27 @@ function productionCspPlugin(contentSecurityPolicy) {
   }
 }
 
-function crazyGamesScriptPlugin(isCrazyGamesBuild) {
-  return {
-    name: 'crazygames-script-injection',
-    apply: 'build',
-    transformIndexHtml() {
-      if (!isCrazyGamesBuild) {
-        return []
-      }
-      return [
-        {
-          tag: 'script',
-          attrs: {
-            src: 'https://sdk.crazygames.com/crazygames-sdk-v3.js',
-          },
-          injectTo: 'head',
-        },
-      ]
-    },
-  }
-}
-
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', 'VITE_')
-  const base = env.VITE_BASE_PATH?.trim() || '/'
-  const isCrazyGamesBuild = base === './' || mode === 'crazygames' || env.VITE_PLATFORM === 'crazygames'
+  const base = env.VITE_BASE_PATH?.trim() || './'
   const apiOrigin = getApiOrigin(env.VITE_API_BASE_URL?.trim())
   const wsOrigin = apiOrigin ? apiOrigin.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:') : null
   const connectSources = [
     "'self'",
     apiOrigin,
     wsOrigin,
-    'https://xotactix.me',
-    'wss://xotactix.me',
-    'https://www.xotactix.me',
-    'wss://www.xotactix.me',
-    'https://*.crazygames.com',
-    'https://games.crazygames.com',
-    'https://pagead2.googlesyndication.com',
-    'https://*.google.com',
-    'https://*.googlesyndication.com',
   ]
     .filter(Boolean)
     .join(' ')
   const contentSecurityPolicy =
-    "default-src 'self'; script-src 'self' 'unsafe-inline' https://sdk.crazygames.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.google.com; " +
+    "default-src 'self'; script-src 'self' 'unsafe-inline'; " +
     "worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-    "font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; frame-src 'self' https://googleads.g.doubleclick.net https://*.google.com https://*.googlesyndication.com; connect-src " +
+    "font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; frame-src 'self'; connect-src " +
     `${connectSources}; object-src 'none'; base-uri 'self'; form-action 'self'`
 
   return {
     base,
-    plugins: [react(), productionCspPlugin(contentSecurityPolicy), crazyGamesScriptPlugin(isCrazyGamesBuild)],
+    plugins: [react(), productionCspPlugin(contentSecurityPolicy)],
   }
 })

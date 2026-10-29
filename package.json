@@ -1,12 +1,12 @@
 {
-  "name": "react-tic-tac-toe",
+  "name": "xo-tactix",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "Taktiksel güçler, Minimax yapay zekâsı (Web Worker) ve gerçek zamanlı SignalR (.NET 8) oda sistemi içeren taktiksel web oyunu.",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:crazygames": "vite build --base=./ --mode crazygames",
     "publish:azure": "powershell -ExecutionPolicy Bypass -File ./scripts/Publish-AppService.ps1",
     "lint": "eslint .",
     "preview": "vite preview"

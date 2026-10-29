@@ -6,28 +6,13 @@ import en from './en.js'
 const STORAGE_KEY = 'xo-arena-lang'
 const dictionaries = { tr, en }
 
-function getCrazyGamesLocale() {
-  try {
-    // CrazyGames SDK v3: user.systemInfo provides locale info
-    if (!window.CrazyGames?.SDK?.initialized) return null
-    const systemInfo = window.CrazyGames.SDK.user?.systemInfo
-    if (systemInfo?.countryCode?.toLowerCase() === 'tr') return 'tr'
-    if (systemInfo?.language?.toLowerCase()?.startsWith('tr')) return 'tr'
-    if (systemInfo?.language?.toLowerCase()?.startsWith('en')) return 'en'
-    if (systemInfo?.language) return 'en' // Known locale but not TR → default EN
-  } catch {
-    // SDK not available
-  }
-  return null
-}
+
 
 function getInitialLanguage() {
   if (typeof window === 'undefined') return 'tr'
 
   try {
-    // 0. CrazyGames SDK locale (highest priority on CG platform)
-    const cgLocale = getCrazyGamesLocale()
-    if (cgLocale) return cgLocale
+    
 
     const saved = window.localStorage.getItem(STORAGE_KEY)
     if (saved && (saved === 'tr' || saved === 'en')) {
@@ -45,14 +30,7 @@ function getInitialLanguage() {
       // Ignored if URL parsing fails
     }
 
-    // 2. Check if running on CrazyGames portal (always default to EN for global portal)
-    const isCrazyGames =
-      (typeof window.location !== 'undefined' && window.location.hostname.includes('crazygames')) ||
-      (typeof document !== 'undefined' && document.referrer.includes('crazygames'))
-
-    if (isCrazyGames) {
-      return 'en'
-    }
+    
 
     // 3. Check browser language list (any Turkish preference in list, e.g. ['en-US', 'tr-TR', 'tr'])
     const allLangs = window.navigator?.languages?.length
